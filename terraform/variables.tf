@@ -1,21 +1,19 @@
-variable "backend_bucket" {
-  description = "S3 bucket for Terraform state storage"
+# Root-level variables for EKS GitOps Infrastructure
+
+variable "project_prefix" {
+  description = "Project prefix for resource naming."
   type        = string
+  default     = "eks-gitops"
 }
 
-variable "backend_key" {
-  description = "Path within the bucket for the state file"
+variable "environment" {
+  description = "Deployment environment name."
   type        = string
-  default     = "global/terraform.tfstate"
+  default     = "prod"
 }
 
-variable "backend_region" {
-  description = "AWS region for the backend S3 bucket"
+variable "aws_region" {
+  description = "AWS region for resource deployment."
   type        = string
-  default     = "us-west-2"
-}
-
-variable "backend_dynamodb_table" {
-  description = "DynamoDB table for state locking"
-  type        = string
+  default     = "us-east-1"
 }
