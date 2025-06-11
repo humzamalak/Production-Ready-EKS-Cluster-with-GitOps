@@ -1,0 +1,42 @@
+# ArgoCD Installation Manifest for EKS GitOps Bootstrap
+# Reference: https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
+# This manifest is intended for initial ArgoCD installation via kubectl or GitOps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+---
+# Install ArgoCD core components (use Helm for production, this is a minimal YAML for bootstrapping)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  replicas: 2 # High availability
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-server
+    spec:
+      containers:
+        - name: argocd-server
+          image: argoproj/argocd:v2.10.7 # Pin to a stable version
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ARGOCD_API_SERVER_INSECURE
+              value: "false"
+      # Add more containers for other ArgoCD components as needed
+# For full production, use Helm chart with values.yaml (see values.yaml for custom config) 

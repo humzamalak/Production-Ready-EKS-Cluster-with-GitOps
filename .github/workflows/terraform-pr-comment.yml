@@ -1,0 +1,47 @@
+# GitHub Actions Workflow: PR Comment Automation for Terraform Plans
+# Comments the Terraform plan output on pull requests
+
+name: "Terraform PR Comment"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  comment-plan:
+    name: "Comment Terraform Plan"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          aws-region: us-east-1
+
+      - name: Terraform Init
+        run: terraform init -backend-config=staging.backend.tfvars
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -out=plan.out
+
+      - name: Show Terraform Plan
+        id: plan
+        run: terraform show -no-color plan.out > plan.txt
+
+      - name: Comment Plan on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: plan.txt
+
+# Notes:
+# - This workflow runs on PR events and comments the plan output for reviewers.
+# - You can extend this to production or other environments as needed.

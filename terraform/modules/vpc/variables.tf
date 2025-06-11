@@ -1,40 +1,41 @@
 # VPC Module Variables
+# These variables allow you to customize the VPC module for different environments, regions, and networking needs.
 
 variable "project_prefix" {
-  description = "Project prefix for resource naming."
+  description = "Project prefix for resource naming. Used to identify resources created by this project."
   type        = string
 }
 
 variable "environment" {
-  description = "Deployment environment name."
+  description = "Deployment environment name (e.g., dev, staging, prod). Helps separate resources by environment."
   type        = string
 }
 
 variable "aws_region" {
-  description = "AWS region for resource deployment."
+  description = "AWS region for resource deployment. All resources will be created in this region."
   type        = string
 }
 
 variable "vpc_cidr" {
-  description = "CIDR block for the VPC."
+  description = "CIDR block for the VPC. Defines the IP address range for the network."
   type        = string
-  default     = "10.0.0.0/16"
+  default     = "10.0.0.0/16" # Default range, can be customized
 }
 
 variable "azs" {
-  description = "List of availability zones to use."
+  description = "List of availability zones to use. Distributes resources for high availability."
   type        = list(string)
   default     = ["us-east-1a", "us-east-1b", "us-east-1c"]
 }
 
 variable "tags" {
-  description = "Map of tags to apply to resources."
+  description = "Map of tags to apply to resources. Useful for cost allocation and organization."
   type        = map(string)
   default     = {}
 }
 
 variable "flow_log_iam_role_arn" {
-  description = "IAM role ARN for VPC flow logs."
+  description = "IAM role ARN for VPC flow logs. Allows VPC to write logs to CloudWatch."
   type        = string
   default     = "arn:aws:iam::123456789012:role/flow-logs-role" # Placeholder, update as needed
 }

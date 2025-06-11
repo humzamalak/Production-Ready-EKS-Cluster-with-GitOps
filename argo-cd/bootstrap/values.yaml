@@ -1,0 +1,145 @@
+# ArgoCD Custom Values for Production (EKS GitOps)
+# Reference: https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
+# This file customizes the Helm chart for a secure, HA, production-grade deployment
+
+# High Availability and Security
+server:
+  replicas: 2 # Number of ArgoCD server pods
+  resources:
+    requests:
+      cpu: 250m      # Minimum CPU requested per pod
+      memory: 512Mi  # Minimum memory requested per pod
+    limits:
+      cpu: 500m      # Maximum CPU allowed per pod
+      memory: 1Gi    # Maximum memory allowed per pod
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+  service:
+    type: ClusterIP
+    ports:
+      http: 80
+      https: 443
+  ingress:
+    enabled: false # Set to true and configure below for external access
+    annotations: {}
+    hosts: []
+    tls: []
+  extraArgs:
+    - --insecure=false
+  serviceAccount:
+    create: true
+    name: argocd-server
+  rbac:
+    create: true
+    policy: |
+      p, role:admin, applications, *, */*, allow
+      p, role:readonly, applications, get, */*, allow
+      p, role:readonly, projects, get, */*, allow
+      p, role:readonly, clusters, get, */*, allow
+      p, role:readonly, repositories, get, */*, allow
+      p, role:readonly, certificates, get, */*, allow
+      p, role:readonly, accounts, get, */*, allow
+
+controller:
+  replicas: 2 # Number of ArgoCD controller pods
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+repoServer:
+  replicas: 2 # Number of ArgoCD repo server pods
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+applicationSet:
+  replicas: 2 # Number of ArgoCD ApplicationSet pods
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+redis:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# RBAC
+rbac:
+  policy.default: 'role:readonly' # Default role for users
+  policy.csv: |
+    g, admin, role:admin
+    g, devops, role:admin
+    g, platform, role:admin
+    g, developer, role:readonly
+  # Custom RBAC policies
+  # Example: Only admin can create applications, developers are readonly
+  policy: |
+    p, role:admin, applications, *, */*, allow
+    p, role:readonly, applications, get, */*, allow
+    p, role:readonly, projects, get, */*, allow
+    p, role:readonly, clusters, get, */*, allow
+    p, role:readonly, repositories, get, */*, allow
+    p, role:readonly, certificates, get, */*, allow
+    p, role:readonly, accounts, get, */*, allow
+
+# TLS/Ingress (example, customize as needed)
+ingress:
+  enabled: true # Enable ingress for ArgoCD UI
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    # Add authentication or IP allowlist annotations for production
+  hosts:
+    - host: argocd.example.com # Hostname for ArgoCD UI
+      paths:
+        - /
+  tls:
+    - hosts:
+        - argocd.example.com
+      secretName: argocd-tls # Name of the Kubernetes TLS secret
+
+# Additional security best practices
+securityContext:
+  runAsNonRoot: true # Run containers as non-root user
+  runAsUser: 999
+  fsGroup: 999
+
+# Admin user and authentication
+admin:
+  enabled: true # Enable the admin user (disable after SSO is configured)
+  # For production, store the password in a Kubernetes secret and reference it here
+  # password: "" # Do NOT hardcode in production
+  # passwordSecret:
+  #   name: argocd-initial-admin-secret
+  #   key: password
+  # To disable admin user after SSO is configured, set enabled: false
+
+# SSO/OIDC (example placeholder, configure as needed)
+sso:
+  enabled: false # Enable SSO (set to true and configure below)
+  # provider: oidc
+  # oidc:
+  #   clientID: ""
+  #   clientSecret: ""
+  #   issuer: ""
+  #   redirectURI: ""
+
+# Add more configuration as needed for your environment 

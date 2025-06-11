@@ -1,0 +1,38 @@
+# ETCD Backup CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: etcd-backup
+  namespace: kube-system
+spec:
+  schedule: "0 2 * * *" # Daily at 2am
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: etcd-backup
+              image: bitnami/etcd:3.5.10
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  etcdctl snapshot save /backup/etcd-snapshot-$(date +\%Y\%m\%d).db \
+                    --endpoints=https://127.0.0.1:2379 \
+                    --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+                    --cert=/etc/kubernetes/pki/etcd/server.crt \
+                    --key=/etc/kubernetes/pki/etcd/server.key
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+                - name: etcd-certs
+                  mountPath: /etc/kubernetes/pki/etcd
+                  readOnly: true
+          restartPolicy: OnFailure
+          volumes:
+            - name: backup
+              persistentVolumeClaim:
+                claimName: etcd-backup-pvc
+            - name: etcd-certs
+              hostPath:
+                path: /etc/kubernetes/pki/etcd

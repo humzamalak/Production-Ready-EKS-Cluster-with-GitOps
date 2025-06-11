@@ -1,133 +1,128 @@
 # Production-Ready EKS Cluster with GitOps
 
-A step-by-step, beginner-friendly guide to deploying a production-grade Amazon EKS (Elastic Kubernetes Service) cluster using Infrastructure as Code (Terraform) and GitOps best practices (ArgoCD). This project covers the full lifecycle: infrastructure, GitOps, CI/CD, security, monitoring, documentation, and launch.
+## Overview
+This repository provides a fully automated, production-grade Amazon EKS (Elastic Kubernetes Service) cluster setup using GitOps principles with ArgoCD. It includes best practices for security, monitoring, CI/CD, disaster recovery, and ongoing maintenance. The platform is designed for scalability, maintainability, and rapid onboarding of new team members and applications.
 
 ---
 
-## 📊 Architecture Diagram
-
-```mermaid
-graph TD
-  A[Developer] -->|Git Push| B[GitHub Repository]
-  B -->|CI/CD| C[GitHub Actions]
-  C -->|Terraform| D[AWS Infrastructure]
-  D -->|EKS| E[Kubernetes Cluster]
-  E -->|GitOps| F[ArgoCD]
-  F -->|Sync| G[Applications]
-  G -->|Monitoring| H[Prometheus/Grafana]
-  G -->|Ingress| I[NGINX]
-```
+## Features
+- **Infrastructure as Code:** Modular Terraform for VPC, EKS, IAM, backup, and more.
+- **GitOps with ArgoCD:** Declarative Kubernetes and application management.
+- **CI/CD Pipelines:** Automated with GitHub Actions for Terraform, security, and cost checks.
+- **Security:** OIDC for GitHub Actions, Pod Security Standards, IRSA, secret scanning, and more.
+- **Monitoring & Alerting:** Prometheus, Grafana, AlertManager, FluentBit, and CloudWatch.
+- **Disaster Recovery:** EBS/ETCD backup, runbooks, and regular recovery testing.
+- **Comprehensive Documentation:** Onboarding, troubleshooting, guides, and runbooks.
 
 ---
 
-## 🚀 Project Lifecycle & Features
-
-This repository implements a full, production-ready EKS platform with:
-- **Infrastructure as Code**: Modular Terraform for VPC, EKS, IAM, and networking
-- **GitOps**: ArgoCD for declarative, version-controlled Kubernetes deployments
-- **CI/CD**: GitHub Actions for automated Terraform workflows
-- **Security**: IAM, network policies, image scanning, secrets management
-- **Monitoring**: Prometheus, Grafana, AlertManager, log aggregation
-- **Documentation & Testing**: Comprehensive guides, onboarding, and automated tests
-- **Launch & Maintenance**: Release, backup, disaster recovery, and ongoing improvements
+## Prerequisites
+- AWS account with required permissions (see `terraform/README.md` for minimal IAM policy)
+- AWS CLI, kubectl, helm, terraform (>=1.4.0) installed
+- GitHub repository with secrets configured for CI/CD
+- (Optional) Infracost API key for cost estimation
 
 ---
 
-## 🛠️ Prerequisites
-
-- **AWS Account** (with admin or sufficient permissions)
-- **AWS CLI** ([Install Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html))
-- **Terraform** ([Install Guide](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli))
-- **kubectl** ([Install Guide](https://kubernetes.io/docs/tasks/tools/))
-- **git** ([Install Guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git))
-
-### AWS Account Setup
-1. [Sign up for AWS](https://portal.aws.amazon.com/billing/signup)
-2. [Create an IAM user](https://console.aws.amazon.com/iam/)
-   - Attach `AdministratorAccess` policy (for demo; restrict in production)
-3. [Configure AWS CLI credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html):
-   ```sh
-   aws configure
-   # Enter your AWS Access Key, Secret Key, region (e.g., us-east-1), and output format
-   ```
-
----
-
-## ⚡ Quickstart: Deploying the Infrastructure
-
-1. **Clone the repository:**
-   ```sh
-   git clone https://github.com/your-org/Production-Ready-EKS-Cluster-with-GitOps.git
+## Quick Start
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/YOUR_ORG/Production-Ready-EKS-Cluster-with-GitOps.git
    cd Production-Ready-EKS-Cluster-with-GitOps
    ```
-2. **Initialize Terraform:**
-   ```sh
+2. **Configure AWS credentials**
+   ```bash
+   aws configure
+   # Set region (e.g., eu-west-1)
+   ```
+3. **Set up GitHub Secrets**
+   - Add AWS credentials and (optionally) Infracost API key to your repo secrets.
+   - See `.github/workflows/terraform-deploy.yml` for required secret names.
+4. **Provision Infrastructure with Terraform**
+   ```bash
    cd terraform
    terraform init
+   terraform plan -var-file="dev.tfvars"
+   terraform apply -var-file="dev.tfvars"
    ```
-3. **Review and customize variables:**
-   - Edit `variables.tf` or create a `.tfvars` file for your environment.
-4. **Plan the deployment:**
-   ```sh
-   terraform plan -var-file="your-env.tfvars"
-   ```
-5. **Apply the infrastructure:**
-   ```sh
-   terraform apply -var-file="your-env.tfvars"
-   # Type 'yes' to confirm
-   ```
-6. **Configure kubectl for EKS:**
-   ```sh
-   aws eks --region <region> update-kubeconfig --name <cluster_name>
-   ```
-7. **Bootstrap ArgoCD (after EKS is ready):**
-   - See `argo-cd/bootstrap/` (to be implemented)
+5. **Deploy ArgoCD and Bootstrap Applications**
+   - Apply manifests in `argo-cd/bootstrap/` (or use Helm with `values.yaml`)
+   - Access ArgoCD UI and login with the admin credentials (see docs for details)
+   - Sync the root app (`argo-cd/apps/root-app.yaml`) to deploy all workloads
 
 ---
 
-## 📁 Module & Directory Structure
+## Directory Structure
+- `terraform/` — Infrastructure as Code modules and root configuration
+- `argo-cd/` — GitOps manifests, ArgoCD apps, values, and bootstrap configs
+- `helm-charts/` — Custom Helm charts for applications
+- `.github/workflows/` — CI/CD pipelines for Terraform, security, and more
+- `docs/` — Comprehensive guides (onboarding, GitOps, monitoring, etc.)
+- `tests/` — Infrastructure test suite scaffolding
 
+---
+
+## Key Documentation & Guides
+- **[Onboarding Guide](docs/onboarding.md):** For new developers and operators
+- **[ArgoCD Configuration](docs/argocd-configuration.md):** Setup, RBAC, app-of-apps
+- **[Security Best Practices](docs/security-best-practices.md):** IAM, OIDC, secrets
+- **[Monitoring & Alerting](docs/monitoring-alerting.md):** Prometheus, Grafana, AlertManager
+- **[Application Deployment](docs/application-deployment.md):** Adding new apps
+- **[GitOps Workflow](docs/gitops-workflow.md):** End-to-end GitOps process
+- **[Environment Promotion](docs/environment-promotion.md):** Staging to production
+- **[Performance Optimization](docs/performance-optimization.md):** Tuning and cost
+- **[Acceptance Testing](docs/acceptance-testing.md):** Validation and UAT
+- **[Launch Checklist](docs/launch-checklist.md):** Final review and go-live
+- **[Support Process](docs/support-process.md):** Incident response and support
+- **[Knowledge Transfer](docs/knowledge-transfer.md):** Handover and training
+
+---
+
+## CI/CD & Automation
+- **Terraform Deploy:** Automated plan/apply, security scanning, cost estimation
+- **Drift Detection:** Scheduled workflow to detect infrastructure drift
+- **PR Comments:** Automated Terraform plan comments on pull requests
+- **Secret & Dependency Scanning:** Trufflehog and dependency review
+- **Image Scanning:** Trivy for container vulnerabilities
+
+---
+
+## Troubleshooting & FAQ
+- See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common issues and solutions
+- See [FAQ.md](./FAQ.md) for frequently asked questions
+
+---
+
+## Maintenance & Continuous Improvement
+- Follow the tasklist for regular security updates, EKS upgrades, backup verification, and cost reviews
+- Use GitHub Issues/Projects to track improvements and feedback
+
+---
+
+## How to Run This Repository
+1. **Provision AWS infrastructure with Terraform** (see above)
+2. **Deploy ArgoCD and bootstrap all applications** (see `argo-cd/bootstrap/` and `apps/`)
+3. **Monitor CI/CD pipelines** for successful deployments and security checks
+4. **Access ArgoCD UI** to manage and observe application state
+5. **Review dashboards and alerts** in Grafana and AlertManager
+6. **Follow runbooks and guides** for disaster recovery, onboarding, and support
+
+---
+
+## Architecture Diagram
+
+```mermaid
+graph TD;
+  A[Developer/Operator] -->|Git Push| B[GitHub Repository]
+  B -->|CI/CD| C[GitHub Actions]
+  C -->|Terraform Apply| D[AWS Infrastructure]
+  C -->|Manifests Sync| E[ArgoCD]
+  E -->|App Deploy| F[EKS Cluster]
+  F -->|Monitoring| G[Prometheus/Grafana]
+  F -->|Alerting| H[AlertManager]
+  F -->|Backup| I[EBS/ETCD Snapshots]
 ```
-.
-├── terraform/
-│   ├── main.tf           # Root Terraform config
-│   ├── variables.tf      # Root variables
-│   ├── backend.tf        # Remote state backend
-│   └── modules/
-│       ├── vpc/          # VPC module (to be implemented)
-│       └── eks/          # EKS module (to be implemented)
-├── .github/
-│   └── workflows/        # CI/CD workflows (to be implemented)
-├── docs/                 # Documentation (to be implemented)
-├── LICENSE               # MIT License
-├── README.md             # This file
-└── tasklist.md           # Implementation checklist
-```
 
 ---
 
-## 🧩 Project Phases (Lifecycle)
-
-1. **Core Infrastructure**: VPC, EKS, IAM, networking
-2. **GitOps**: ArgoCD setup, app-of-apps pattern, sample apps
-3. **CI/CD**: GitHub Actions for Terraform, security scanning, drift detection
-4. **Security & Monitoring**: Pod security, network policies, Prometheus, Grafana, alerting
-5. **Documentation & Testing**: Guides, onboarding, automated tests
-6. **Launch & Maintenance**: Release, backup, disaster recovery, ongoing improvements
-
-See `tasklist.md` for a detailed, phase-by-phase breakdown.
-
----
-
-## 🛠️ Troubleshooting & FAQ
-
-- **Terraform errors**: Check AWS credentials, permissions, and region settings.
-- **EKS not reachable**: Ensure VPC/subnet configuration and security groups allow access.
-- **ArgoCD issues**: Confirm EKS is running and `kubectl` is configured.
-- **Need help?**: Open an issue or check the [AWS EKS docs](https://docs.aws.amazon.com/eks/).
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
+For any questions or to contribute, please see the support and knowledge transfer guides in `/docs`.

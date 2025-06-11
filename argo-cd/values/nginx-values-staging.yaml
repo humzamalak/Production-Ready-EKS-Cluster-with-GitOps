@@ -1,0 +1,29 @@
+# Helm values for NGINX deployment in staging via ArgoCD
+# This file customizes the NGINX Helm chart for your staging environment.
+
+replicaCount: 1 # Number of NGINX pod replicas to run in staging
+
+resources:
+  requests:
+    cpu: 50m       # Minimum CPU requested per pod
+    memory: 64Mi   # Minimum memory requested per pod
+  limits:
+    cpu: 100m      # Maximum CPU allowed per pod
+    memory: 128Mi  # Maximum memory allowed per pod
+
+service:
+  type: ClusterIP  # Service type (ClusterIP exposes internally)
+  port: 80         # Service port for HTTP traffic
+
+ingress:
+  enabled: true    # Enable ingress for external access
+  className: nginx # Use the nginx ingress controller
+  hosts:
+    - host: nginx-staging.example.com # Hostname for the ingress in staging
+      paths:
+        - path: /            # Route all traffic to root
+          pathType: Prefix   # Match all paths with this prefix
+  tls:
+    - hosts:
+        - nginx-staging.example.com  # Enable TLS for this host
+      secretName: nginx-staging-tls  # Name of the Kubernetes TLS secret

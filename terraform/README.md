@@ -1,6 +1,11 @@
-# EKS GitOps Infrastructure
+# EKS GitOps Infrastructure - Terraform Root
 
-This repository provisions a production-ready EKS cluster with GitOps using ArgoCD, following best practices for security, scalability, and maintainability.
+This directory contains the root Terraform configuration for provisioning a production-ready EKS (Elastic Kubernetes Service) cluster and supporting AWS infrastructure using GitOps principles.
+
+## Purpose
+- Orchestrate all infrastructure modules (VPC, EKS, IAM, Backup)
+- Enable secure, scalable, and maintainable Kubernetes environments
+- Integrate with CI/CD and GitOps workflows
 
 ## Getting Started
 
@@ -43,7 +48,7 @@ See below for a minimal IAM policy for Terraform provisioning:
 
 ### Usage
 1. Clone the repo
-2. Configure AWS CLI with `eu-west-1` as default region
+2. Configure AWS CLI with your desired region (e.g., `eu-west-1`)
 3. Run Terraform from the root directory:
    ```bash
    terraform init
@@ -53,7 +58,20 @@ See below for a minimal IAM policy for Terraform provisioning:
 
 ## Module Structure
 - `modules/vpc`: VPC, subnets, NAT, IGW, flow logs
-- `modules/eks`: EKS cluster and node groups (to be implemented)
+- `modules/eks`: EKS cluster and node groups
+- `modules/iam`: IAM roles for EKS, GitHub Actions, IRSA
+- `modules/backup`: EBS volume snapshot automation
+
+## Best Practices
+- Use feature branches for changes
+- Run `terraform plan` before PRs
+- Use PR templates and follow commit guidelines
+- Store secrets securely (never in code)
+
+## Troubleshooting
+- Check Terraform logs for errors
+- Ensure AWS credentials and permissions are correct
+- See the main [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) for more help
 
 ## Next Steps
 - Complete EKS module
