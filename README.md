@@ -63,10 +63,12 @@ This repository provides a fully automated, production-grade Amazon EKS (Elastic
 ---
 
 ## Key Documentation & Guides
+- **[Running & Access Guide](docs/running-and-access.md):** How to run, configure, and access all components
 - **[Onboarding Guide](docs/onboarding.md):** For new developers and operators
 - **[ArgoCD Configuration](docs/argocd-configuration.md):** Setup, RBAC, app-of-apps
 - **[Security Best Practices](docs/security-best-practices.md):** IAM, OIDC, secrets
 - **[Monitoring & Alerting](docs/monitoring-alerting.md):** Prometheus, Grafana, AlertManager
+- **[Monitoring Alerting Example](docs/monitoring-alerting-example.yaml):** Example Prometheus AlertManager config
 - **[Application Deployment](docs/application-deployment.md):** Adding new apps
 - **[GitOps Workflow](docs/gitops-workflow.md):** End-to-end GitOps process
 - **[Environment Promotion](docs/environment-promotion.md):** Staging to production
@@ -75,6 +77,7 @@ This repository provides a fully automated, production-grade Amazon EKS (Elastic
 - **[Launch Checklist](docs/launch-checklist.md):** Final review and go-live
 - **[Support Process](docs/support-process.md):** Incident response and support
 - **[Knowledge Transfer](docs/knowledge-transfer.md):** Handover and training
+- **[Architecture Diagram](docs/architecture-diagram.md):** Visual overview of the platform
 
 ---
 
