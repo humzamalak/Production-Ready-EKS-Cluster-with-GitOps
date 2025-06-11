@@ -130,17 +130,6 @@ graph TD;
 
 For any questions or to contribute, please see the support and knowledge transfer guides in `/docs`.
 
----
-
-## Public Release Checklist
-- [ ] All secrets and sensitive data removed
-- [ ] No organization-specific details present
-- [ ] .gitignore excludes sensitive files
-- [ ] Linter and CI checks pass
-- [ ] Documentation is up to date
-- [ ] License, CONTRIBUTING.md, and CODE_OF_CONDUCT.md present
-- [ ] Final secrets scan completed (see below)
-
 **Recommended secrets scan:**
 ```bash
 trufflehog filesystem .
