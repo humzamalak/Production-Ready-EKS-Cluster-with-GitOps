@@ -114,7 +114,7 @@ resource "aws_route_table_association" "private" {
 resource "aws_flow_log" "this" {
   log_destination_type = "cloud-watch-logs"
   log_group_name       = "/aws/vpc/flowlogs/${var.project_prefix}-${var.environment}"
-  resource_id          = aws_vpc.this.id
+  vpc_id               = aws_vpc.this.id
   traffic_type         = "ALL" # Capture all traffic (accepted, rejected, etc.)
   iam_role_arn         = var.flow_log_iam_role_arn # IAM role for CloudWatch logs
   tags = merge(var.tags, {

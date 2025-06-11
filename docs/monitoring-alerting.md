@@ -1,23 +1,43 @@
-# Monitoring and Alerting Guide
+# Monitoring & Alerting
 
-This guide explains how to monitor your EKS cluster and set up alerting for critical events.
+This document describes how to set up and extend monitoring and alerting for your EKS GitOps cluster.
 
-## Monitoring
-- **Prometheus** and **Grafana** are deployed for metrics collection and visualization.
-- Use ServiceMonitors to scrape custom application metrics.
-- Import custom dashboards from `argo-cd/grafana/` for cluster and app observability.
+## Prometheus & Alertmanager
+- Core monitoring is provided by Prometheus and Alertmanager, deployed via ArgoCD manifests in `argo-cd/apps/`.
+- Default rules are in `alertmanager-rules.yaml`.
 
-## Alerting
-- **AlertManager** is configured for Slack/email notifications.
-- Review and update alert rules in `argo-cd/apps/alertmanager-rules.yaml`.
-- Set up notification channels for critical alerts (Slack, email, PagerDuty).
+## Custom Alerting Example
+See `monitoring-alerting-example.yaml` for an example of advanced PrometheusRule configuration:
 
-## Best Practices
-- Regularly review dashboards and alert rules.
-- Test alerting by simulating failures.
-- Document all custom metrics and alerting policies.
+```yaml
+# docs/monitoring-alerting-example.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: custom-app-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: app-advanced-health
+      rules:
+        - alert: HighErrorRate
+          expr: sum(rate(http_requests_total{status=~"5.."}[5m])) by (job) > 5
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High error rate detected"
+            description: "More than 5 HTTP 5xx errors per second for 10 minutes."
+        - alert: SlowResponseTime
+          expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job)) > 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Slow response time"
+            description: "95th percentile response time > 1s for 5 minutes."
+```
 
-## Troubleshooting
-- Check Prometheus and AlertManager logs for errors.
-- Ensure all ServiceMonitors and Alert rules are applied.
-- See the main [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) for more help.
+## Next Steps
+- Edit or extend the example to match your app's SLOs.
+- Apply with `kubectl apply -f docs/monitoring-alerting-example.yaml`.
