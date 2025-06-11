@@ -102,20 +102,3 @@ resource "aws_iam_role_policy_attachment" "eks_node_AmazonEKS_CNI_Policy" {
   role       = aws_iam_role.eks_node_group.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
-
-# Outputs: Expose key resource IDs for use in other modules
-output "cluster_name" {
-  value = aws_eks_cluster.this.name # Output the actual EKS cluster name
-}
-
-output "region" {
-  value = var.aws_region # Output the AWS region used for the cluster
-}
-
-output "cluster_endpoint" {
-  value = aws_eks_cluster.this.endpoint
-}
-
-output "node_group_role_arn" {
-  value = aws_iam_role.eks_node_group.arn
-}

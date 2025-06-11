@@ -12,5 +12,5 @@ terraform {
 }
 
 provider "aws" {
-  region = "eu-west-1" # Default AWS region (can be overridden by variables)
+  region = var.aws_region # Use variable for region
 }

@@ -1,16 +1,4 @@
-# Monitoring & Alerting
-
-This document describes how to set up and extend monitoring and alerting for your EKS GitOps cluster.
-
-## Prometheus & Alertmanager
-- Core monitoring is provided by Prometheus and Alertmanager, deployed via ArgoCD manifests in `argo-cd/apps/`.
-- Default rules are in `alertmanager-rules.yaml`.
-
-## Custom Alerting Example
-See `monitoring-alerting-example.yaml` for an example of advanced PrometheusRule configuration:
-
-```yaml
-# docs/monitoring-alerting-example.yaml
+# Example: Custom PrometheusRule for Advanced Monitoring
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -36,8 +24,3 @@ spec:
           annotations:
             summary: "Slow response time"
             description: "95th percentile response time > 1s for 5 minutes."
-```
-
-## Next Steps
-- Edit or extend the example to match your app's SLOs.
-- Apply with `kubectl apply -f docs/monitoring-alerting-example.yaml`.

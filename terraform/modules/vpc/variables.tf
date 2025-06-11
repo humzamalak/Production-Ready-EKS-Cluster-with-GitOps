@@ -35,7 +35,7 @@ variable "tags" {
 }
 
 variable "flow_log_iam_role_arn" {
-  description = "IAM role ARN for VPC flow logs. Allows VPC to write logs to CloudWatch."
+  description = "IAM role ARN for VPC flow logs. Allows VPC to write logs to CloudWatch. Must be supplied by the user."
   type        = string
-  default     = "arn:aws:iam::123456789012:role/flow-logs-role" # Placeholder, update as needed
+  # Example: arn:aws:iam::<your-account-id>:role/flow-logs-role
 }
