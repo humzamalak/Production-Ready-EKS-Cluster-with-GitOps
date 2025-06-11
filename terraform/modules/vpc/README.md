@@ -1,6 +1,11 @@
 # VPC Terraform Module
 
-This module provisions a production-ready VPC in AWS with public and private subnets across three Availability Zones in `eu-west-1`. It includes NAT gateways, Internet Gateway, and VPC Flow Logs.
+This module provisions a production-ready VPC (Virtual Private Cloud) in AWS, including public and private subnets, NAT gateways, Internet Gateway, and VPC Flow Logs, across three Availability Zones.
+
+## Purpose
+- Provide secure, scalable network infrastructure for EKS and workloads
+- Enable public and private subnet separation
+- Support high availability and monitoring
 
 ## Features
 - Customizable CIDR block (default: 10.0.0.0/16)
@@ -8,14 +13,14 @@ This module provisions a production-ready VPC in AWS with public and private sub
 - Internet Gateway for public subnets
 - NAT Gateway per AZ for private subnets
 - VPC Flow Logs to CloudWatch
-- Standard tagging
+- Standard tagging for all resources
 
 ## Usage
 ```hcl
 module "vpc" {
-  source = "./modules/vpc"
-  vpc_cidr = "10.0.0.0/16"
-  azs = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
+  source      = "./modules/vpc"
+  vpc_cidr    = "10.0.0.0/16"
+  azs         = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
   environment = "dev"
   project     = "eks-gitops"
 }

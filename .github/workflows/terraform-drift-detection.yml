@@ -1,0 +1,52 @@
+# GitHub Actions Workflow: Terraform Drift Detection
+# Detects drift between Terraform state and actual infrastructure
+
+name: "Terraform Drift Detection"
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Every day at 3am UTC
+  workflow_dispatch:
+
+jobs:
+  drift-detection:
+    name: "Terraform Drift Detection"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-east-1
+
+      - name: Terraform Init
+        run: terraform init -backend-config=production.backend.tfvars
+
+      - name: Terraform Plan (Drift Detection)
+        run: terraform plan -detailed-exitcode -input=false
+
+      - name: Notify on Drift
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.example.com
+          server_port: 465
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "[ALERT] Terraform Drift Detected!"
+          to: ops@example.com
+          from: argocd@example.com
+          body: "Drift detected in production infrastructure. Please review the plan output."
+
+# Notes:
+# - This workflow runs daily and on manual dispatch.
+# - Configure SMTP secrets for email notifications, or replace with Slack/webhook as needed.

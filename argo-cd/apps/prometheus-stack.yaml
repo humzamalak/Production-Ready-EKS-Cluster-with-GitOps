@@ -1,0 +1,25 @@
+# ArgoCD Application for Prometheus Stack Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-stack
+  namespace: argocd
+spec:
+  project: production-apps
+  source:
+    repoURL: 'https://github.com/YOUR_ORG/prometheus-stack-helm-chart'
+    targetRevision: main
+    path: charts/prometheus-stack
+    helm:
+      valueFiles:
+        - ../../values/prometheus-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true

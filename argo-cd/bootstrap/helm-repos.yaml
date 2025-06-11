@@ -1,0 +1,25 @@
+# ArgoCD Helm Repository Configuration Example
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-helm-repositories
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: repo-server
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/version: v2.10.7
+    app.kubernetes.io/created-by: user
+    argocd.argoproj.io/secret-type: repository
+  annotations:
+    managed-by: user
+    description: "Custom Helm repositories for ArgoCD"
+data:
+  repositories: |
+    - url: https://charts.bitnami.com/bitnami
+      name: bitnami
+    - url: https://charts.helm.sh/stable
+      name: stable
+    # Add your custom or internal Helm repo URLs here

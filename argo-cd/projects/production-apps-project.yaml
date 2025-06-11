@@ -1,0 +1,33 @@
+# ArgoCD Project for Production Applications
+# Restricts allowed source repos, destinations, and resources for security
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: production-apps
+  namespace: argocd
+spec:
+  description: Production workloads managed by ArgoCD
+  sourceRepos:
+    - 'https://github.com/YOUR_ORG/*'   # Restrict to your org's repos
+  destinations:
+    - namespace: production
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  roles:
+    - name: admin
+      description: Full access to project applications
+      policies:
+        - p, proj:production-apps:admin, applications, *, production/*, allow
+      groups:
+        - admin
+    - name: readonly
+      description: Read-only access
+      policies:
+        - p, proj:production-apps:readonly, applications, get, production/*, allow
+      groups:
+        - developer

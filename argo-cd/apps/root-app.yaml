@@ -1,0 +1,22 @@
+# Root ArgoCD Application (App of Apps Pattern)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+spec:
+  project: production-apps
+  source:
+    repoURL: 'https://github.com/YOUR_ORG/Production-Ready-EKS-Cluster-with-GitOps'
+    targetRevision: main
+    path: argo-cd/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
