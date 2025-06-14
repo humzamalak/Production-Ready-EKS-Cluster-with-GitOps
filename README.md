@@ -60,6 +60,28 @@ This repository provides a fully automated, production-grade Amazon EKS (Elastic
 - `docs/` — Comprehensive guides (onboarding, GitOps, monitoring, etc.)
 - `tests/` — Infrastructure test suite scaffolding
 
+## Git Workflow Commands
+
+Below are the most common git commands used in this project, with explanations for when to use each:
+
+- `git status` — Check which files have changed, which are staged, and which are untracked. Use this before staging or committing to review your working directory.
+- `git add <file>` — Stage changes to specific files for the next commit. Use this after editing files you want to include in your next commit.
+- `git commit -m "message"` — Commit staged changes with a descriptive message. Use this to save your work and document what you changed.
+- `git push` — Upload your local commits to the remote repository (GitHub). Use this after committing to share your changes with the team or trigger CI/CD.
+- `git branch` — List all branches or show the current branch. Use this to check your context or before creating a new branch.
+- `git log main..[branch]` — View commits on your branch that are not on main. Use this to review your changes before merging or creating a PR.
+- `git diff --name-status main` — See which files differ between your branch and main. Use this to quickly check what will be merged.
+- `gh pr create --title "..." --body "..."` — Create a pull request on GitHub. Use this after pushing your branch to propose changes for review and merging.
+
+These commands are typically used in the following order during a development cycle:
+1. Edit files as needed
+2. Run `git status` to see changes
+3. Stage changes with `git add`
+4. Commit with `git commit`
+5. Push to remote with `git push`
+6. (If working on a feature branch) Create a PR with `gh pr create`
+7. Use `git log`, `git diff`, and `git branch` as needed to review and manage your work
+
 ---
 
 ## Key Documentation & Guides
