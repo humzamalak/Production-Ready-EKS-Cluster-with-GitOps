@@ -40,7 +40,7 @@
   - [x] Node group IAM role and policies
   - [x] Auto-scaling configuration (2-10 nodes)
   - [x] Instance type configuration (t3.medium minimum)
-  - [x] EBS optimization settings
+  - [x] EBS optimisation settings
 - [x] Define EKS variables (`variables.tf`)
 - [x] Configure EKS outputs (`outputs.tf`)
 - [x] Test EKS module deployment <!-- Code ready, actual test pending real AWS credentials -->
@@ -205,12 +205,12 @@
 - [x] Validate security configurations
 - [x] Test disaster recovery procedures
 
-### 5.4 Performance Optimization
-- [x] Optimize Terraform module performance
+### 5.4 Performance Optimisation
+- [x] Optimise Terraform module performance
 - [x] Configure resource requests and limits
-- [x] Optimize ArgoCD sync performance
+- [x] Optimise ArgoCD sync performance
 - [x] Add cluster autoscaling configuration
-- [x] Monitor and optimize costs
+- [x] Monitor and optimise costs
 
 ### 5.5 Validation and Acceptance Testing
 - [x] Validate all acceptance criteria from PRD
@@ -241,8 +241,8 @@
 - [ ] Monthly security updates
 - [ ] Quarterly EKS version upgrades
 - [ ] Regular backup verification
-- [ ] Cost optimization reviews
-- [ ] Performance monitoring and optimization
+- [ ] Cost optimisation reviews
+- [ ] Performance monitoring and optimisation
 
 ### Continuous Improvement
 - [ ] User feedback collection and implementation

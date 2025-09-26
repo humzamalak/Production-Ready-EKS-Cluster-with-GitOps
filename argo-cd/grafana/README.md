@@ -15,7 +15,7 @@ This directory contains custom Grafana dashboard definitions and configuration f
 1. **Import dashboards into Grafana:**
    - Use the Grafana UI to import JSON files
    - Or configure ArgoCD to provision dashboards automatically
-2. **Customize dashboards:**
+2. **Customise dashboards:**
    - Edit JSON files or use the Grafana UI, then export and update the files in this directory
 
 ## Best Practices

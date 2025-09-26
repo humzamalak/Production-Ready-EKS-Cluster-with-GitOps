@@ -1,5 +1,5 @@
 # Helm values for Prometheus Stack deployment via ArgoCD
-# This file customizes the Prometheus Helm chart for your environment.
+# This file customises the Prometheus Helm chart for your environment.
 
 prometheus:
   prometheusSpec:

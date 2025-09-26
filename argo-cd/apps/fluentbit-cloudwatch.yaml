@@ -28,7 +28,7 @@ spec:
               memory: 128Mi
           env:
             - name: AWS_REGION
-              value: us-east-1
+              value: eu-west-1
           volumeMounts:
             - name: varlog
               mountPath: /var/log

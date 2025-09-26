@@ -1,5 +1,5 @@
 # EKS Module Variables
-# These variables allow you to customize the EKS module for different environments, cluster sizes, and networking needs.
+# These variables allow you to customise the EKS module for different environments, cluster sizes, and networking needs.
 
 variable "project_prefix" {
   description = "Project prefix for resource naming. Used to identify resources created by this project."
@@ -44,7 +44,7 @@ variable "node_instance_type" {
 }
 
 variable "tags" {
-  description = "Map of tags to apply to resources. Useful for cost allocation and organization."
+  description = "Map of tags to apply to resources. Useful for cost allocation and organisation."
   type        = map(string)
   default     = {}
 }
@@ -60,5 +60,5 @@ variable "cluster_name" {
 variable "region" {
   description = "AWS region for the EKS cluster."
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-1"
 }

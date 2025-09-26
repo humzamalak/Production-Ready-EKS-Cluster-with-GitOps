@@ -1,6 +1,6 @@
 # Makefile for EKS GitOps Infrastructure
 # - Provides convenience targets for Terraform and ArgoCD workflows.
-# - Set TF_VAR_* environment variables or edit `terraform/terraform.tfvars` to customize.
+# - Set TF_VAR_* environment variables or edit `terraform/terraform.tfvars` to customise.
 
 .PHONY: init plan apply destroy lint fmt argo-sync
 

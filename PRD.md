@@ -93,7 +93,7 @@ This product provides a complete Infrastructure-as-Code (IaC) solution for deplo
 - Kubernetes version: 1.27+ (configurable)
 - Managed node groups with t3.medium minimum
 - Auto-scaling: 2-10 nodes per group
-- EBS-optimized instances
+- EBS-optimised instances
 - Container runtime: containerd
 - Add-ons: VPC CNI, CoreDNS, kube-proxy
 
@@ -190,7 +190,7 @@ So that I can proactively identify and resolve issues.
 ### 6.4 Phase 4: Documentation and Testing (Weeks 7-8)
 - Comprehensive documentation
 - End-to-end testing
-- Performance optimization
+- Performance optimisation
 
 ## 7. Risks and Mitigations
 
@@ -251,7 +251,7 @@ So that I can proactively identify and resolve issues.
 - Multi-cluster management capabilities
 - Advanced security policies and compliance scanning
 - Disaster recovery and backup procedures
-- Cost optimization recommendations
+- Cost optimisation recommendations
 
 ### 10.2 Long-term (6-12 months)
 - Service mesh integration (Istio/Linkerd)
