@@ -1,4 +1,6 @@
 # Custom ServiceMonitor for Application Metrics
+# - Attach this to any app exposing Prometheus metrics via a Service on port `http`.
+# - Adjust `namespace`, `selector`, `port`, and `path` to match your app.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

@@ -1,4 +1,6 @@
 # ArgoCD Application for NGINX Deployment
+# - Example of deploying an internal NGINX app from a separate Helm chart repo.
+# - Values are sourced from `values/nginx-values.yaml` in this repository.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -7,12 +9,34 @@ metadata:
 spec:
   project: production-apps
   source:
-    repoURL: 'https://github.com/YOUR_ORG/nginx-helm-chart'
-    targetRevision: main
-    path: charts/nginx
+    repoURL: 'https://charts.bitnami.com/bitnami'
+    chart: nginx
+    targetRevision: 18.2.2
     helm:
-      valueFiles:
-        - ../../values/nginx-values.yaml
+      values: |
+        replicaCount: 2
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+        service:
+          type: ClusterIP
+          port: 80
+        ingress:
+          enabled: true
+          className: nginx
+          hosts:
+            - host: nginx.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls:
+            - hosts:
+                - nginx.example.com
+              secretName: nginx-tls
   destination:
     server: https://kubernetes.default.svc
     namespace: production

@@ -25,7 +25,7 @@ resource "aws_subnet" "public" {
   count                   = 3 # Number of public subnets (one per AZ)
   vpc_id                  = aws_vpc.this.id
   cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index) # Calculate subnet CIDR
-  map_public_ip_on_launch = true # Assign public IPs to instances in this subnet
+  map_public_ip_on_launch = true                                     # Assign public IPs to instances in this subnet
   availability_zone       = element(var.azs, count.index)
   tags = merge(var.tags, {
     Name = "${var.project_prefix}-${var.environment}-public-${count.index + 1}"
@@ -48,7 +48,7 @@ resource "aws_subnet" "private" {
 # NAT Gateways for private subnets (one per AZ)
 resource "aws_nat_gateway" "this" {
   count         = 3
-  allocation_id = aws_eip.nat[count.index].id # Elastic IP for each NAT Gateway
+  allocation_id = aws_eip.nat[count.index].id       # Elastic IP for each NAT Gateway
   subnet_id     = aws_subnet.public[count.index].id # Place NAT in public subnet
   tags = merge(var.tags, {
     Name = "${var.project_prefix}-${var.environment}-nat-${count.index + 1}"
@@ -57,7 +57,7 @@ resource "aws_nat_gateway" "this" {
 
 # Elastic IPs for NAT Gateways
 resource "aws_eip" "nat" {
-  count = 3
+  count  = 3
   domain = "vpc"
   tags = merge(var.tags, {
     Name = "${var.project_prefix}-${var.environment}-eip-nat-${count.index + 1}"
@@ -115,21 +115,21 @@ resource "aws_kms_key" "vpc_flow_logs" {
   description             = "KMS key for VPC Flow Logs"
   enable_key_rotation     = true
   deletion_window_in_days = 7
-  tags = merge(var.tags, { Name = "${var.project_prefix}-${var.environment}-flowlogs-kms" })
+  tags                    = merge(var.tags, { Name = "${var.project_prefix}-${var.environment}-flowlogs-kms" })
 }
 
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc/flowlogs/${var.project_prefix}-${var.environment}"
   retention_in_days = 90
   kms_key_id        = aws_kms_key.vpc_flow_logs.arn
-  tags = merge(var.tags, { Name = "${var.project_prefix}-${var.environment}-flowlogs" })
+  tags              = merge(var.tags, { Name = "${var.project_prefix}-${var.environment}-flowlogs" })
 }
 
 resource "aws_flow_log" "this" {
   log_destination_type = "cloud-watch-logs"
-  log_group_name       = aws_cloudwatch_log_group.vpc_flow_logs.name
+  log_destination      = aws_cloudwatch_log_group.vpc_flow_logs.arn
   vpc_id               = aws_vpc.this.id
-  traffic_type         = "ALL" # Capture all traffic (accepted, rejected, etc.)
+  traffic_type         = "ALL"                     # Capture all traffic (accepted, rejected, etc.)
   iam_role_arn         = var.flow_log_iam_role_arn # IAM role for CloudWatch logs
   tags = merge(var.tags, {
     Name = "${var.project_prefix}-${var.environment}-flowlog"
@@ -146,19 +146,4 @@ resource "aws_security_group" "eks_cluster" {
   })
 }
 
-# Outputs: Expose key resource IDs for use in other modules
-output "vpc_id" {
-  value = aws_vpc.this.id
-}
-
-output "private_subnet_ids" {
-  value = aws_subnet.private[*].id
-}
-
-output "public_subnet_ids" {
-  value = aws_subnet.public[*].id
-}
-
-output "eks_cluster_sg_id" {
-  value = aws_security_group.eks_cluster.id
-}
+// Outputs moved to outputs.tf to avoid duplication

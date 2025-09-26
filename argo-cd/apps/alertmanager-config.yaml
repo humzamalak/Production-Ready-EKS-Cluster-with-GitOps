@@ -1,4 +1,6 @@
 # AlertManager Configuration for Notification Channels
+# - Example configuration for Slack and email receivers.
+# - Do NOT commit real URLs/passwords; use External Secrets or Helm values in production.
 apiVersion: v1
 kind: ConfigMap
 metadata:

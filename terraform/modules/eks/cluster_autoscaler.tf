@@ -28,7 +28,7 @@ resource "aws_iam_role" "cluster_autoscaler" {
 resource "aws_iam_policy" "cluster_autoscaler" {
   name        = "${var.project_prefix}-${var.environment}-ClusterAutoscalerPolicy"
   description = "Permissions for Cluster Autoscaler"
-  policy      = jsonencode({
+  policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
@@ -61,11 +61,11 @@ resource "aws_iam_role_policy_attachment" "cluster_autoscaler_attach" {
 }
 
 resource "helm_release" "cluster_autoscaler" {
-  name       = "cluster-autoscaler" # Name of the Helm release
+  name       = "cluster-autoscaler"                      # Name of the Helm release
   repository = "https://kubernetes.github.io/autoscaler" # Helm chart repository
-  chart      = "cluster-autoscaler" # Chart name
-  version    = "9.29.0" # Chart version
-  namespace  = "kube-system" # Namespace to deploy the autoscaler
+  chart      = "cluster-autoscaler"                      # Chart name
+  version    = "9.29.0"                                  # Chart version
+  namespace  = "kube-system"                             # Namespace to deploy the autoscaler
   values = [
     <<EOF
     autoDiscovery:

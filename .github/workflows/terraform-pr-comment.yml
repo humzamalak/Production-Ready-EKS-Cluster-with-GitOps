@@ -20,15 +20,16 @@ jobs:
         with:
           terraform_version: 1.6.6
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
-          aws-region: us-east-1
+      # Optional: Configure AWS credentials if needed using a role
+      # - name: Configure AWS credentials (assume role)
+      #   if: ${{ secrets.AWS_IAM_ROLE_ARN_STAGING != '' }}
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN_STAGING }}
+      #     aws-region: us-east-1
 
       - name: Terraform Init
-        run: terraform init -backend-config=staging.backend.tfvars
+        run: terraform init -backend=false -input=false
 
       - name: Terraform Plan
         run: terraform plan -input=false -out=plan.out

@@ -38,5 +38,5 @@ spec:
           env:
             - name: ARGOCD_API_SERVER_INSECURE
               value: "false"
-      # Add more containers for other ArgoCD components as needed
-# For full production, use Helm chart with values.yaml (see values.yaml for custom config) 
+        # Add more containers for other ArgoCD components as needed
+# For full production, use Helm chart with values.yaml (see values.yaml for custom config)

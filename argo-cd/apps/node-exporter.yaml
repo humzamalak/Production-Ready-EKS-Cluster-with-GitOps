@@ -1,4 +1,6 @@
 # Node Exporter Deployment (Prometheus Operator)
+# - DaemonSet exposes node-level metrics (CPU, memory, filesystem) on each node.
+# - ServiceMonitor configures Prometheus scraping for these metrics.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

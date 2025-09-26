@@ -9,8 +9,8 @@ This guide outlines essential security practices for operating a production-grad
 
 ## Secrets Management
 - Store secrets in AWS Secrets Manager.
-- Sync secrets to Kubernetes using the external-secrets operator.
-- Never commit secrets to version control.
+- Sync secrets to Kubernetes using the external-secrets operator (see `argo-cd/apps/grafana-admin-secret.yaml`).
+- Never commit secrets to version control. Only commit references to secret keys and properties.
 
 ## Image & Code Security
 - Scan container images and Infrastructure as Code (IaC) for vulnerabilities (Trivy, Checkov).
