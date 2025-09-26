@@ -1,5 +1,6 @@
 # Example ArgoCD Application for Bitnami NGINX Helm Chart
-tapiVersion: argoproj.io/v1alpha1
+# - Demonstrates referencing a remote Helm chart directly.
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: bitnami-nginx

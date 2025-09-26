@@ -1,0 +1,7 @@
+config:
+  MD013: false # Line length
+  MD041: false # First line must be a top-level heading
+  MD022: false # Allow missing blank lines around headings
+  MD031: false # Allow missing blank lines around fences
+  MD032: false # Allow missing blank lines around lists
+  MD058: false # Allow missing blank lines around tables

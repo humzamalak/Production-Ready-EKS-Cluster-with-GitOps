@@ -1,4 +1,8 @@
 # Root ArgoCD Application (App of Apps Pattern)
+# - Points ArgoCD at the `argo-cd/apps` directory so that all child Applications
+#   are discovered and managed declaratively.
+# - `automated.prune` removes resources no longer defined in Git.
+# - `automated.selfHeal` reconciles drift from the desired state in Git.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

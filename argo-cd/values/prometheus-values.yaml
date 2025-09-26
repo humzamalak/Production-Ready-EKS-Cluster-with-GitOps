@@ -8,7 +8,7 @@ prometheus:
       volumeClaimTemplate:
         spec:
           storageClassName: gp3 # Use gp3 for better cost/perf
-          accessModes: [ "ReadWriteOnce" ] # Only one node can mount the volume
+          accessModes: ["ReadWriteOnce"] # Only one node can mount the volume
           resources:
             requests:
               storage: 20Gi # Persistent storage size for Prometheus data
@@ -28,7 +28,7 @@ grafana:
   persistence:
     enabled: true
     storageClassName: gp3
-    accessModes: [ "ReadWriteOnce" ]
+    accessModes: ["ReadWriteOnce"]
     size: 10Gi # Persistent storage size for Grafana dashboards
   resources:
     requests:

@@ -4,12 +4,12 @@
 # Create the EKS cluster
 resource "aws_eks_cluster" "this" {
   name     = "${var.project_prefix}-${var.environment}-cluster" # Cluster name
-  role_arn = aws_iam_role.eks_cluster.arn # IAM role for the EKS control plane
-  version  = var.kubernetes_version # Kubernetes version
+  role_arn = aws_iam_role.eks_cluster.arn                       # IAM role for the EKS control plane
+  version  = var.kubernetes_version                             # Kubernetes version
 
   vpc_config {
-    subnet_ids         = var.private_subnet_ids # Use private subnets for worker nodes
-    security_group_ids = [var.eks_cluster_sg_id] # Security group for control plane
+    subnet_ids              = var.private_subnet_ids  # Use private subnets for worker nodes
+    security_group_ids      = [var.eks_cluster_sg_id] # Security group for control plane
     endpoint_private_access = true
     endpoint_public_access  = false
   }
@@ -40,7 +40,7 @@ resource "aws_kms_key" "eks_secrets" {
 
 # IAM role for EKS control plane
 resource "aws_iam_role" "eks_cluster" {
-  name = "${var.project_prefix}-${var.environment}-eks-cluster-role"
+  name               = "${var.project_prefix}-${var.environment}-eks-cluster-role"
   assume_role_policy = data.aws_iam_policy_document.eks_assume_role.json
   tags = merge(var.tags, {
     Name = "${var.project_prefix}-${var.environment}-eks-cluster-role"
@@ -64,16 +64,16 @@ resource "aws_eks_node_group" "main" {
   node_role_arn   = aws_iam_role.eks_node_group.arn # IAM role for nodes
   subnet_ids      = var.private_subnet_ids
   scaling_config {
-    desired_size = 2 # Default number of nodes
+    desired_size = 2  # Default number of nodes
     max_size     = 10 # Maximum nodes for autoscaling
-    min_size     = 2 # Minimum nodes
+    min_size     = 2  # Minimum nodes
   }
   instance_types = [var.node_instance_type] # EC2 instance type for nodes
-  ami_type       = "AL2_x86_64" # Amazon Linux 2
-  disk_size      = 50 # Disk size in GB
+  ami_type       = "AL2_x86_64"             # Amazon Linux 2
+  disk_size      = 50                       # Disk size in GB
   tags = merge(var.tags, {
-    Name = "${var.project_prefix}-${var.environment}-ng-main"
-    "k8s.io/cluster-autoscaler/enabled" = "true"
+    Name                                                     = "${var.project_prefix}-${var.environment}-ng-main"
+    "k8s.io/cluster-autoscaler/enabled"                      = "true"
     "k8s.io/cluster-autoscaler/${aws_eks_cluster.this.name}" = "owned"
   })
 }
@@ -96,36 +96,31 @@ resource "aws_iam_openid_connect_provider" "eks" {
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name = aws_eks_cluster.this.name
   addon_name   = "vpc-cni"
-  most_recent  = true
 }
 
 resource "aws_eks_addon" "coredns" {
   cluster_name = aws_eks_cluster.this.name
   addon_name   = "coredns"
-  most_recent  = true
 }
 
 resource "aws_eks_addon" "kube_proxy" {
   cluster_name = aws_eks_cluster.this.name
   addon_name   = "kube-proxy"
-  most_recent  = true
 }
 
 resource "aws_eks_addon" "ebs_csi" {
   cluster_name = aws_eks_cluster.this.name
   addon_name   = "aws-ebs-csi-driver"
-  most_recent  = true
 }
 
 resource "aws_eks_addon" "pod_identity_agent" {
   cluster_name = aws_eks_cluster.this.name
   addon_name   = "eks-pod-identity-agent"
-  most_recent  = true
 }
 
 # IAM role for EKS node group
 resource "aws_iam_role" "eks_node_group" {
-  name = "${var.project_prefix}-${var.environment}-eks-ng-role"
+  name               = "${var.project_prefix}-${var.environment}-eks-ng-role"
   assume_role_policy = data.aws_iam_policy_document.eks_node_assume_role.json
   tags = merge(var.tags, {
     Name = "${var.project_prefix}-${var.environment}-eks-ng-role"

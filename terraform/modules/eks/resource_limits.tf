@@ -9,9 +9,9 @@ resource "kubernetes_resource_quota" "system" {
   }
   spec {
     hard = {
-      cpu    = "8"      # Maximum total CPU cores for the namespace
-      memory = "32Gi"   # Maximum total memory for the namespace
-      pods   = "100"    # Maximum number of pods in the namespace
+      cpu    = "8"    # Maximum total CPU cores for the namespace
+      memory = "32Gi" # Maximum total memory for the namespace
+      pods   = "100"  # Maximum number of pods in the namespace
     }
   }
 }

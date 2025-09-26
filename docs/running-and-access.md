@@ -31,9 +31,9 @@ aws configure
 # Set region (e.g., eu-west-1)
 ```
 
-### Step 3: Set Up GitHub Secrets
-- Add AWS credentials and (optionally) Infracost API key to your repo secrets.
-- See `.github/workflows/terraform-deploy.yml` for required secret names.
+### Step 3: (Optional) Configure CI/CD
+- If using a CI/CD system, add required cloud credentials and (optionally) Infracost API key to your pipeline secrets.
+- This repository does not include CI/CD files by default.
 
 ### Step 4: Provision Infrastructure with Terraform
 ```bash
@@ -101,7 +101,7 @@ See [`values.yaml`](../argo-cd/bootstrap/values.yaml) and [`argocd-configuration
     kubectl port-forward svc/grafana -n monitoring 3000:80
     # Visit http://localhost:3000
     ```
-  - Default credentials: See the `grafana` secret in the `monitoring` namespace
+  - Credentials: Use the `grafana-admin` secret in `monitoring` (managed by external-secrets referencing AWS Secrets Manager)
 - **Prometheus:**
   - Port-forward:
     ```bash

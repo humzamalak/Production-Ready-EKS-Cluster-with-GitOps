@@ -9,12 +9,12 @@ This guide explains the end-to-end GitOps process for managing infrastructure an
 ## Steps
 1. **Create a feature branch** and make your changes.
 2. **Open a Pull Request (PR)** for review.
-3. **CI/CD runs tests, security, and plan checks** automatically.
-4. **Merge to main** triggers deployment to the cluster.
-5. **ArgoCD syncs changes** to the EKS cluster.
+3. **(Optional) CI/CD runs tests, security, and plan checks** automatically.
+4. **Merge to main** triggers deployment (manual or via pipeline).
+5. **ArgoCD syncs changes** to the EKS cluster from Git.
 
 ## Promotion
-- Use environment-specific apps for staging and production.
+- Use environment-specific apps for staging and production (see `argo-cd/apps/environments/`).
 - Promote changes by merging to the appropriate branch or updating the app-of-apps manifest.
 
 ## Best Practices

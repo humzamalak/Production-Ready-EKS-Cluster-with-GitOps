@@ -1,4 +1,6 @@
 # kube-state-metrics Deployment (Prometheus Operator)
+# - ServiceMonitor scrapes metrics from the kube-state-metrics Deployment.
+# - Provides cluster object state metrics for Prometheus/Grafana dashboards.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
