@@ -1,3 +1,4 @@
+This folder includes Argo CD Application manifests. Ensure `grafana-admin` Secret exists before syncing Prometheus stack.
 # ArgoCD Applications Directory
 
 This directory contains ArgoCD Application manifests for deploying workloads to your EKS cluster using GitOps principles.

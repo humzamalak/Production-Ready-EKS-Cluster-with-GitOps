@@ -58,7 +58,7 @@ resource "aws_nat_gateway" "this" {
 # Elastic IPs for NAT Gateways
 resource "aws_eip" "nat" {
   count = 3
-  vpc   = true
+  domain = "vpc"
   tags = merge(var.tags, {
     Name = "${var.project_prefix}-${var.environment}-eip-nat-${count.index + 1}"
   })
@@ -111,9 +111,23 @@ resource "aws_route_table_association" "private" {
 }
 
 # VPC Flow Logs for monitoring network traffic
+resource "aws_kms_key" "vpc_flow_logs" {
+  description             = "KMS key for VPC Flow Logs"
+  enable_key_rotation     = true
+  deletion_window_in_days = 7
+  tags = merge(var.tags, { Name = "${var.project_prefix}-${var.environment}-flowlogs-kms" })
+}
+
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/aws/vpc/flowlogs/${var.project_prefix}-${var.environment}"
+  retention_in_days = 90
+  kms_key_id        = aws_kms_key.vpc_flow_logs.arn
+  tags = merge(var.tags, { Name = "${var.project_prefix}-${var.environment}-flowlogs" })
+}
+
 resource "aws_flow_log" "this" {
   log_destination_type = "cloud-watch-logs"
-  log_group_name       = "/aws/vpc/flowlogs/${var.project_prefix}-${var.environment}"
+  log_group_name       = aws_cloudwatch_log_group.vpc_flow_logs.name
   vpc_id               = aws_vpc.this.id
   traffic_type         = "ALL" # Capture all traffic (accepted, rejected, etc.)
   iam_role_arn         = var.flow_log_iam_role_arn # IAM role for CloudWatch logs

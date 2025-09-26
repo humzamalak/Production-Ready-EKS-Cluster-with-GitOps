@@ -4,11 +4,13 @@
 # Resource creation is documented in README and can be managed manually or via a bootstrap script.
 
 terraform {
-  backend "s3" {
-    bucket         = "eks-gitops-prod-tfstate" # Name of the S3 bucket to store the state file
-    key            = "global/s3/terraform.tfstate" # Path within the bucket for the state file
-    region         = "us-east-1" # AWS region where the S3 bucket and DynamoDB table exist
-    dynamodb_table = "eks-gitops-prod-tflock" # DynamoDB table for state locking (prevents concurrent changes)
-    encrypt        = true # Encrypt the state file at rest
-  }
+  # Configure the S3 backend at init time using -backend-config to avoid hardcoding env-specific values.
+  # Example:
+  # terraform init \
+  #   -backend-config="bucket=eks-gitops-<env>-tfstate" \
+  #   -backend-config="key=<env>/terraform.tfstate" \
+  #   -backend-config="region=<aws-region>" \
+  #   -backend-config="dynamodb_table=eks-gitops-<env>-tflock" \
+  #   -backend-config="encrypt=true"
+  backend "s3" {}
 }
