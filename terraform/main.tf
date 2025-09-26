@@ -2,8 +2,28 @@
 # This file orchestrates the creation of the core AWS infrastructure using modules.
 # It provisions the VPC and EKS cluster by calling their respective modules.
 
-provider "aws" {
-  region = var.aws_region # AWS region to deploy resources in (set via variables.tf)
+## AWS provider is defined in versions.tf; removing duplicate declaration to avoid confusion.
+
+data "aws_eks_cluster" "this" {
+  name = module.eks.cluster_name
+}
+
+data "aws_eks_cluster_auth" "this" {
+  name = module.eks.cluster_name
+}
+
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.this.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.this.token
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = data.aws_eks_cluster.this.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.this.token
+  }
 }
 
 # VPC Module: Creates the Virtual Private Cloud and networking resources

@@ -10,12 +10,31 @@ resource "aws_eks_cluster" "this" {
   vpc_config {
     subnet_ids         = var.private_subnet_ids # Use private subnets for worker nodes
     security_group_ids = [var.eks_cluster_sg_id] # Security group for control plane
+    endpoint_private_access = true
+    endpoint_public_access  = false
   }
 
   enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"] # Enable logging for troubleshooting
 
+  encryption_config {
+    provider {
+      key_arn = aws_kms_key.eks_secrets.arn
+    }
+    resources = ["secrets"]
+  }
+
   tags = merge(var.tags, {
     Name = "${var.project_prefix}-${var.environment}-eks-cluster"
+  })
+}
+
+# KMS key for EKS secrets envelope encryption
+resource "aws_kms_key" "eks_secrets" {
+  description             = "KMS key for EKS secrets encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  tags = merge(var.tags, {
+    Name = "${var.project_prefix}-${var.environment}-eks-secrets-kms"
   })
 }
 
@@ -54,7 +73,54 @@ resource "aws_eks_node_group" "main" {
   disk_size      = 50 # Disk size in GB
   tags = merge(var.tags, {
     Name = "${var.project_prefix}-${var.environment}-ng-main"
+    "k8s.io/cluster-autoscaler/enabled" = "true"
+    "k8s.io/cluster-autoscaler/${aws_eks_cluster.this.name}" = "owned"
   })
+}
+
+# Enable OIDC provider for IRSA
+data "tls_certificate" "eks" {
+  url = aws_eks_cluster.this.identity[0].oidc[0].issuer
+}
+
+resource "aws_iam_openid_connect_provider" "eks" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
+  url             = aws_eks_cluster.this.identity[0].oidc[0].issuer
+  tags = merge(var.tags, {
+    Name = "${var.project_prefix}-${var.environment}-eks-oidc"
+  })
+}
+
+# Managed EKS Addons
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name = aws_eks_cluster.this.name
+  addon_name   = "vpc-cni"
+  most_recent  = true
+}
+
+resource "aws_eks_addon" "coredns" {
+  cluster_name = aws_eks_cluster.this.name
+  addon_name   = "coredns"
+  most_recent  = true
+}
+
+resource "aws_eks_addon" "kube_proxy" {
+  cluster_name = aws_eks_cluster.this.name
+  addon_name   = "kube-proxy"
+  most_recent  = true
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name = aws_eks_cluster.this.name
+  addon_name   = "aws-ebs-csi-driver"
+  most_recent  = true
+}
+
+resource "aws_eks_addon" "pod_identity_agent" {
+  cluster_name = aws_eks_cluster.this.name
+  addon_name   = "eks-pod-identity-agent"
+  most_recent  = true
 }
 
 # IAM role for EKS node group

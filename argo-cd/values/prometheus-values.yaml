@@ -7,7 +7,7 @@ prometheus:
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: gp2 # AWS EBS storage class
+          storageClassName: gp3 # Use gp3 for better cost/perf
           accessModes: [ "ReadWriteOnce" ] # Only one node can mount the volume
           resources:
             requests:
@@ -21,10 +21,13 @@ prometheus:
         memory: 1Gi    # Maximum memory allowed per pod
 grafana:
   enabled: true
-  adminPassword: prom-strong-password # Set a strong admin password (use a secret in production)
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
   persistence:
     enabled: true
-    storageClassName: gp2
+    storageClassName: gp3
     accessModes: [ "ReadWriteOnce" ]
     size: 10Gi # Persistent storage size for Grafana dashboards
   resources:
