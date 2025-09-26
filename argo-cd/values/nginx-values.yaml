@@ -1,5 +1,5 @@
 # Helm values for NGINX deployment via ArgoCD
-# This file customizes the NGINX Helm chart for your environment.
+# This file customises the NGINX Helm chart for your environment.
 
 replicaCount: 2 # Number of NGINX pod replicas to run
 

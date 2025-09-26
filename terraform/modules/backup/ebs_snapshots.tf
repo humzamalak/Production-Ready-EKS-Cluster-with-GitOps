@@ -18,5 +18,5 @@ variable "ebs_volume_ids" {
 
 variable "environment" {
   type        = string
-  description = "Environment name (e.g., production, staging). Used for tagging and organization."
+  description = "Environment name (e.g., production, staging). Used for tagging and organisation."
 }

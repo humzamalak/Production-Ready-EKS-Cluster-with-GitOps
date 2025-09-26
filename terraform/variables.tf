@@ -1,5 +1,5 @@
 # Root-level variables for EKS GitOps Infrastructure
-# These variables allow you to customize the deployment for different environments and naming conventions.
+# These variables allow you to customise the deployment for different environments and naming conventions.
 
 variable "project_prefix" {
   description = "Project prefix for resource naming. Used to identify resources created by this project."
@@ -16,7 +16,7 @@ variable "environment" {
 variable "aws_region" {
   description = "AWS region for resource deployment. All resources will be created in this region."
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-1"
 }
 
 variable "vpc_cidr" {
@@ -28,7 +28,7 @@ variable "vpc_cidr" {
 variable "azs" {
   description = "List of availability zones to use. Distributes resources for high availability."
   type        = list(string)
-  default     = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  default     = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
 }
 
 variable "flow_log_iam_role_arn" {
@@ -37,7 +37,7 @@ variable "flow_log_iam_role_arn" {
 }
 
 variable "tags" {
-  description = "Map of tags to apply to resources. Useful for cost allocation and organization."
+  description = "Map of tags to apply to resources. Useful for cost allocation and organisation."
   type        = map(string)
   default     = {}
 }

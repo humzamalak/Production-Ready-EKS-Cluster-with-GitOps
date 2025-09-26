@@ -1,6 +1,6 @@
 # ArgoCD Custom Values for Production (EKS GitOps)
 # Reference: https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
-# This file customizes the Helm chart for a secure, HA, production-grade deployment
+# This file customises the Helm chart for a secure, HA, production-grade deployment
 
 # High Availability and Security
 server:
@@ -101,7 +101,7 @@ rbac:
     p, role:readonly, certificates, get, */*, allow
     p, role:readonly, accounts, get, */*, allow
 
-# TLS/Ingress (example, customize as needed)
+# TLS/Ingress (example, customise as needed)
 ingress:
   enabled: true # Enable ingress for ArgoCD UI
   annotations:

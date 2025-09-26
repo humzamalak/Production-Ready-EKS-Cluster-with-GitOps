@@ -26,7 +26,7 @@ This repository provides a fully automated, production-grade Amazon EKS (Elastic
 
 ### AWS Requirements
 - AWS account with required permissions (see `terraform/README.md` for minimal IAM policy)
-- AWS region configured (e.g., `eu-west-1`, `us-east-1`)
+- AWS region configured (e.g., `eu-west-1`)
 - IAM role for VPC flow logs (create before deployment)
 
 ### Optional Tools
@@ -86,7 +86,7 @@ This repository provides a fully automated, production-grade Amazon EKS (Elastic
    vim terraform/terraform.tfvars
    # Replace placeholder values:
    # - flow_log_iam_role_arn with your actual IAM role ARN
-   # - tags with your organization details
+   # - tags with your organisation details
    
    # Update ArgoCD application manifests
    find argo-cd/apps -name "*.yaml" -exec sed -i 's/YOUR_ORG/your-github-org/g' {} \;
@@ -227,7 +227,7 @@ These commands are typically used in the following order during a development cy
 - **[Application Deployment](docs/application-deployment.md):** Adding new apps
 - **[GitOps Workflow](docs/gitops-workflow.md):** End-to-end GitOps process
 - **[Environment Promotion](docs/environment-promotion.md):** Staging to production
-- **[Performance Optimization](docs/performance-optimization.md):** Tuning and cost
+- **[Performance Optimisation](docs/performance-optimization.md):** Tuning and cost
 - **[Acceptance Testing](docs/acceptance-testing.md):** Validation and UAT
 - **[Launch Checklist](docs/launch-checklist.md):** Final review and go-live
 - **[Support Process](docs/support-process.md):** Incident response and support
@@ -361,7 +361,7 @@ kubectl port-forward svc/prometheus-server -n monitoring 9090:9090 &
 
 #### Monthly Operations
 - Update Kubernetes and application versions
-- Review and optimize resource allocation
+- Review and optimise resource allocation
 - Conduct disaster recovery tests
 - Review and update documentation
 
@@ -426,7 +426,7 @@ kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.s
 
 **Total Estimated Cost**: $150-400/month (varies by usage)
 
-### Cost Optimization Tips
+### Cost Optimisation Tips
 - Use spot instances for non-critical workloads
 - Implement cluster autoscaling
 - Monitor resource usage with Prometheus/Grafana
@@ -444,7 +444,7 @@ kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.s
 ### Regular Maintenance Tasks
 - **Weekly**: Review application logs and metrics
 - **Monthly**: Update dependencies and security patches
-- **Quarterly**: Review and optimize resource allocation
+- **Quarterly**: Review and optimise resource allocation
 - **Annually**: Plan for major version upgrades
 
 **Recommended secrets scan:**

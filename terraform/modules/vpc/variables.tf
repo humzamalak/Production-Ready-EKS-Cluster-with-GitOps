@@ -1,5 +1,5 @@
 # VPC Module Variables
-# These variables allow you to customize the VPC module for different environments, regions, and networking needs.
+# These variables allow you to customise the VPC module for different environments, regions, and networking needs.
 
 variable "project_prefix" {
   description = "Project prefix for resource naming. Used to identify resources created by this project."
@@ -19,17 +19,17 @@ variable "aws_region" {
 variable "vpc_cidr" {
   description = "CIDR block for the VPC. Defines the IP address range for the network."
   type        = string
-  default     = "10.0.0.0/16" # Default range, can be customized
+  default     = "10.0.0.0/16" # Default range, can be customised
 }
 
 variable "azs" {
   description = "List of availability zones to use. Distributes resources for high availability."
   type        = list(string)
-  default     = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  default     = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
 }
 
 variable "tags" {
-  description = "Map of tags to apply to resources. Useful for cost allocation and organization."
+  description = "Map of tags to apply to resources. Useful for cost allocation and organisation."
   type        = map(string)
   default     = {}
 }

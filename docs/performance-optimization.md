@@ -1,11 +1,11 @@
-# Performance Optimization Checklist
+# Performance Optimisation Checklist
 
-This guide provides tips and best practices for optimizing the performance and cost-efficiency of your EKS cluster and GitOps workflows.
+This guide provides tips and best practices for optimising the performance and cost-efficiency of your EKS cluster and GitOps workflows.
 
-## Cluster & Workload Optimization
+## Cluster & Workload Optimisation
 - Use resource requests and limits for all workloads to ensure fair scheduling and prevent resource contention.
 - Enable the cluster autoscaler for efficient scaling based on demand.
-- Optimize Terraform modules by using data sources and avoiding duplication.
+- Optimise Terraform modules by using data sources and avoiding duplication.
 - Use ArgoCD sync options like `ApplyOutOfSyncOnly` and `selfHeal` for efficient reconciliation.
 - Monitor costs with Infracost and AWS Cost Explorer.
 
@@ -13,7 +13,7 @@ This guide provides tips and best practices for optimizing the performance and c
 - Regularly review resource usage and adjust limits as needed.
 - Use spot instances for non-critical workloads to save costs.
 - Enable detailed monitoring in AWS for all resources.
-- Document all optimization changes and their impact.
+- Document all optimisation changes and their impact.
 
 ## Troubleshooting
 - Check cluster and application metrics in Grafana.

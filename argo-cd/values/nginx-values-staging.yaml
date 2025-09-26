@@ -1,5 +1,5 @@
 # Helm values for NGINX deployment in staging via ArgoCD
-# This file customizes the NGINX Helm chart for your staging environment.
+# This file customises the NGINX Helm chart for your staging environment.
 
 replicaCount: 1 # Number of NGINX pod replicas to run in staging
 
