@@ -31,10 +31,7 @@ variable "azs" {
   default     = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
 }
 
-variable "flow_log_iam_role_arn" {
-  description = "IAM role ARN for VPC flow logs. Allows VPC to write logs to CloudWatch. Must be supplied by the user."
-  type        = string
-}
+# flow_log_iam_role_arn is now provided by the IAM module
 
 variable "tags" {
   description = "Map of tags to apply to resources. Useful for cost allocation and organisation."

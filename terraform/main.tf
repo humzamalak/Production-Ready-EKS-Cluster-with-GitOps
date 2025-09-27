@@ -34,21 +34,32 @@ module "vpc" {
   aws_region            = var.aws_region            # AWS region
   vpc_cidr              = var.vpc_cidr              # VPC CIDR block
   azs                   = var.azs                   # Availability zones
-  flow_log_iam_role_arn = var.flow_log_iam_role_arn # IAM role ARN for VPC flow logs
+  flow_log_iam_role_arn = module.iam.vpc_flow_logs_role_arn # IAM role ARN for VPC flow logs
   tags                  = var.tags                  # Optional tags
 }
 
 # EKS Module: Provisions the EKS cluster and node groups
 module "eks" {
-  source             = "./modules/eks" # Path to the EKS module
-  project_prefix     = var.project_prefix
-  environment        = var.environment
-  aws_region         = var.aws_region
-  private_subnet_ids = module.vpc.private_subnet_ids # Private subnets for worker nodes
-  public_subnet_ids  = module.vpc.public_subnet_ids  # Public subnets for load balancers
-  eks_cluster_sg_id  = module.vpc.eks_cluster_sg_id  # Security group for EKS control plane
+  source                = "./modules/eks" # Path to the EKS module
+  project_prefix        = var.project_prefix
+  environment           = var.environment
+  aws_region            = var.aws_region
+  private_subnet_ids    = module.vpc.private_subnet_ids    # Private subnets for worker nodes
+  public_subnet_ids     = module.vpc.public_subnet_ids     # Public subnets for load balancers
+  eks_cluster_sg_id     = module.vpc.eks_cluster_sg_id     # Security group for EKS control plane
+  eks_node_group_sg_id  = module.vpc.eks_node_group_sg_id  # Security group for EKS worker nodes
   # Optional: pass through other variables as needed (e.g., kubernetes_version, node_instance_type, tags)
   tags = var.tags
+}
+
+# IAM Module: Creates service roles and policies for EKS workloads
+module "iam" {
+  source                = "./modules/iam" # Path to the IAM module
+  project_prefix        = var.project_prefix
+  environment           = var.environment
+  eks_cluster_name      = module.eks.cluster_name
+  eks_oidc_provider_arn = module.eks.oidc_provider_arn
+  tags                  = var.tags
 }
 
 # Note: Outputs for these modules are defined in their respective directories and exposed via outputs.tf in the root.

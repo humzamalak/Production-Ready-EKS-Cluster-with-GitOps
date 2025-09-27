@@ -78,6 +78,17 @@ resource "aws_eks_node_group" "main" {
   })
 }
 
+# Additional security group for EKS node group (attached to instances)
+resource "aws_security_group_rule" "eks_node_group_ingress" {
+  type                     = "ingress"
+  from_port                = 0
+  to_port                  = 65535
+  protocol                 = "tcp"
+  source_security_group_id = var.eks_node_group_sg_id
+  security_group_id        = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
+  description              = "Allow node group security group to communicate with cluster"
+}
+
 # Enable OIDC provider for IRSA
 data "tls_certificate" "eks" {
   url = aws_eks_cluster.this.identity[0].oidc[0].issuer

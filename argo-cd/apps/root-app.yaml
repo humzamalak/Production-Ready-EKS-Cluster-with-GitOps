@@ -11,7 +11,7 @@ metadata:
 spec:
   project: production-apps
   source:
-    repoURL: 'https://github.com/YOUR_ORG/Production-Ready-EKS-Cluster-with-GitOps'
+    repoURL: 'https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps'
     targetRevision: main
     path: argo-cd/apps
   destination:
