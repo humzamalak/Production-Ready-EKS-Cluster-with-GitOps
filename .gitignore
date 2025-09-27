@@ -2,9 +2,29 @@
 *.tfstate
 *.tfstate.*
 .terraform/
+.terraform.lock.hcl
 crash.log
 *.tfvars
 *.tfplan
+terraform.tfvars
+tfplan
+
+# Kubernetes
+*.kubeconfig
+kubeconfig*
+
+# Logs
+*.log
+deployment.log
+teardown.log
+scripts/deployment.log
+scripts/teardown.log
+
+# Generated password files
+*-password.txt
+*-admin-password.txt
+grafana-admin-password.txt
+argocd-admin-password.txt
 
 # Local .env files
 .env*
@@ -16,3 +36,33 @@ crash.log
 .vscode/
 .idea/
 *.swp
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# AWS
+.aws/
+
+# SSH keys
+*.pem
+*.key
+id_rsa*
+
+# Helm
+charts/*.tgz
+
+# ArgoCD
+.argocd/
+
+# Local development
+local/
+temp/
+tmp/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db

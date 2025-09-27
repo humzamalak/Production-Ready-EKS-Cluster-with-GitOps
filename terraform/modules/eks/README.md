@@ -37,7 +37,7 @@ module "eks" {
 | private_subnet_ids  | List of private subnet IDs               | list(string) | n/a         |
 | public_subnet_ids   | List of public subnet IDs                | list(string) | n/a         |
 | eks_cluster_sg_id   | Security group ID for EKS cluster        | string       | n/a         |
-| kubernetes_version  | Kubernetes version for EKS cluster       | string       | "1.29"     |
+| kubernetes_version  | Kubernetes version for EKS cluster       | string       | "1.31"     |
 | node_instance_type  | EC2 instance type for EKS node group     | string       | "t3.medium"|
 | tags                | Map of tags to apply to resources        | map(string)  | {}          |
 

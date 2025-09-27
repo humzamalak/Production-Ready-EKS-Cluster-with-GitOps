@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: argocd-server
-          image: argoproj/argocd:v2.10.7 # Pin to a stable version
+          image: argoproj/argocd:v2.11.1 # Pin to a stable version compatible with K8s 1.31
           resources:
             requests:
               cpu: 250m
