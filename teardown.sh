@@ -2,6 +2,17 @@
 
 # Production-Ready EKS Cluster with GitOps - Infrastructure Teardown Script
 # This script safely destroys all infrastructure created by the deployment script
+#
+# Features:
+# - Comprehensive Kubernetes resource cleanup (ArgoCD, Prometheus, Grafana)
+# - EKS cluster and VPC infrastructure destruction
+# - Terraform state management and backend cleanup
+# - Force cleanup options for stuck resources
+# - Detailed resource validation and reporting
+# - Support for dry-run, validation-only, and selective teardown modes
+#
+# Usage: ./teardown.sh [OPTIONS]
+# See --help for detailed usage information
 
 set -euo pipefail
 
@@ -23,6 +34,7 @@ SKIP_CONFIRMATION=false
 KEEP_BACKEND=false
 VERBOSE=false
 DRY_RUN=false
+FORCE_KUBERNETES_CLEANUP=false
 
 # Logging function
 log() {
@@ -58,6 +70,7 @@ OPTIONS:
     -v, --verbose           Enable verbose output
     --dry-run               Show what would be destroyed without actually destroying
     --validate-only         Only validate prerequisites and show what would be destroyed
+    --force-k8s-cleanup     Force cleanup of Kubernetes resources (use when normal cleanup fails)
 
 EXAMPLES:
     $0                      # Interactive teardown with confirmations
@@ -109,6 +122,10 @@ parse_args() {
                 ;;
             --validate-only)
                 VALIDATE_ONLY=true
+                shift
+                ;;
+            --force-k8s-cleanup)
+                FORCE_KUBERNETES_CLEANUP=true
                 shift
                 ;;
             *)
@@ -199,11 +216,20 @@ check_resources_exist() {
     source "${SCRIPT_DIR}/teardown-config.env"
     
     local resources_found=false
+    local resource_count=0
     
     # Check EKS cluster
     if aws eks describe-cluster --name "$cluster_name" --region "$aws_region" >/dev/null 2>&1; then
         log "✓ EKS cluster '${cluster_name}' exists"
         resources_found=true
+        ((resource_count++))
+        
+        # Check node groups
+        local node_groups
+        node_groups=$(aws eks list-nodegroups --cluster-name "$cluster_name" --region "$aws_region" --query 'nodegroups' --output text 2>/dev/null || echo "")
+        if [[ -n "$node_groups" ]]; then
+            log "  - Node groups: $node_groups"
+        fi
     else
         log "✗ EKS cluster '${cluster_name}' not found"
     fi
@@ -218,17 +244,34 @@ check_resources_exist() {
         # Get the actual bucket region from the response
         bucket_region=$(aws s3api head-bucket --bucket "$bucket_name" --region "$aws_region" 2>&1 | grep -o '"BucketRegion": "[^"]*"' | cut -d'"' -f4)
         log "✓ S3 bucket '${bucket_name}' exists in ${bucket_region}"
+        resources_found=true
+        ((resource_count++))
+        
+        # Check bucket contents
+        local object_count
+        object_count=$(aws s3 ls "s3://${bucket_name}" --recursive --summarize --region "$bucket_region" 2>/dev/null | grep "Total Objects:" | awk '{print $3}' || echo "0")
+        if [[ "$object_count" -gt 0 ]]; then
+            log "  - Objects in bucket: $object_count"
+        fi
     # Try us-east-1 (common for S3 buckets)
     elif aws s3api head-bucket --bucket "$bucket_name" --region us-east-1 2>/dev/null; then
         bucket_exists=true
         bucket_region="us-east-1"
         log "✓ S3 bucket '${bucket_name}' exists in us-east-1"
+        resources_found=true
+        ((resource_count++))
+        
+        # Check bucket contents
+        local object_count
+        object_count=$(aws s3 ls "s3://${bucket_name}" --recursive --summarize --region "$bucket_region" 2>/dev/null | grep "Total Objects:" | awk '{print $3}' || echo "0")
+        if [[ "$object_count" -gt 0 ]]; then
+            log "  - Objects in bucket: $object_count"
+        fi
     else
         log "✗ S3 bucket '${bucket_name}' not found in ${aws_region} or us-east-1"
     fi
     
     if [[ "$bucket_exists" == "true" ]]; then
-        resources_found=true
         # Store bucket region for later use
         echo "bucket_region=${bucket_region}" >> "${SCRIPT_DIR}/teardown-config.env"
     fi
@@ -237,6 +280,12 @@ check_resources_exist() {
     if aws dynamodb describe-table --table-name "$table_name" --region "$aws_region" >/dev/null 2>&1; then
         log "✓ DynamoDB table '${table_name}' exists"
         resources_found=true
+        ((resource_count++))
+        
+        # Check table status
+        local table_status
+        table_status=$(aws dynamodb describe-table --table-name "$table_name" --region "$aws_region" --query 'Table.TableStatus' --output text 2>/dev/null || echo "Unknown")
+        log "  - Table status: $table_status"
     else
         log "✗ DynamoDB table '${table_name}' not found"
     fi
@@ -247,9 +296,68 @@ check_resources_exist() {
     if [[ "$vpc_id" != "None" ]] && [[ "$vpc_id" != "null" ]]; then
         log "✓ VPC '${vpc_id}' exists"
         resources_found=true
+        ((resource_count++))
+        
+        # Check subnets
+        local subnet_count
+        subnet_count=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${vpc_id}" --query 'length(Subnets)' --output text --region "$aws_region" 2>/dev/null || echo "0")
+        log "  - Subnets: $subnet_count"
+        
+        # Check security groups
+        local sg_count
+        sg_count=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=${vpc_id}" --query 'length(SecurityGroups)' --output text --region "$aws_region" 2>/dev/null || echo "0")
+        log "  - Security groups: $sg_count"
+        
+        # Check load balancers
+        local lb_count
+        lb_count=$(aws elbv2 describe-load-balancers --query "length(LoadBalancers[?VpcId=='${vpc_id}'])" --output text --region "$aws_region" 2>/dev/null || echo "0")
+        if [[ "$lb_count" -gt 0 ]]; then
+            log "  - Load balancers: $lb_count"
+        fi
     else
         log "✗ VPC not found"
     fi
+    
+    # Check IAM roles
+    local iam_roles
+    iam_roles=$(aws iam list-roles --query "Roles[?contains(RoleName, '${project_prefix}-${environment}')].RoleName" --output text --region "$aws_region" 2>/dev/null || echo "")
+    if [[ -n "$iam_roles" ]]; then
+        log "✓ IAM roles found: $(echo $iam_roles | wc -w)"
+        resources_found=true
+        ((resource_count++))
+        for role in $iam_roles; do
+            log "  - $role"
+        done
+    else
+        log "✗ No IAM roles found"
+    fi
+    
+    # Check KMS keys
+    local kms_keys
+    kms_keys=$(aws kms list-keys --query "Keys[?contains(KeyId, '${project_prefix}-${environment}')].KeyId" --output text --region "$aws_region" 2>/dev/null || echo "")
+    if [[ -n "$kms_keys" ]]; then
+        log "✓ KMS keys found: $(echo $kms_keys | wc -w)"
+        resources_found=true
+        ((resource_count++))
+        for key in $kms_keys; do
+            log "  - $key"
+        done
+    else
+        log "✗ No KMS keys found"
+    fi
+    
+    # Check CloudWatch log groups
+    local log_groups
+    log_groups=$(aws logs describe-log-groups --log-group-name-prefix "/aws/vpc/flowlogs/${project_prefix}-${environment}" --query 'length(logGroups)' --output text --region "$aws_region" 2>/dev/null || echo "0")
+    if [[ "$log_groups" -gt 0 ]]; then
+        log "✓ CloudWatch log groups found: $log_groups"
+        resources_found=true
+        ((resource_count++))
+    else
+        log "✗ No CloudWatch log groups found"
+    fi
+    
+    log "Total resources found: $resource_count"
     
     if [[ "$resources_found" == "false" ]]; then
         warning "No infrastructure resources found. Nothing to destroy."
@@ -364,12 +472,18 @@ handle_terraform_state() {
 }
 
 # Clean up Kubernetes resources
+# This function performs comprehensive cleanup of all Kubernetes resources including:
+# - ArgoCD applications and Helm releases
+# - Monitoring stack (Prometheus, Grafana, AlertManager)
+# - All namespaces and resources
+# - Force cleanup options for stuck resources
 cleanup_kubernetes_resources() {
     log "Cleaning up Kubernetes resources..."
     
     source "${SCRIPT_DIR}/teardown-config.env"
     
     # Check if kubectl is configured for the cluster
+    # If not configured, attempt to configure it using AWS CLI
     if ! kubectl cluster-info >/dev/null 2>&1; then
         log "Configuring kubectl for EKS cluster..."
         aws eks update-kubeconfig --region "$aws_region" --name "$cluster_name" || {
@@ -378,22 +492,165 @@ cleanup_kubernetes_resources() {
         }
     fi
     
-    # Delete ArgoCD applications first
-    log "Deleting ArgoCD applications..."
-    kubectl delete applications --all -n argocd --ignore-not-found=true || true
+    # Wait for cluster to be accessible
+    # This ensures the cluster is responsive before attempting cleanup
+    log "Waiting for cluster to be accessible..."
+    local max_attempts=10
+    local attempt=1
     
-    # Delete ArgoCD
-    log "Deleting ArgoCD..."
-    helm uninstall argocd -n argocd --ignore-not-found=true || true
+    while [[ $attempt -le $max_attempts ]]; do
+        if kubectl get nodes >/dev/null 2>&1; then
+            log "Successfully connected to EKS cluster"
+            break
+        fi
+        
+        log "Attempt $attempt/$max_attempts: Waiting for cluster access..."
+        sleep 10
+        ((attempt++))
+        
+        if [[ $attempt -gt $max_attempts ]]; then
+            warning "Failed to access EKS cluster after $max_attempts attempts. Skipping Kubernetes cleanup."
+            return 0
+        fi
+    done
+    
+    # Delete ArgoCD applications first (app-of-apps pattern)
+    log "Deleting ArgoCD applications..."
+    if kubectl get applications -n argocd >/dev/null 2>&1; then
+        # Delete all applications
+        kubectl delete applications --all -n argocd --ignore-not-found=true || true
+        
+        # Wait for applications to be deleted
+        log "Waiting for ArgoCD applications to be deleted..."
+        local app_attempt=1
+        while [[ $app_attempt -le 30 ]]; do
+            local app_count
+            app_count=$(kubectl get applications -n argocd --no-headers 2>/dev/null | wc -l || echo "0")
+            if [[ "$app_count" -eq 0 ]]; then
+                log "All ArgoCD applications deleted"
+                break
+            fi
+            log "Waiting for $app_count applications to be deleted... (attempt $app_attempt/30)"
+            sleep 10
+            ((app_attempt++))
+        done
+    else
+        log "No ArgoCD applications found"
+    fi
+    
+    # Delete ArgoCD Helm release
+    log "Deleting ArgoCD Helm release..."
+    if helm list -n argocd | grep -q argocd; then
+        helm uninstall argocd -n argocd --ignore-not-found=true || true
+        
+        # Wait for ArgoCD pods to be deleted
+        log "Waiting for ArgoCD pods to be deleted..."
+        local argocd_attempt=1
+        while [[ $argocd_attempt -le 30 ]]; do
+            local argocd_pods
+            argocd_pods=$(kubectl get pods -n argocd --no-headers 2>/dev/null | wc -l || echo "0")
+            if [[ "$argocd_pods" -eq 0 ]]; then
+                log "All ArgoCD pods deleted"
+                break
+            fi
+            log "Waiting for $argocd_pods ArgoCD pods to be deleted... (attempt $argocd_attempt/30)"
+            sleep 10
+            ((argocd_attempt++))
+        done
+    else
+        log "No ArgoCD Helm release found"
+    fi
+    
+    # Delete ArgoCD namespace
+    log "Deleting ArgoCD namespace..."
     kubectl delete namespace argocd --ignore-not-found=true || true
     
-    # Delete monitoring namespace
+    # Delete monitoring namespace and resources
     log "Deleting monitoring resources..."
-    kubectl delete namespace monitoring --ignore-not-found=true || true
+    if kubectl get namespace monitoring >/dev/null 2>&1; then
+        # Delete Prometheus and Grafana resources specifically
+        log "Deleting Prometheus resources..."
+        kubectl delete prometheus --all -n monitoring --ignore-not-found=true || true
+        kubectl delete servicemonitor --all -n monitoring --ignore-not-found=true || true
+        kubectl delete alertmanager --all -n monitoring --ignore-not-found=true || true
+        
+        log "Deleting Grafana resources..."
+        kubectl delete grafana --all -n monitoring --ignore-not-found=true || true
+        
+        # Delete the monitoring namespace
+        kubectl delete namespace monitoring --ignore-not-found=true || true
+        
+        # Wait for monitoring namespace to be deleted
+        log "Waiting for monitoring namespace to be deleted..."
+        local monitoring_attempt=1
+        while [[ $monitoring_attempt -le 30 ]]; do
+            if ! kubectl get namespace monitoring >/dev/null 2>&1; then
+                log "Monitoring namespace deleted"
+                break
+            fi
+            log "Waiting for monitoring namespace to be deleted... (attempt $monitoring_attempt/30)"
+            sleep 10
+            ((monitoring_attempt++))
+        done
+    else
+        log "No monitoring namespace found"
+    fi
     
-    # Delete any remaining resources
+    # Delete any remaining resources in other namespaces
     log "Cleaning up remaining Kubernetes resources..."
-    kubectl delete all --all --all-namespaces --ignore-not-found=true || true
+    
+    # Delete any remaining Helm releases
+    log "Deleting remaining Helm releases..."
+    for namespace in $(kubectl get namespaces --no-headers -o custom-columns=":metadata.name" | grep -v kube-system | grep -v kube-public | grep -v kube-node-lease); do
+        if helm list -n "$namespace" | grep -q .; then
+            log "Deleting Helm releases in namespace: $namespace"
+            helm list -n "$namespace" --short | xargs -r helm uninstall -n "$namespace" || true
+        fi
+    done
+    
+    # Delete any remaining resources (excluding system namespaces)
+    log "Deleting remaining resources in non-system namespaces..."
+    for namespace in $(kubectl get namespaces --no-headers -o custom-columns=":metadata.name" | grep -v kube-system | grep -v kube-public | grep -v kube-node-lease); do
+        log "Cleaning up namespace: $namespace"
+        kubectl delete all --all -n "$namespace" --ignore-not-found=true || true
+        kubectl delete pvc --all -n "$namespace" --ignore-not-found=true || true
+        kubectl delete secrets --all -n "$namespace" --ignore-not-found=true || true
+        kubectl delete configmaps --all -n "$namespace" --ignore-not-found=true || true
+    done
+    
+    # Force delete any remaining namespaces (excluding system namespaces)
+    log "Force deleting remaining non-system namespaces..."
+    for namespace in $(kubectl get namespaces --no-headers -o custom-columns=":metadata.name" | grep -v kube-system | grep -v kube-public | grep -v kube-node-lease); do
+        log "Force deleting namespace: $namespace"
+        kubectl delete namespace "$namespace" --force --grace-period=0 --ignore-not-found=true || true
+    done
+    
+    # Force cleanup if requested
+    # This is a last resort option for cleaning up stuck or problematic resources
+    # It uses force deletion with grace period 0 to immediately remove resources
+    if [[ "$FORCE_KUBERNETES_CLEANUP" == "true" ]]; then
+        log "Performing force Kubernetes cleanup..."
+        
+        # Force delete all non-system namespaces
+        # This bypasses normal deletion procedures and immediately removes namespaces
+        log "Force deleting all non-system namespaces..."
+        kubectl get namespaces --no-headers -o custom-columns=":metadata.name" | grep -v kube-system | grep -v kube-public | grep -v kube-node-lease | xargs -r kubectl delete namespace --force --grace-period=0 || true
+        
+        # Force delete any remaining resources
+        # This removes all resources across all namespaces with force deletion
+        log "Force deleting remaining resources..."
+        kubectl delete all --all --all-namespaces --force --grace-period=0 --ignore-not-found=true || true
+        kubectl delete pvc --all --all-namespaces --force --grace-period=0 --ignore-not-found=true || true
+        kubectl delete secrets --all --all-namespaces --force --grace-period=0 --ignore-not-found=true || true
+        kubectl delete configmaps --all --all-namespaces --force --grace-period=0 --ignore-not-found=true || true
+        
+        # Force delete any remaining CRDs
+        # Custom Resource Definitions may prevent namespace deletion
+        log "Force deleting custom resource definitions..."
+        kubectl delete crd --all --force --grace-period=0 --ignore-not-found=true || true
+        
+        warning "Force cleanup completed. Some resources may still exist and require manual cleanup."
+    fi
     
     success "Kubernetes resources cleanup completed"
 }
@@ -423,8 +680,8 @@ destroy_terraform_infrastructure() {
         log "Destroying infrastructure (force mode)..."
         terraform destroy -var-file="terraform.tfvars" -auto-approve
     else
-        log "Destroying infrastructure..."
-        terraform destroy -var-file="terraform.tfvars"
+        log "Destroying infrastructure (interactive)..."
+        terraform apply destroy-plan
     fi
     
     success "Terraform infrastructure destruction completed"
@@ -521,17 +778,56 @@ show_teardown_summary() {
         echo "✓ Backend resources destroyed"
     fi
     
+    echo "✓ Kubernetes resources cleaned up"
+    if [[ "$FORCE_KUBERNETES_CLEANUP" == "true" ]]; then
+        echo "✓ Force Kubernetes cleanup performed"
+    fi
+    
+    echo ""
+    echo "=== VERIFICATION COMMANDS ==="
+    echo ""
+    echo "1. Verify EKS cluster is destroyed:"
+    echo "   aws eks list-clusters --region $aws_region"
+    echo ""
+    echo "2. Verify VPC is destroyed:"
+    echo "   aws ec2 describe-vpcs --region $aws_region"
+    echo ""
+    echo "3. Check for any remaining resources:"
+    echo "   aws resourcegroupstaggingapi get-resources --region $aws_region"
+    echo ""
+    echo "4. Verify S3 bucket status:"
+    if [[ "$KEEP_BACKEND" == "true" ]]; then
+        echo "   aws s3api head-bucket --bucket $bucket_name --region $aws_region"
+    else
+        echo "   aws s3api head-bucket --bucket $bucket_name --region $aws_region  # Should fail"
+    fi
+    echo ""
+    echo "5. Verify DynamoDB table status:"
+    if [[ "$KEEP_BACKEND" == "true" ]]; then
+        echo "   aws dynamodb describe-table --table-name $table_name --region $aws_region"
+    else
+        echo "   aws dynamodb describe-table --table-name $table_name --region $aws_region  # Should fail"
+    fi
+    echo ""
+    echo "6. Check for any remaining IAM roles:"
+    echo "   aws iam list-roles --query \"Roles[?contains(RoleName, '$project_prefix-$environment')].RoleName\" --output table --region $aws_region"
+    echo ""
+    echo "7. Check for any remaining KMS keys:"
+    echo "   aws kms list-keys --query \"Keys[?contains(KeyId, '$project_prefix-$environment')].KeyId\" --output table --region $aws_region"
     echo ""
     echo "=== NEXT STEPS ==="
     echo ""
-    echo "1. Verify all resources are destroyed:"
-    echo "   aws eks list-clusters --region <region>"
-    echo "   aws ec2 describe-vpcs --region <region>"
+    echo "1. Review AWS costs to ensure no unexpected charges"
+    echo "2. Check CloudWatch logs for any remaining log groups"
+    echo "3. Verify all resources are completely destroyed"
     echo ""
-    echo "2. Check for any remaining resources:"
-    echo "   aws resourcegroupstaggingapi get-resources --region <region>"
+    echo "=== TROUBLESHOOTING ==="
     echo ""
-    echo "3. Review AWS costs to ensure no unexpected charges"
+    echo "If resources still exist:"
+    echo "1. Check the log file: $LOG_FILE"
+    echo "2. Use AWS Console to manually delete remaining resources"
+    echo "3. For Kubernetes resources, use: $0 --force-k8s-cleanup"
+    echo "4. For Terraform state issues, use: $0 --force"
     echo ""
     echo "=== LOGS ==="
     echo "Check $LOG_FILE for detailed logs"
