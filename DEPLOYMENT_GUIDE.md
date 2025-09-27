@@ -1,42 +1,28 @@
 # Deployment Guide - Production-Ready EKS Cluster with GitOps
 
-This guide provides step-by-step instructions for deploying the Production-Ready EKS Cluster with GitOps, including automated deployment scripts.
+This guide provides step-by-step instructions for deploying the Production-Ready EKS Cluster with GitOps using Terraform and ArgoCD.
 
 ## 🚀 Quick Start
 
-### Option 1: Automated Deployment (Recommended)
+### Option 1: Makefile Deployment (Recommended)
 
-Use the provided deployment scripts for automated deployment:
+Use the provided Makefile for streamlined deployment:
 
 ```bash
-# Full automated deployment (EKS + ArgoCD + Prometheus + Grafana)
-./deploy.sh
+# Initialize Terraform
+make init
 
-# Quick deployment with minimal configuration
-./quick-deploy.sh
+# Review the infrastructure plan
+make plan
 
-# Validate prerequisites only
-./deploy.sh --validate-only
+# Deploy infrastructure (takes 15-20 minutes)
+make apply
 
-# Dry run to see what would be deployed
-./deploy.sh --dry-run
+# Bootstrap ArgoCD and applications
+make argo-sync
 
-# Skip infrastructure deployment (if already deployed)
-./deploy.sh --skip-infra
-
-# Skip ArgoCD installation
-./deploy.sh --skip-argocd
-
-# Skip application deployment
-./deploy.sh --skip-apps
-
-# Auto-approve all prompts (recommended to avoid Vim prompts)
-./deploy.sh -y
-# or
-./deploy.sh --auto-approve
-
-# Create only Terraform backend resources
-./deploy.sh --create-backend-only
+# Validate deployment
+make lint
 ```
 
 ### Option 2: Manual Deployment
@@ -273,51 +259,33 @@ kubectl port-forward svc/alertmanager -n monitoring 9093:9093
 # Access at http://localhost:9093
 ```
 
-## 🛠️ Automation Scripts
+## 🛠️ Makefile Commands
 
-### Full Deployment Script (`deploy.sh`)
+### Available Makefile Targets
 
-Comprehensive deployment script with validation and error handling:
+The Makefile provides convenient targets for common operations:
 
 ```bash
-# Full deployment
-./deploy.sh
+# Infrastructure Management
+make init      # Initialize Terraform backend
+make plan      # Show Terraform plan
+make apply     # Apply Terraform changes
+make destroy   # Destroy all infrastructure
 
-# Skip infrastructure (if already deployed)
-./deploy.sh --skip-infra
+# Code Quality
+make lint      # Lint and validate Terraform code
+make fmt       # Auto-format Terraform code
 
-# Auto-approve Terraform apply
-./deploy.sh --auto-approve
-
-# Validate prerequisites only
-./deploy.sh --validate-only
-
-# Verbose output
-./deploy.sh --verbose
+# ArgoCD Management
+make argo-sync # Bootstrap ArgoCD and root app
 ```
 
 **Features:**
-- ✅ Prerequisites validation
-- ✅ Infrastructure deployment
-- ✅ ArgoCD installation
-- ✅ Application deployment
-- ✅ Error handling and logging
-- ✅ Access information display
-- ✅ Configurable options
-
-### Quick Deployment Script (`quick-deploy.sh`)
-
-Simplified script for quick deployment:
-
-```bash
-./quick-deploy.sh
-```
-
-**Features:**
-- ✅ Interactive prompts
-- ✅ Basic validation
-- ✅ Step-by-step deployment
-- ✅ Access information display
+- ✅ Streamlined Terraform operations
+- ✅ ArgoCD bootstrap automation
+- ✅ Code validation and formatting
+- ✅ Consistent command interface
+- ✅ Environment variable support
 
 ## 📊 Cost Estimation
 
@@ -395,71 +363,63 @@ kubectl logs -n monitoring deployment/prometheus-server
 To destroy the infrastructure:
 
 ```bash
-# Interactive teardown with confirmations
-./teardown.sh
+# Destroy infrastructure using Makefile
+make destroy
 
-# Force teardown without confirmations
-./teardown.sh --force
-
-# Keep backend resources (S3 bucket and DynamoDB table)
-./teardown.sh --keep-backend
-
-# Dry run to see what would be destroyed
-./teardown.sh --dry-run
-
-# Validate and show resources without destroying
-./teardown.sh --validate-only
-
-# Force cleanup of stuck Kubernetes resources
-./teardown.sh --force-k8s-cleanup
-
-# Auto-confirm all prompts (recommended to avoid Vim prompts)
-./teardown.sh -y
-# or
-./teardown.sh --yes
+# Or manually with Terraform
+cd terraform
+terraform destroy -var-file="terraform.tfvars"
 ```
 
 ### Teardown Process
 
-The teardown script performs the following steps in order:
+The teardown process involves the following steps:
 
-1. **Prerequisites Validation**: Checks for required tools and AWS credentials
-2. **Resource Discovery**: Identifies all infrastructure resources to be destroyed
-3. **Kubernetes Cleanup**: 
-   - Deletes ArgoCD applications and Helm releases
-   - Removes monitoring stack (Prometheus, Grafana, AlertManager)
-   - Cleans up all namespaces and resources
-   - Force cleanup options for stuck resources
-4. **Terraform Destruction**: Destroys EKS cluster, VPC, and all AWS resources
-5. **Backend Cleanup**: Optionally removes S3 bucket and DynamoDB table
-6. **Verification**: Provides commands to verify complete teardown
+1. **Kubernetes Cleanup** (Manual):
+   ```bash
+   # Delete ArgoCD applications
+   kubectl delete applications --all -n argocd
+   
+   # Delete monitoring stack
+   kubectl delete namespace monitoring
+   
+   # Delete ArgoCD namespace
+   kubectl delete namespace argocd
+   ```
 
-### Force Cleanup Options
+2. **Terraform Destruction**:
+   ```bash
+   # Using Makefile
+   make destroy
+   
+   # Or manually
+   cd terraform
+   terraform destroy -var-file="terraform.tfvars"
+   ```
 
-If normal teardown fails, use these options:
+3. **Verification**:
+   ```bash
+   # Verify cluster is destroyed
+   aws eks list-clusters --region <your-region>
+   
+   # Check for any remaining resources
+   aws ec2 describe-instances --region <your-region>
+   ```
+
+### Manual Cleanup (If Needed)
+
+If Terraform destroy fails, you may need to manually clean up resources:
 
 ```bash
-# Force cleanup of Kubernetes resources
-./teardown.sh --force-k8s-cleanup
+# Delete EKS cluster manually
+aws eks delete-cluster --name <cluster-name> --region <region>
 
-# Force destroy without Terraform state
-./teardown.sh --force
+# Delete VPC and associated resources
+aws ec2 delete-vpc --vpc-id <vpc-id>
 
-# Combine both for maximum cleanup
-./teardown.sh --force --force-k8s-cleanup
-```
-
-### Manual Cleanup (Alternative)
-
-If the automated teardown script fails, you can manually clean up resources:
-
-```bash
-# Destroy infrastructure
-cd terraform
-terraform destroy -var-file="terraform.tfvars" -auto-approve
-
-# Or for interactive mode (may open Vim for confirmation)
-terraform destroy -var-file="terraform.tfvars"
+# Clean up S3 bucket and DynamoDB table (if not managed by Terraform)
+aws s3 rb s3://<bucket-name> --force
+aws dynamodb delete-table --table-name <table-name>
 ```
 
 **⚠️ Warning:** This will permanently delete all resources and data.

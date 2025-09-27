@@ -12,33 +12,26 @@ This repository provides a fully automated, production-grade Amazon EKS (Elastic
 - **Monitoring & Alerting:** Prometheus, Grafana, AlertManager, FluentBit, and CloudWatch.
 - **Disaster Recovery:** EBS/ETCD backup resources, runbooks, and recovery testing guidance.
 - **Comprehensive Documentation:** Onboarding, troubleshooting, guides, and runbooks under `docs/`.
-- **Modular Deployment Scripts:** Separated, focused scripts for different deployment components with comprehensive error handling and logging.
+- **Streamlined Deployment:** Simple Makefile targets and direct Terraform commands for easy deployment.
 
 ---
 
-## Script Architecture
+## Deployment Architecture
 
-The deployment process is broken down into modular, focused scripts located in the `scripts/` directory:
+The deployment process uses a streamlined approach with Terraform and Makefile:
 
-### Main Orchestration
-- **`scripts/deploy.sh`** - Main deployment script that orchestrates all components
+### Core Components
+- **Terraform Modules** - Modular infrastructure as code for VPC, EKS, IAM, and backup
+- **Makefile** - Convenient targets for common operations
+- **ArgoCD** - GitOps workflow management with app-of-apps pattern
 
-### Component Scripts
-- **`scripts/backend-management.sh`** - Manages Terraform backend resources (S3 bucket and DynamoDB table)
-- **`scripts/infrastructure-deploy.sh`** - Deploys EKS cluster and associated infrastructure using Terraform
-- **`scripts/argocd-deploy.sh`** - Installs and configures ArgoCD for GitOps workflow
-- **`scripts/applications-deploy.sh`** - Deploys applications using ArgoCD's app-of-apps pattern
-
-### Shared Library
-- **`scripts/lib/common.sh`** - Shared functions and utilities used across all scripts
-
-### Benefits of Modular Design
-- **Separation of Concerns:** Each script handles a specific component
-- **Independent Execution:** Scripts can be run individually for targeted deployments
-- **Better Error Handling:** Focused error messages and recovery options
-- **Easier Maintenance:** Changes to one component don't affect others
-- **Improved Testing:** Individual components can be validated and tested separately
-- **Enhanced Logging:** Detailed logging with timestamps and colored output
+### Benefits of Simplified Design
+- **Direct Control:** Direct Terraform and kubectl commands for transparency
+- **Makefile Convenience:** Streamlined commands for common operations
+- **Modular Infrastructure:** Well-organized Terraform modules
+- **GitOps Integration:** ArgoCD for declarative application management
+- **Easy Maintenance:** Clear separation between infrastructure and applications
+- **Standard Tools:** Uses industry-standard tools without custom scripts
 
 ---
 
@@ -121,58 +114,46 @@ The deployment process is broken down into modular, focused scripts located in t
 
 ### Automated Deployment (Recommended)
 
-5. **Use the modular deployment scripts**
+5. **Use the Makefile for streamlined deployment**
    ```bash
-   # Full automated deployment (EKS + ArgoCD + Prometheus + Grafana)
-   ./scripts/deploy.sh -y  # Use -y to avoid Vim prompts
+   # Initialize Terraform backend
+   make init
    
-   # Validate prerequisites first
-   ./scripts/deploy.sh --validate-only
+   # Review the infrastructure plan
+   make plan
    
-   # Dry run to see what would be deployed
-   ./scripts/deploy.sh --dry-run
+   # Deploy infrastructure (takes 15-20 minutes)
+   make apply
    
-   # See all available options
-   ./scripts/deploy.sh --help
+   # Bootstrap ArgoCD and applications
+   make argo-sync
+   
+   # Validate deployment
+   make lint
    ```
 
-   **Selective Deployment Options:**
+   **Available Makefile Targets:**
    ```bash
-   # Skip infrastructure deployment (if cluster already exists)
-   ./scripts/deploy.sh --skip-infra
+   # Infrastructure Management
+   make init      # Initialize Terraform backend
+   make plan      # Show Terraform plan
+   make apply     # Apply Terraform changes
+   make destroy   # Destroy all infrastructure
    
-   # Skip ArgoCD deployment
-   ./scripts/deploy.sh --skip-argocd
+   # Code Quality
+   make lint      # Lint and validate Terraform code
+   make fmt       # Auto-format Terraform code
    
-   # Skip application deployment
-   ./scripts/deploy.sh --skip-apps
-   
-   # Create backend resources only
-   ./scripts/deploy.sh --create-backend-only
+   # ArgoCD Management
+   make argo-sync # Bootstrap ArgoCD and root app
    ```
 
-   **Individual Component Scripts:**
-   ```bash
-   # Deploy components individually
-   ./scripts/backend-management.sh      # Terraform backend resources
-   ./scripts/infrastructure-deploy.sh   # EKS cluster and infrastructure (modular)
-   ./scripts/argocd-deploy.sh           # ArgoCD installation
-   ./scripts/applications-deploy.sh     # Application deployment
-   ```
-
-   **Infrastructure Deployment Features:**
-   - **Modular Architecture**: Split into focused modules for better maintainability
-   - **Comprehensive Validation**: Prerequisites, AWS credentials, and configuration checks
-   - **Status Monitoring**: Real-time infrastructure health and status reporting
-   - **Error Handling**: Robust error handling with detailed logging
-   - **Flexible Options**: Dry-run, validation-only, and verbose modes
-
-   **Modular Components (`scripts/lib/`):**
-   - **`terraform-deploy.sh`** - Terraform operations (plan, apply, validate)
-   - **`kubectl-config.sh`** - kubectl configuration and cluster access
-   - **`infrastructure-validation.sh`** - Prerequisites and configuration validation
-   - **`infrastructure-status.sh`** - Status reporting and health monitoring
-   - **`common.sh`** - Shared utilities and functions
+   **Deployment Features:**
+   - **Streamlined Commands**: Simple make targets for common operations
+   - **Terraform Integration**: Direct Terraform commands with proper configuration
+   - **ArgoCD Bootstrap**: Automated ArgoCD installation and application deployment
+   - **Code Quality**: Built-in linting and formatting capabilities
+   - **Environment Variables**: Support for TF_VAR_* environment variables
 
 ### Manual Deployment (Alternative)
 
@@ -518,45 +499,38 @@ kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.s
 
 ## 🧹 Teardown
 
-To destroy the infrastructure, use the automated teardown script:
+To destroy the infrastructure:
 
 ```bash
-# Interactive teardown with confirmations (may open Vim for confirmation)
-./teardown.sh
+# Using Makefile (recommended)
+make destroy
 
-# Force teardown without confirmations (recommended to avoid Vim prompts)
-./teardown.sh --force
-# or
-./teardown.sh -y
+# Or manually with Terraform
+cd terraform
+terraform destroy -var-file="terraform.tfvars"
+```
 
-# Keep backend resources (S3 bucket and DynamoDB table)
-./teardown.sh --keep-backend
+### Manual Kubernetes Cleanup
 
-# Skip slow resources that take >15 minutes (faster teardown)
-./teardown.sh --skip-slow-resources
+Before destroying infrastructure, clean up Kubernetes resources:
 
-# Set custom timeout (default: 15 minutes)
-./teardown.sh --timeout-minutes 30
+```bash
+# Delete ArgoCD applications
+kubectl delete applications --all -n argocd
 
-# Dry run to see what would be destroyed
-./teardown.sh --dry-run
+# Delete monitoring stack
+kubectl delete namespace monitoring
 
-# Force cleanup of stuck Kubernetes resources
-./teardown.sh --force-k8s-cleanup
-
-# See all available options
-./teardown.sh --help
+# Delete ArgoCD namespace
+kubectl delete namespace argocd
 ```
 
 ### Teardown Features
-- **Comprehensive cleanup**: Removes ArgoCD, monitoring stack, and all applications
-- **Resource validation**: Shows exactly what will be destroyed before proceeding
-- **Force cleanup options**: Handles stuck or problematic resources
-- **State recovery**: Handles corrupted Terraform state and backend issues
-- **Verification commands**: Provides steps to verify complete teardown
-- **Timeout management**: Default 15-minute timeout with customizable limits
-- **Skip slow resources**: Option to skip resources that typically take >15 minutes
-- **Targeted destruction**: Smart resource targeting for faster teardown
+- **Simple Commands**: Direct Terraform destroy or Makefile target
+- **Manual Control**: Explicit Kubernetes cleanup for better control
+- **State Management**: Proper Terraform state handling
+- **Resource Verification**: Commands to verify complete cleanup
+- **Flexible Approach**: Can be done step-by-step or all at once
 
 ## Support and Maintenance
 
