@@ -92,7 +92,25 @@ This repository provides a fully automated, production-grade Amazon EKS (Elastic
    find argo-cd/apps -name "*.yaml" -exec sed -i 's/YOUR_ORG/your-github-org/g' {} \;
    ```
 
-### Infrastructure Deployment
+### Automated Deployment (Recommended)
+
+5. **Use the automated deployment script**
+   ```bash
+   # Full automated deployment (EKS + ArgoCD + Prometheus + Grafana)
+   ./deploy.sh -y  # Use -y to avoid Vim prompts
+   
+   # Or use quick deployment for minimal setup
+   ./quick-deploy.sh
+   
+   # Validate prerequisites first
+   ./deploy.sh --validate-only
+   
+   # See all available options
+   ./deploy.sh --help
+   ```
+
+### Manual Deployment (Alternative)
+
 5. **Provision Infrastructure with Terraform**
    ```bash
    cd terraform
@@ -432,6 +450,39 @@ kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.s
 - Monitor resource usage with Prometheus/Grafana
 - Regular cleanup of unused resources
 - Use Infracost for cost estimation
+
+## 🧹 Teardown
+
+To destroy the infrastructure, use the automated teardown script:
+
+```bash
+# Interactive teardown with confirmations (may open Vim for confirmation)
+./teardown.sh
+
+# Force teardown without confirmations (recommended to avoid Vim prompts)
+./teardown.sh --force
+# or
+./teardown.sh -y
+
+# Keep backend resources (S3 bucket and DynamoDB table)
+./teardown.sh --keep-backend
+
+# Dry run to see what would be destroyed
+./teardown.sh --dry-run
+
+# Force cleanup of stuck Kubernetes resources
+./teardown.sh --force-k8s-cleanup
+
+# See all available options
+./teardown.sh --help
+```
+
+### Teardown Features
+- **Comprehensive cleanup**: Removes ArgoCD, monitoring stack, and all applications
+- **Resource validation**: Shows exactly what will be destroyed before proceeding
+- **Force cleanup options**: Handles stuck or problematic resources
+- **State recovery**: Handles corrupted Terraform state and backend issues
+- **Verification commands**: Provides steps to verify complete teardown
 
 ## Support and Maintenance
 

@@ -9,7 +9,7 @@ This guide provides step-by-step instructions for deploying the Production-Ready
 Use the provided deployment scripts for automated deployment:
 
 ```bash
-# Full automated deployment
+# Full automated deployment (EKS + ArgoCD + Prometheus + Grafana)
 ./deploy.sh
 
 # Quick deployment with minimal configuration
@@ -17,6 +17,26 @@ Use the provided deployment scripts for automated deployment:
 
 # Validate prerequisites only
 ./deploy.sh --validate-only
+
+# Dry run to see what would be deployed
+./deploy.sh --dry-run
+
+# Skip infrastructure deployment (if already deployed)
+./deploy.sh --skip-infra
+
+# Skip ArgoCD installation
+./deploy.sh --skip-argocd
+
+# Skip application deployment
+./deploy.sh --skip-apps
+
+# Auto-approve all prompts (recommended to avoid Vim prompts)
+./deploy.sh -y
+# or
+./deploy.sh --auto-approve
+
+# Create only Terraform backend resources
+./deploy.sh --create-backend-only
 ```
 
 ### Option 2: Manual Deployment
@@ -201,6 +221,15 @@ kubectl get pods -A
 
 # Check ArgoCD applications
 kubectl get applications -n argocd
+
+# Check monitoring stack
+kubectl get pods -n monitoring
+
+# Check Prometheus status
+kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus
+
+# Check Grafana status
+kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana
 ```
 
 ### Access Applications
@@ -221,7 +250,11 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 kubectl port-forward svc/grafana -n monitoring 3000:80
 
 # Access at http://localhost:3000
-# Credentials: Check grafana-admin secret in monitoring namespace
+# Username: admin
+# Password: admin123 (default - change in production!)
+# 
+# To get the actual password:
+kubectl get secret grafana-admin -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d
 ```
 
 #### Prometheus
@@ -357,16 +390,76 @@ kubectl logs -n argocd deployment/argocd-server
 kubectl logs -n monitoring deployment/prometheus-server
 ```
 
-## 🧹 Cleanup
+## 🧹 Teardown
 
-To destroy all resources:
+To destroy the infrastructure:
+
+```bash
+# Interactive teardown with confirmations
+./teardown.sh
+
+# Force teardown without confirmations
+./teardown.sh --force
+
+# Keep backend resources (S3 bucket and DynamoDB table)
+./teardown.sh --keep-backend
+
+# Dry run to see what would be destroyed
+./teardown.sh --dry-run
+
+# Validate and show resources without destroying
+./teardown.sh --validate-only
+
+# Force cleanup of stuck Kubernetes resources
+./teardown.sh --force-k8s-cleanup
+
+# Auto-confirm all prompts (recommended to avoid Vim prompts)
+./teardown.sh -y
+# or
+./teardown.sh --yes
+```
+
+### Teardown Process
+
+The teardown script performs the following steps in order:
+
+1. **Prerequisites Validation**: Checks for required tools and AWS credentials
+2. **Resource Discovery**: Identifies all infrastructure resources to be destroyed
+3. **Kubernetes Cleanup**: 
+   - Deletes ArgoCD applications and Helm releases
+   - Removes monitoring stack (Prometheus, Grafana, AlertManager)
+   - Cleans up all namespaces and resources
+   - Force cleanup options for stuck resources
+4. **Terraform Destruction**: Destroys EKS cluster, VPC, and all AWS resources
+5. **Backend Cleanup**: Optionally removes S3 bucket and DynamoDB table
+6. **Verification**: Provides commands to verify complete teardown
+
+### Force Cleanup Options
+
+If normal teardown fails, use these options:
+
+```bash
+# Force cleanup of Kubernetes resources
+./teardown.sh --force-k8s-cleanup
+
+# Force destroy without Terraform state
+./teardown.sh --force
+
+# Combine both for maximum cleanup
+./teardown.sh --force --force-k8s-cleanup
+```
+
+### Manual Cleanup (Alternative)
+
+If the automated teardown script fails, you can manually clean up resources:
 
 ```bash
 # Destroy infrastructure
 cd terraform
-terraform destroy -var-file="terraform.tfvars"
+terraform destroy -var-file="terraform.tfvars" -auto-approve
 
-# Confirm destruction when prompted
+# Or for interactive mode (may open Vim for confirmation)
+terraform destroy -var-file="terraform.tfvars"
 ```
 
 **⚠️ Warning:** This will permanently delete all resources and data.

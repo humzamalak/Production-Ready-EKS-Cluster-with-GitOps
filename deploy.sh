@@ -2,6 +2,16 @@
 
 # Production-Ready EKS Cluster with GitOps - Automated Deployment Script
 # This script automates the entire deployment process from infrastructure to applications
+#
+# Features:
+# - EKS cluster creation with production-grade security and monitoring
+# - ArgoCD installation for GitOps workflow
+# - Prometheus and Grafana deployment for monitoring
+# - Comprehensive error handling and validation
+# - Support for dry-run, validation-only, and selective deployment modes
+#
+# Usage: ./deploy.sh [OPTIONS]
+# See --help for detailed usage information
 
 set -euo pipefail
 
@@ -323,12 +333,21 @@ handle_terraform_state() {
     
     cd "$TERRAFORM_DIR"
     
-    # Load backend configuration
-    if [[ ! -f "${SCRIPT_DIR}/backend-config.env" ]]; then
-        error "Backend configuration not found. Run create_backend_resources first."
+    # Load backend configuration or read from terraform.tfvars
+    if [[ -f "${SCRIPT_DIR}/backend-config.env" ]]; then
+        source "${SCRIPT_DIR}/backend-config.env"
+    else
+        # Read configuration from terraform.tfvars as fallback
+        log "Backend configuration not found, reading from terraform.tfvars..."
+        local project_prefix environment aws_region
+        project_prefix=$(grep '^project_prefix' "${TERRAFORM_DIR}/terraform.tfvars" | cut -d'"' -f2)
+        environment=$(grep '^environment' "${TERRAFORM_DIR}/terraform.tfvars" | cut -d'"' -f2)
+        aws_region=$(grep '^aws_region' "${TERRAFORM_DIR}/terraform.tfvars" | cut -d'"' -f2)
+        
+        # Generate resource names
+        bucket_name="${project_prefix}-${environment}-tfstate"
+        table_name="${project_prefix}-${environment}-tflock"
     fi
-    
-    source "${SCRIPT_DIR}/backend-config.env"
     
     # Check if we have a valid Terraform state
     local state_valid=false
@@ -393,12 +412,21 @@ initialize_terraform_backend() {
     
     cd "$TERRAFORM_DIR"
     
-    # Load backend configuration
-    if [[ ! -f "${SCRIPT_DIR}/backend-config.env" ]]; then
-        error "Backend configuration not found. Run create_backend_resources first."
+    # Load backend configuration or read from terraform.tfvars
+    if [[ -f "${SCRIPT_DIR}/backend-config.env" ]]; then
+        source "${SCRIPT_DIR}/backend-config.env"
+    else
+        # Read configuration from terraform.tfvars as fallback
+        log "Backend configuration not found, reading from terraform.tfvars..."
+        local project_prefix environment aws_region
+        project_prefix=$(grep '^project_prefix' "${TERRAFORM_DIR}/terraform.tfvars" | cut -d'"' -f2)
+        environment=$(grep '^environment' "${TERRAFORM_DIR}/terraform.tfvars" | cut -d'"' -f2)
+        aws_region=$(grep '^aws_region' "${TERRAFORM_DIR}/terraform.tfvars" | cut -d'"' -f2)
+        
+        # Generate resource names
+        bucket_name="${project_prefix}-${environment}-tfstate"
+        table_name="${project_prefix}-${environment}-tflock"
     fi
-    
-    source "${SCRIPT_DIR}/backend-config.env"
     
     # Initialize Terraform with backend configuration
     log "Initializing Terraform backend..."
@@ -448,12 +476,12 @@ deploy_infrastructure() {
     # Apply infrastructure
     if [[ "$AUTO_APPROVE" == "true" ]]; then
         log "Applying Terraform plan (auto-approved)..."
-        if ! terraform apply tfplan; then
+        if ! terraform apply -auto-approve tfplan; then
             error "Terraform apply failed. Check the logs and try again."
         fi
     else
-        log "Applying Terraform plan..."
-        if ! terraform apply -var-file="terraform.tfvars"; then
+        log "Applying Terraform plan (interactive)..."
+        if ! terraform apply tfplan; then
             error "Terraform apply failed. Check the logs and try again."
         fi
     fi
@@ -546,6 +574,9 @@ deploy_argocd() {
 }
 
 # Deploy applications
+# This function deploys all applications using ArgoCD's app-of-apps pattern
+# It creates the monitoring namespace, sets up Grafana credentials, and deploys
+# the root application which manages all child applications including Prometheus and Grafana
 deploy_applications() {
     if [[ "$SKIP_APPLICATIONS" == "true" ]]; then
         log "Skipping application deployment"
@@ -554,17 +585,42 @@ deploy_applications() {
     
     log "Deploying applications with ArgoCD..."
     
-    # Apply root application
+    # Create monitoring namespace first
+    # This namespace will contain Prometheus, Grafana, and AlertManager
+    log "Creating monitoring namespace..."
+    kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+    
+    # Create Grafana admin secret if it doesn't exist
+    # This secret contains the admin credentials for Grafana
+    # In production, this should be replaced with proper secret management
+    log "Creating Grafana admin secret..."
+    if ! kubectl get secret grafana-admin -n monitoring >/dev/null 2>&1; then
+        log "Creating default Grafana admin credentials..."
+        kubectl create secret generic grafana-admin -n monitoring \
+            --from-literal=admin-user=admin \
+            --from-literal=admin-password=admin123 \
+            --dry-run=client -o yaml | kubectl apply -f -
+        warning "Using default Grafana credentials. Change them in production!"
+    else
+        log "Grafana admin secret already exists"
+    fi
+    
+    # Apply root application (app-of-apps pattern)
+    # This application manages all other applications defined in the argo-cd/apps directory
+    # It uses GitOps principles to automatically deploy and manage applications
     log "Applying root application (app-of-apps pattern)..."
     if ! kubectl apply -f "${ARGO_CD_DIR}/apps/root-app.yaml"; then
         error "Failed to apply root application"
     fi
     
     # Wait for applications to be created
+    # ArgoCD needs time to discover and create the child applications
     log "Waiting for applications to be created..."
     sleep 30
     
     # Monitor application deployment
+    # This loop checks the sync status of all ArgoCD applications
+    # It waits for all applications to be in "Synced" state
     log "Monitoring application deployment..."
     local max_attempts=30
     local attempt=1
@@ -591,6 +647,37 @@ deploy_applications() {
         ((attempt++))
     done
     
+    # Verify Prometheus and Grafana are running
+    # This ensures the monitoring stack is properly deployed and accessible
+    log "Verifying Prometheus and Grafana deployment..."
+    local prometheus_ready=false
+    local grafana_ready=false
+    
+    # Check Prometheus
+    # Prometheus is the metrics collection and storage system
+    if kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus --no-headers | grep -q "Running"; then
+        prometheus_ready=true
+        log "Prometheus is running"
+    else
+        warning "Prometheus is not ready yet"
+    fi
+    
+    # Check Grafana
+    # Grafana is the visualization and dashboard system
+    if kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana --no-headers | grep -q "Running"; then
+        grafana_ready=true
+        log "Grafana is running"
+    else
+        warning "Grafana is not ready yet"
+    fi
+    
+    if [[ "$prometheus_ready" == "true" ]] && [[ "$grafana_ready" == "true" ]]; then
+        success "Prometheus and Grafana are successfully deployed and running"
+    else
+        warning "Some monitoring components are not ready. Check pod status:"
+        kubectl get pods -n monitoring
+    fi
+    
     success "Application deployment completed"
 }
 
@@ -612,6 +699,8 @@ show_access_info() {
     echo "Grafana:"
     echo "  kubectl port-forward svc/grafana -n monitoring 3000:80"
     echo "  http://localhost:3000"
+    echo "  Username: admin"
+    echo "  Password: admin123 (default - change in production!)"
     echo ""
     
     echo "Prometheus:"
@@ -632,6 +721,12 @@ show_access_info() {
     echo ""
     echo "Check ArgoCD applications:"
     echo "  kubectl get applications -n argocd"
+    echo ""
+    echo "Check monitoring pods:"
+    echo "  kubectl get pods -n monitoring"
+    echo ""
+    echo "Check EKS cluster nodes:"
+    echo "  kubectl get nodes"
     echo ""
     echo "View logs:"
     echo "  tail -f $LOG_FILE"
