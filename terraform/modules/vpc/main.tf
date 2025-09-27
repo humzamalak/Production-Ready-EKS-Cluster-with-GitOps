@@ -146,4 +146,240 @@ resource "aws_security_group" "eks_cluster" {
   })
 }
 
+# Security group for EKS node group
+resource "aws_security_group" "eks_node_group" {
+  name        = "${var.project_prefix}-${var.environment}-eks-node-sg"
+  description = "EKS node group communication"
+  vpc_id      = aws_vpc.this.id
+  tags = merge(var.tags, {
+    Name = "${var.project_prefix}-${var.environment}-eks-node-sg"
+  })
+}
+
+# Security group for Application Load Balancer
+resource "aws_security_group" "alb" {
+  name        = "${var.project_prefix}-${var.environment}-alb-sg"
+  description = "Application Load Balancer security group"
+  vpc_id      = aws_vpc.this.id
+  tags = merge(var.tags, {
+    Name = "${var.project_prefix}-${var.environment}-alb-sg"
+  })
+}
+
+# Security group for applications
+resource "aws_security_group" "app" {
+  name        = "${var.project_prefix}-${var.environment}-app-sg"
+  description = "Application security group"
+  vpc_id      = aws_vpc.this.id
+  tags = merge(var.tags, {
+    Name = "${var.project_prefix}-${var.environment}-app-sg"
+  })
+}
+
+# Security group for database (if needed)
+resource "aws_security_group" "database" {
+  name        = "${var.project_prefix}-${var.environment}-db-sg"
+  description = "Database security group"
+  vpc_id      = aws_vpc.this.id
+  tags = merge(var.tags, {
+    Name = "${var.project_prefix}-${var.environment}-db-sg"
+  })
+}
+
+# Security group for Redis/ElastiCache (if needed)
+resource "aws_security_group" "redis" {
+  name        = "${var.project_prefix}-${var.environment}-redis-sg"
+  description = "Redis/ElastiCache security group"
+  vpc_id      = aws_vpc.this.id
+  tags = merge(var.tags, {
+    Name = "${var.project_prefix}-${var.environment}-redis-sg"
+  })
+}
+
+# Security group rules for EKS cluster
+resource "aws_security_group_rule" "eks_cluster_ingress_https" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = [var.vpc_cidr]
+  security_group_id = aws_security_group.eks_cluster.id
+  description       = "HTTPS from VPC"
+}
+
+resource "aws_security_group_rule" "eks_cluster_egress_all" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.eks_cluster.id
+  description       = "All outbound traffic"
+}
+
+# Security group rules for EKS node group
+resource "aws_security_group_rule" "eks_node_ingress_self" {
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 65535
+  protocol          = "tcp"
+  self              = true
+  security_group_id = aws_security_group.eks_node_group.id
+  description       = "All traffic from self"
+}
+
+resource "aws_security_group_rule" "eks_node_ingress_cluster" {
+  type                     = "ingress"
+  from_port                = 1025
+  to_port                  = 65535
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.eks_cluster.id
+  security_group_id        = aws_security_group.eks_node_group.id
+  description              = "Node to node communication"
+}
+
+resource "aws_security_group_rule" "eks_node_ingress_cluster_https" {
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.eks_cluster.id
+  security_group_id        = aws_security_group.eks_node_group.id
+  description              = "Cluster to node HTTPS"
+}
+
+resource "aws_security_group_rule" "eks_node_egress_all" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.eks_node_group.id
+  description       = "All outbound traffic"
+}
+
+# Security group rules for ALB
+resource "aws_security_group_rule" "alb_ingress_http" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.alb.id
+  description       = "HTTP from anywhere"
+}
+
+resource "aws_security_group_rule" "alb_ingress_https" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.alb.id
+  description       = "HTTPS from anywhere"
+}
+
+resource "aws_security_group_rule" "alb_egress_all" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.alb.id
+  description       = "All outbound traffic"
+}
+
+# Security group rules for applications
+resource "aws_security_group_rule" "app_ingress_alb" {
+  type                     = "ingress"
+  from_port                = 0
+  to_port                  = 65535
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.alb.id
+  security_group_id        = aws_security_group.app.id
+  description              = "Traffic from ALB"
+}
+
+resource "aws_security_group_rule" "app_ingress_self" {
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 65535
+  protocol          = "tcp"
+  self              = true
+  security_group_id = aws_security_group.app.id
+  description       = "Traffic from self"
+}
+
+resource "aws_security_group_rule" "app_egress_all" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.app.id
+  description       = "All outbound traffic"
+}
+
+# Security group rules for database
+resource "aws_security_group_rule" "db_ingress_app" {
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.app.id
+  security_group_id        = aws_security_group.database.id
+  description              = "PostgreSQL from applications"
+}
+
+resource "aws_security_group_rule" "db_ingress_self" {
+  type              = "ingress"
+  from_port         = 5432
+  to_port           = 5432
+  protocol          = "tcp"
+  self              = true
+  security_group_id = aws_security_group.database.id
+  description       = "PostgreSQL from self"
+}
+
+resource "aws_security_group_rule" "db_egress_all" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.database.id
+  description       = "All outbound traffic"
+}
+
+# Security group rules for Redis
+resource "aws_security_group_rule" "redis_ingress_app" {
+  type                     = "ingress"
+  from_port                = 6379
+  to_port                  = 6379
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.app.id
+  security_group_id        = aws_security_group.redis.id
+  description              = "Redis from applications"
+}
+
+resource "aws_security_group_rule" "redis_ingress_self" {
+  type              = "ingress"
+  from_port         = 6379
+  to_port           = 6379
+  protocol          = "tcp"
+  self              = true
+  security_group_id = aws_security_group.redis.id
+  description       = "Redis from self"
+}
+
+resource "aws_security_group_rule" "redis_egress_all" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.redis.id
+  description       = "All outbound traffic"
+}
+
 // Outputs moved to outputs.tf to avoid duplication
