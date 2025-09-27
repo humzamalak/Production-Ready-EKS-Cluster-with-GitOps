@@ -54,11 +54,11 @@ output "ebs_backup_role_arn" {
 output "security_groups" {
   description = "Map of security group IDs for different components"
   value = {
-    eks_cluster   = module.vpc.eks_cluster_sg_id
+    eks_cluster    = module.vpc.eks_cluster_sg_id
     eks_node_group = module.vpc.eks_node_group_sg_id
-    alb           = module.vpc.alb_sg_id
-    app           = module.vpc.app_sg_id
-    database      = module.vpc.database_sg_id
-    redis         = module.vpc.redis_sg_id
+    alb            = module.vpc.alb_sg_id
+    app            = module.vpc.app_sg_id
+    database       = module.vpc.database_sg_id
+    redis          = module.vpc.redis_sg_id
   }
 }

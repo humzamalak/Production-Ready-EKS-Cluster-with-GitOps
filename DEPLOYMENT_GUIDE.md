@@ -55,7 +55,7 @@ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip
 unzip awscliv2.zip
 sudo ./aws/install
 
-# kubectl v1.27+
+# kubectl v1.31+
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
@@ -251,7 +251,7 @@ kubectl port-forward svc/grafana -n monitoring 3000:80
 
 # Access at http://localhost:3000
 # Username: admin
-# Password: admin123 (default - change in production!)
+# Password: [Generated randomly - check deployment log or grafana-admin-password.txt]
 # 
 # To get the actual password:
 kubectl get secret grafana-admin -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d

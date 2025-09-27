@@ -46,7 +46,7 @@ The deployment process is broken down into modular, focused scripts located in t
 
 ### Required Tools
 - **AWS CLI** (v2.x) - [Installation Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-- **kubectl** (v1.27+) - [Installation Guide](https://kubernetes.io/docs/tasks/tools/)
+- **kubectl** (v1.31+) - [Installation Guide](https://kubernetes.io/docs/tasks/tools/)
 - **Helm** (v3.x) - [Installation Guide](https://helm.sh/docs/intro/install/)
 - **Terraform** (>=1.4.0) - [Installation Guide](https://developer.hashicorp.com/terraform/downloads)
 - **Git** - For repository management
@@ -155,10 +155,24 @@ The deployment process is broken down into modular, focused scripts located in t
    ```bash
    # Deploy components individually
    ./scripts/backend-management.sh      # Terraform backend resources
-   ./scripts/infrastructure-deploy.sh   # EKS cluster and infrastructure
+   ./scripts/infrastructure-deploy.sh   # EKS cluster and infrastructure (modular)
    ./scripts/argocd-deploy.sh           # ArgoCD installation
    ./scripts/applications-deploy.sh     # Application deployment
    ```
+
+   **Infrastructure Deployment Features:**
+   - **Modular Architecture**: Split into focused modules for better maintainability
+   - **Comprehensive Validation**: Prerequisites, AWS credentials, and configuration checks
+   - **Status Monitoring**: Real-time infrastructure health and status reporting
+   - **Error Handling**: Robust error handling with detailed logging
+   - **Flexible Options**: Dry-run, validation-only, and verbose modes
+
+   **Modular Components (`scripts/lib/`):**
+   - **`terraform-deploy.sh`** - Terraform operations (plan, apply, validate)
+   - **`kubectl-config.sh`** - kubectl configuration and cluster access
+   - **`infrastructure-validation.sh`** - Prerequisites and configuration validation
+   - **`infrastructure-status.sh`** - Status reporting and health monitoring
+   - **`common.sh`** - Shared utilities and functions
 
 ### Manual Deployment (Alternative)
 
@@ -518,6 +532,12 @@ To destroy the infrastructure, use the automated teardown script:
 # Keep backend resources (S3 bucket and DynamoDB table)
 ./teardown.sh --keep-backend
 
+# Skip slow resources that take >15 minutes (faster teardown)
+./teardown.sh --skip-slow-resources
+
+# Set custom timeout (default: 15 minutes)
+./teardown.sh --timeout-minutes 30
+
 # Dry run to see what would be destroyed
 ./teardown.sh --dry-run
 
@@ -534,6 +554,9 @@ To destroy the infrastructure, use the automated teardown script:
 - **Force cleanup options**: Handles stuck or problematic resources
 - **State recovery**: Handles corrupted Terraform state and backend issues
 - **Verification commands**: Provides steps to verify complete teardown
+- **Timeout management**: Default 15-minute timeout with customizable limits
+- **Skip slow resources**: Option to skip resources that typically take >15 minutes
+- **Targeted destruction**: Smart resource targeting for faster teardown
 
 ## Support and Maintenance
 

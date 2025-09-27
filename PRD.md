@@ -33,7 +33,7 @@ This product provides a complete Infrastructure-as-Code (IaC) solution for deplo
 - Private subnets for worker nodes
 - Public subnets for load balancers
 - NAT gateways for outbound internet access
-- EKS cluster version 1.27 or higher
+- EKS cluster version 1.31 or higher
 - Managed node groups with auto-scaling capabilities
 
 ### 2.2 GitOps Implementation
@@ -90,7 +90,7 @@ This product provides a complete Infrastructure-as-Code (IaC) solution for deplo
 - VPC Flow Logs enabled
 
 **EKS Module Requirements:**
-- Kubernetes version: 1.27+ (configurable)
+- Kubernetes version: 1.31+ (configurable)
 - Managed node groups with t3.medium minimum
 - Auto-scaling: 2-10 nodes per group
 - EBS-optimised instances
