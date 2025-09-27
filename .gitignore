@@ -8,10 +8,12 @@ crash.log
 *.tfplan
 terraform.tfvars
 tfplan
+*.tfplan.*
 
 # Kubernetes
 *.kubeconfig
 kubeconfig*
+kubeconfig-*
 
 # Logs
 *.log
@@ -19,6 +21,9 @@ deployment.log
 teardown.log
 scripts/deployment.log
 scripts/teardown.log
+infrastructure-outputs.txt
+*.output
+*.out
 
 # Generated password files
 *-password.txt
@@ -28,41 +33,119 @@ argocd-admin-password.txt
 
 # Local .env files
 .env*
+.env.local
+.env.development
+.env.production
 
 # macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
 
 # IDEs
 .vscode/
 .idea/
 *.swp
 *~
+*.sublime-*
 
 # Temporary files
 *.tmp
 *.temp
 *.bak
 *.backup
+*.orig
+*.rej
 
 # AWS
 .aws/
+aws-credentials
 
 # SSH keys
 *.pem
 *.key
 id_rsa*
+*.ppk
 
 # Helm
 charts/*.tgz
+helm-repos.yaml.bak
 
 # ArgoCD
 .argocd/
+argocd-*
 
 # Local development
 local/
 temp/
 tmp/
+dev/
+development/
 
 # OS generated files
 Thumbs.db
 ehthumbs.db
+Desktop.ini
+
+# Node.js (if any frontend tools are used)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (if any Python tools are used)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# CI/CD
+.github/workflows/*.yml.bak
+.gitlab-ci.yml.bak
+
+# Monitoring and observability
+*.metrics
+*.prometheus
+grafana-dashboards-backup/
+prometheus-backup/
+
+# Backup files
+*.backup
+backup/
+backups/
+*.old
+*.archive
+
+# Test files
+test-results/
+coverage/
+*.coverage
+.coverage.*
+
+# Documentation build artifacts
+docs/_build/
+docs/.doctrees/
+site/
+_site/
+
+# Security scanning results
+security-scan-results/
+vulnerability-reports/
+*.sarif
+
+# Cost analysis
+cost-reports/
+infracost-report.json
+infracost-report.html
