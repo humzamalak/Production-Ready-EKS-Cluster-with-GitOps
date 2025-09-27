@@ -57,8 +57,7 @@ terraform init -reconfigure
 #### Terraform Vim/Editor Issues
 ```bash
 # If Vim opens during terraform apply/destroy, use auto-approve
-./deploy.sh -y
-./teardown.sh -y
+./scripts/deploy.sh -y
 
 # Or for manual Terraform commands
 terraform apply -auto-approve
@@ -177,13 +176,10 @@ kubectl port-forward svc/grafana -n monitoring 3000:80
 
 ## 🧹 Teardown Issues
 
-### 1. Teardown Script Fails
+### 1. Infrastructure Teardown Issues
 
 #### Kubernetes Resources Won't Delete
 ```bash
-# Force cleanup of Kubernetes resources
-./teardown.sh --force-k8s-cleanup
-
 # Manual cleanup of stuck namespaces
 kubectl get namespace
 kubectl delete namespace <namespace> --force --grace-period=0
@@ -195,10 +191,10 @@ kubectl patch namespace <namespace> -p '{"metadata":{"finalizers":[]}}' --type=m
 #### Terraform Destroy Fails
 ```bash
 # Force destroy without confirmation
-./teardown.sh --force
+cd terraform
+terraform destroy -var-file="terraform.tfvars" -auto-approve
 
 # Check Terraform state
-cd terraform
 terraform show
 
 # Destroy specific resources

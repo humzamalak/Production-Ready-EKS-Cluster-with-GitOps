@@ -27,7 +27,7 @@ make lint
 
 ### Option 2: Manual Deployment
 
-Follow the manual steps outlined below.
+Follow the manual steps outlined below for full control and understanding of the deployment process.
 
 ## 📋 Prerequisites
 
@@ -103,6 +103,7 @@ sudo apt update && sudo apt install terraform
 Edit `terraform/terraform.tfvars`:
 
 ```hcl
+# Basic Configuration
 project_prefix = "my-eks-cluster"
 environment    = "prod"
 aws_region     = "eu-west-1"
@@ -110,13 +111,27 @@ aws_region     = "eu-west-1"
 # REQUIRED: Replace with your actual IAM role ARN for VPC flow logs
 flow_log_iam_role_arn = "arn:aws:iam::YOUR_ACCOUNT_ID:role/flow-logs-role"
 
+# EKS Configuration
+cluster_version = "1.28"
+node_instance_types = ["t3.medium"]
+min_size = 1
+max_size = 3
+desired_size = 2
+
 # Optional: Custom tags for all resources
 tags = {
   Owner       = "your-team@example.com"
   Environment = "prod"
   CostCenter  = "1234"
+  Project     = "eks-gitops"
 }
 ```
+
+**Important Notes:**
+- Replace `YOUR_ACCOUNT_ID` with your actual AWS account ID
+- The `flow_log_iam_role_arn` must be created before deployment (see prerequisites)
+- Adjust `node_instance_types` and sizing based on your workload requirements
+- The `cluster_version` should be compatible with your kubectl version
 
 ### 2. Update ArgoCD Configuration
 
@@ -139,6 +154,14 @@ Edit `argo-cd/bootstrap/values.yaml` to customize:
 - Ingress configuration
 - SSO/OIDC settings
 
+### 4. (Optional) Customize Monitoring Stack
+
+Edit `argo-cd/values/prometheus-values.yaml` to customize:
+- Prometheus retention settings
+- AlertManager configuration
+- Grafana dashboards and datasources
+- Resource limits and requests
+
 ## 🚀 Deployment Steps
 
 ### Step 1: Infrastructure Deployment
@@ -149,18 +172,29 @@ cd terraform
 # Initialize Terraform
 terraform init
 
-# Review the plan
+# Review the plan (this will show all resources to be created)
 terraform plan -var-file="terraform.tfvars"
 
 # Apply the infrastructure (takes 15-20 minutes)
 terraform apply -var-file="terraform.tfvars"
+
+# Save important outputs for reference
+terraform output > ../infrastructure-outputs.txt
 
 # Configure kubectl for the new cluster
 aws eks update-kubeconfig --region $(terraform output -raw aws_region) --name $(terraform output -raw cluster_name)
 
 # Verify cluster access
 kubectl get nodes
+kubectl get namespaces
 ```
+
+**Expected Output:**
+- EKS cluster with worker nodes
+- VPC with public/private subnets
+- Security groups and IAM roles
+- S3 bucket for Terraform state
+- DynamoDB table for state locking
 
 ### Step 2: ArgoCD Installation
 
@@ -179,9 +213,18 @@ helm upgrade --install argocd argo/argo-cd \
 # Wait for ArgoCD to be ready
 kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
 
+# Verify ArgoCD installation
+kubectl get pods -n argocd
+kubectl get svc -n argocd
+
 # Get ArgoCD admin password
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
 ```
+
+**Expected Output:**
+- ArgoCD server, application controller, and repo server pods running
+- ArgoCD services exposed
+- Admin password for initial login
 
 ### Step 3: Application Bootstrap
 
@@ -192,7 +235,19 @@ kubectl apply -f argo-cd/apps/root-app.yaml
 # Monitor application deployment
 kubectl get applications -n argocd
 watch kubectl get applications -n argocd
+
+# Check application sync status
+kubectl get applications -n argocd -o wide
+
+# Wait for applications to be synced
+kubectl wait --for=condition=Synced --timeout=600s application/root-app -n argocd
 ```
+
+**Expected Output:**
+- Root application created in ArgoCD
+- Monitoring stack (Prometheus, Grafana, AlertManager) deployed
+- Sample applications deployed
+- All applications showing "Synced" status
 
 ## 🔍 Verification
 
@@ -202,7 +257,7 @@ watch kubectl get applications -n argocd
 # Check nodes
 kubectl get nodes
 
-# Check all pods
+# Check all pods across all namespaces
 kubectl get pods -A
 
 # Check ArgoCD applications
@@ -216,6 +271,25 @@ kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus
 
 # Check Grafana status
 kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana
+
+# Check AlertManager status
+kubectl get pods -n monitoring -l app.kubernetes.io/name=alertmanager
+```
+
+### Verify All Components Are Running
+
+```bash
+# Check that all critical pods are running
+kubectl get pods -n argocd
+kubectl get pods -n monitoring
+kubectl get pods -n kube-system
+
+# Verify ArgoCD applications are synced
+kubectl get applications -n argocd -o custom-columns="NAME:.metadata.name,STATUS:.status.sync.status,HEALTH:.status.health.status"
+
+# Check cluster resources
+kubectl top nodes
+kubectl top pods -A
 ```
 
 ### Access Applications
@@ -242,6 +316,8 @@ kubectl port-forward svc/grafana -n monitoring 3000:80
 # To get the actual password:
 kubectl get secret grafana-admin -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d
 ```
+
+**Note:** The default Grafana password is stored in the `grafana-admin` secret. Change this password in production environments.
 
 #### Prometheus
 ```bash
@@ -286,6 +362,16 @@ make argo-sync # Bootstrap ArgoCD and root app
 - ✅ Code validation and formatting
 - ✅ Consistent command interface
 - ✅ Environment variable support
+
+## 🛠️ Deployment Process Overview
+
+The deployment process consists of three main phases:
+
+1. **Infrastructure Provisioning** - Deploy EKS cluster and supporting AWS resources
+2. **ArgoCD Installation** - Install and configure ArgoCD for GitOps
+3. **Application Bootstrap** - Deploy monitoring stack and applications via ArgoCD
+
+Each phase builds upon the previous one, ensuring a reliable and repeatable deployment process.
 
 ## 📊 Cost Estimation
 
@@ -360,15 +446,23 @@ kubectl logs -n monitoring deployment/prometheus-server
 
 ## 🧹 Teardown
 
-To destroy the infrastructure:
+To destroy the infrastructure, use Terraform directly:
 
 ```bash
-# Destroy infrastructure using Makefile
+# Destroy infrastructure using Makefile (recommended)
 make destroy
 
 # Or manually with Terraform
 cd terraform
+
+# Review what will be destroyed
+terraform plan -destroy -var-file="terraform.tfvars"
+
+# Destroy infrastructure (interactive)
 terraform destroy -var-file="terraform.tfvars"
+
+# Force destroy without confirmations
+terraform destroy -var-file="terraform.tfvars" -auto-approve
 ```
 
 ### Teardown Process
@@ -422,6 +516,13 @@ aws s3 rb s3://<bucket-name> --force
 aws dynamodb delete-table --table-name <table-name>
 ```
 
+### Manual Cleanup Steps
+
+1. **Delete ArgoCD Applications**: Remove all applications from ArgoCD UI or via kubectl
+2. **Delete Monitoring Stack**: Remove Prometheus, Grafana, and AlertManager
+3. **Destroy Infrastructure**: Use Terraform destroy as shown above
+4. **Clean Backend Resources**: Optionally delete S3 bucket and DynamoDB table
+
 **⚠️ Warning:** This will permanently delete all resources and data.
 
 ## 📚 Additional Resources
@@ -431,15 +532,13 @@ aws dynamodb delete-table --table-name <table-name>
 - [Monitoring & Alerting](docs/monitoring-alerting.md)
 - [Security Best Practices](docs/security-best-practices.md)
 - [Troubleshooting Guide](TROUBLESHOOTING.md)
-- [FAQ](FAQ.md)
 
 ## 🆘 Support
 
 For issues and questions:
 1. Check the [Troubleshooting Guide](TROUBLESHOOTING.md)
-2. Review the [FAQ](FAQ.md)
-3. Open an issue in the repository
-4. Consult the documentation in the `docs/` directory
+2. Open an issue in the repository
+3. Consult the documentation in the `docs/` directory
 
 ---
 
