@@ -255,7 +255,7 @@ The deployment process uses a streamlined approach with Terraform and Makefile:
 - `argo-cd/` — GitOps manifests, ArgoCD apps, values, and bootstrap configs
 - `helm-charts/` — Custom Helm charts for applications (if used)
 - `docs/` — Comprehensive guides (onboarding, GitOps, monitoring, etc.)
-- `tests/` — Infrastructure test suite scaffolding
+- `scripts/` — Modular deployment scripts with shared library
 
 ## Git Workflow Commands
 
@@ -507,7 +507,15 @@ make destroy
 
 # Or manually with Terraform
 cd terraform
+
+# Review what will be destroyed
+terraform plan -destroy -var-file="terraform.tfvars"
+
+# Destroy infrastructure (interactive)
 terraform destroy -var-file="terraform.tfvars"
+
+# Force destroy without confirmations
+terraform destroy -var-file="terraform.tfvars" -auto-approve
 ```
 
 ### Manual Kubernetes Cleanup
@@ -532,11 +540,18 @@ kubectl delete namespace argocd
 - **Resource Verification**: Commands to verify complete cleanup
 - **Flexible Approach**: Can be done step-by-step or all at once
 
+### Manual Cleanup Steps
+1. **Delete ArgoCD Applications**: Remove all applications from ArgoCD UI or via kubectl
+2. **Delete Monitoring Stack**: Remove Prometheus, Grafana, and AlertManager
+3. **Destroy Infrastructure**: Use Terraform destroy as shown above
+4. **Clean Backend Resources**: Optionally delete S3 bucket and DynamoDB table
+
+**⚠️ Warning:** This will permanently delete all resources and data.
+
 ## Support and Maintenance
 
 ### Getting Help
 - Check [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common issues
-- Review [FAQ.md](./FAQ.md) for frequently asked questions
 - Open an issue in the repository for bugs or feature requests
 - Consult the documentation in the `docs/` directory
 
