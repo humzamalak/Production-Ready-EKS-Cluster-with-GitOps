@@ -12,6 +12,33 @@ This repository provides a fully automated, production-grade Amazon EKS (Elastic
 - **Monitoring & Alerting:** Prometheus, Grafana, AlertManager, FluentBit, and CloudWatch.
 - **Disaster Recovery:** EBS/ETCD backup resources, runbooks, and recovery testing guidance.
 - **Comprehensive Documentation:** Onboarding, troubleshooting, guides, and runbooks under `docs/`.
+- **Modular Deployment Scripts:** Separated, focused scripts for different deployment components with comprehensive error handling and logging.
+
+---
+
+## Script Architecture
+
+The deployment process is broken down into modular, focused scripts located in the `scripts/` directory:
+
+### Main Orchestration
+- **`scripts/deploy.sh`** - Main deployment script that orchestrates all components
+
+### Component Scripts
+- **`scripts/backend-management.sh`** - Manages Terraform backend resources (S3 bucket and DynamoDB table)
+- **`scripts/infrastructure-deploy.sh`** - Deploys EKS cluster and associated infrastructure using Terraform
+- **`scripts/argocd-deploy.sh`** - Installs and configures ArgoCD for GitOps workflow
+- **`scripts/applications-deploy.sh`** - Deploys applications using ArgoCD's app-of-apps pattern
+
+### Shared Library
+- **`scripts/lib/common.sh`** - Shared functions and utilities used across all scripts
+
+### Benefits of Modular Design
+- **Separation of Concerns:** Each script handles a specific component
+- **Independent Execution:** Scripts can be run individually for targeted deployments
+- **Better Error Handling:** Focused error messages and recovery options
+- **Easier Maintenance:** Changes to one component don't affect others
+- **Improved Testing:** Individual components can be validated and tested separately
+- **Enhanced Logging:** Detailed logging with timestamps and colored output
 
 ---
 
@@ -94,19 +121,43 @@ This repository provides a fully automated, production-grade Amazon EKS (Elastic
 
 ### Automated Deployment (Recommended)
 
-5. **Use the automated deployment script**
+5. **Use the modular deployment scripts**
    ```bash
    # Full automated deployment (EKS + ArgoCD + Prometheus + Grafana)
-   ./deploy.sh -y  # Use -y to avoid Vim prompts
-   
-   # Or use quick deployment for minimal setup
-   ./quick-deploy.sh
+   ./scripts/deploy.sh -y  # Use -y to avoid Vim prompts
    
    # Validate prerequisites first
-   ./deploy.sh --validate-only
+   ./scripts/deploy.sh --validate-only
+   
+   # Dry run to see what would be deployed
+   ./scripts/deploy.sh --dry-run
    
    # See all available options
-   ./deploy.sh --help
+   ./scripts/deploy.sh --help
+   ```
+
+   **Selective Deployment Options:**
+   ```bash
+   # Skip infrastructure deployment (if cluster already exists)
+   ./scripts/deploy.sh --skip-infra
+   
+   # Skip ArgoCD deployment
+   ./scripts/deploy.sh --skip-argocd
+   
+   # Skip application deployment
+   ./scripts/deploy.sh --skip-apps
+   
+   # Create backend resources only
+   ./scripts/deploy.sh --create-backend-only
+   ```
+
+   **Individual Component Scripts:**
+   ```bash
+   # Deploy components individually
+   ./scripts/backend-management.sh      # Terraform backend resources
+   ./scripts/infrastructure-deploy.sh   # EKS cluster and infrastructure
+   ./scripts/argocd-deploy.sh           # ArgoCD installation
+   ./scripts/applications-deploy.sh     # Application deployment
    ```
 
 ### Manual Deployment (Alternative)
