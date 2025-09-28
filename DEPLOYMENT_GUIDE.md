@@ -1,545 +1,408 @@
-# Deployment Guide - Production-Ready EKS Cluster with GitOps
+# GitOps Deployment Guide
 
-This guide provides step-by-step instructions for deploying the Production-Ready EKS Cluster with GitOps using Terraform and ArgoCD.
+This guide provides comprehensive instructions for deploying the GitOps repository with Prometheus, Grafana, and Vault using Argo CD.
 
-## 🚀 Quick Start
+## 📋 Table of Contents
 
-### Option 1: Makefile Deployment (Recommended)
+1. [Prerequisites](#prerequisites)
+2. [Quick Start](#quick-start)
+3. [Detailed Configuration](#detailed-configuration)
+4. [Platform-Specific Guides](#platform-specific-guides)
+5. [Post-Deployment Setup](#post-deployment-setup)
+6. [Troubleshooting](#troubleshooting)
+7. [Security Considerations](#security-considerations)
 
-Use the provided Makefile for streamlined deployment:
-
-```bash
-# Initialize Terraform
-make init
-
-# Review the infrastructure plan
-make plan
-
-# Deploy infrastructure (takes 15-20 minutes)
-make apply
-
-# Bootstrap ArgoCD and applications
-make argo-sync
-
-# Validate deployment
-make lint
-```
-
-### Option 2: Manual Deployment
-
-Follow the manual steps outlined below for full control and understanding of the deployment process.
-
-## 📋 Prerequisites
+## Prerequisites
 
 ### Required Tools
 
-Install the following tools on your system:
+- **kubectl** (v1.28+) - Kubernetes CLI
+- **Helm** (v3.x) - Package manager
+- **Git** - Version control
+- **Argo CD CLI** (optional) - For advanced operations
+
+### Kubernetes Cluster Requirements
+
+- **Kubernetes version**: 1.25+ (recommended: 1.28+)
+- **CPU**: Minimum 4 cores across all nodes
+- **Memory**: Minimum 8GB RAM across all nodes
+- **Storage**: Persistent volume support (recommended: 50GB+)
+- **Ingress Controller**: nginx, traefik, or similar
+- **Cert-Manager**: For automatic SSL certificate management
+
+### Argo CD Installation
+
+Argo CD must be installed in your cluster before deploying these applications:
 
 ```bash
-# AWS CLI v2
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip awscliv2.zip
-sudo ./aws/install
+# Install Argo CD
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
-# kubectl v1.31+
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-
-# Helm v3
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-# Terraform >=1.4.0
-wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-sudo apt update && sudo apt install terraform
-```
-
-### AWS Requirements
-
-1. **AWS Account** with permissions for:
-   - EKS (Elastic Kubernetes Service)
-   - VPC (Virtual Private Cloud)
-   - IAM (Identity and Access Management)
-   - EC2 (Elastic Compute Cloud)
-   - CloudWatch
-   - S3 (for Terraform state)
-
-2. **IAM Role for VPC Flow Logs** (required):
-   ```bash
-   # Create IAM role for VPC flow logs
-   aws iam create-role --role-name flow-logs-role --assume-role-policy-document '{
-     "Version": "2012-10-17",
-     "Statement": [
-       {
-         "Effect": "Allow",
-         "Principal": {
-           "Service": "vpc-flow-logs.amazonaws.com"
-         },
-         "Action": "sts:AssumeRole"
-       }
-     ]
-   }'
-   
-   # Attach policy for CloudWatch Logs
-   aws iam attach-role-policy --role-name flow-logs-role --policy-arn arn:aws:iam::aws:policy/service-role/VPCFlowLogsDeliveryRole
-   
-   # Get the role ARN
-   aws iam get-role --role-name flow-logs-role --query 'Role.Arn' --output text
-   ```
-
-3. **Configure AWS Credentials**:
-   ```bash
-   aws configure
-   # Enter your AWS Access Key ID, Secret Access Key, and region (e.g., eu-west-1)
-   
-   # Verify AWS access
-   aws sts get-caller-identity
-   ```
-
-## ⚙️ Configuration
-
-### 1. Update Terraform Configuration
-
-Edit `terraform/terraform.tfvars`:
-
-```hcl
-# Basic Configuration
-project_prefix = "my-eks-cluster"
-environment    = "prod"
-aws_region     = "eu-west-1"
-
-# REQUIRED: Replace with your actual IAM role ARN for VPC flow logs
-flow_log_iam_role_arn = "arn:aws:iam::YOUR_ACCOUNT_ID:role/flow-logs-role"
-
-# EKS Configuration
-cluster_version = "1.28"
-node_instance_types = ["t3.medium"]
-min_size = 1
-max_size = 3
-desired_size = 2
-
-# Optional: Custom tags for all resources
-tags = {
-  Owner       = "your-team@example.com"
-  Environment = "prod"
-  CostCenter  = "1234"
-  Project     = "eks-gitops"
-}
-```
-
-**Important Notes:**
-- Replace `YOUR_ACCOUNT_ID` with your actual AWS account ID
-- The `flow_log_iam_role_arn` must be created before deployment (see prerequisites)
-- Adjust `node_instance_types` and sizing based on your workload requirements
-- The `cluster_version` should be compatible with your kubectl version
-
-### 2. Update ArgoCD Configuration
-
-Replace `YOUR_ORG` in ArgoCD manifests with your GitHub organization:
-
-```bash
-# Update root application
-sed -i 's/YOUR_ORG/your-github-org/g' argo-cd/apps/root-app.yaml
-
-# Update other applications if needed
-find argo-cd/apps -name "*.yaml" -exec sed -i 's/YOUR_ORG/your-github-org/g' {} \;
-```
-
-### 3. (Optional) Customize ArgoCD Values
-
-Edit `argo-cd/bootstrap/values.yaml` to customize:
-- High availability settings
-- Resource limits
-- RBAC policies
-- Ingress configuration
-- SSO/OIDC settings
-
-### 4. (Optional) Customize Monitoring Stack
-
-Edit `argo-cd/values/prometheus-values.yaml` to customize:
-- Prometheus retention settings
-- AlertManager configuration
-- Grafana dashboards and datasources
-- Resource limits and requests
-
-## 🚀 Deployment Steps
-
-### Step 1: Infrastructure Deployment
-
-```bash
-cd terraform
-
-# Initialize Terraform
-terraform init
-
-# Review the plan (this will show all resources to be created)
-terraform plan -var-file="terraform.tfvars"
-
-# Apply the infrastructure (takes 15-20 minutes)
-terraform apply -var-file="terraform.tfvars"
-
-# Save important outputs for reference
-terraform output > ../infrastructure-outputs.txt
-
-# Configure kubectl for the new cluster
-aws eks update-kubeconfig --region $(terraform output -raw aws_region) --name $(terraform output -raw cluster_name)
-
-# Verify cluster access
-kubectl get nodes
-kubectl get namespaces
-```
-
-**Expected Output:**
-- EKS cluster with worker nodes
-- VPC with public/private subnets
-- Security groups and IAM roles
-- S3 bucket for Terraform state
-- DynamoDB table for state locking
-
-### Step 2: ArgoCD Installation
-
-```bash
-# Add ArgoCD Helm repository
-helm repo add argo https://argoproj.github.io/argo-helm
-helm repo update
-
-# Install ArgoCD with production configuration
-helm upgrade --install argocd argo/argo-cd \
-  --namespace argocd \
-  --create-namespace \
-  --values argo-cd/bootstrap/values.yaml \
-  --wait
-
-# Wait for ArgoCD to be ready
+# Wait for Argo CD to be ready
 kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
 
-# Verify ArgoCD installation
-kubectl get pods -n argocd
-kubectl get svc -n argocd
-
-# Get ArgoCD admin password
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
+# Get admin password
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
-**Expected Output:**
-- ArgoCD server, application controller, and repo server pods running
-- ArgoCD services exposed
-- Admin password for initial login
+## Quick Start
 
-### Step 3: Application Bootstrap
+### 1. Clone and Configure
 
 ```bash
-# Apply the root application (app-of-apps pattern)
-kubectl apply -f argo-cd/apps/root-app.yaml
+# Clone the repository
+git clone https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps.git
+cd Production-Ready-EKS-Cluster-with-GitOps
 
-# Monitor application deployment
+# Update configuration for your environment
+# 1. Update repoURL in clusters/production/app-of-apps.yaml
+# 2. Update domain names in application manifests
+# 3. Update AWS Account ID in Vault configuration
+```
+
+### 2. Bootstrap ArgoCD
+
+```bash
+# Apply bootstrap manifests
+kubectl apply -f bootstrap/
+
+# Wait for ArgoCD to be ready
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
+```
+
+### 3. Deploy Applications
+
+```bash
+# Deploy the root application (app-of-apps pattern)
+kubectl apply -f clusters/production/app-of-apps.yaml
+
+# Verify deployment
 kubectl get applications -n argocd
-watch kubectl get applications -n argocd
-
-# Check application sync status
-kubectl get applications -n argocd -o wide
-
-# Wait for applications to be synced
-kubectl wait --for=condition=Synced --timeout=600s application/root-app -n argocd
 ```
 
-**Expected Output:**
-- Root application created in ArgoCD
-- Monitoring stack (Prometheus, Grafana, AlertManager) deployed
-- Sample applications deployed
-- All applications showing "Synced" status
-
-## 🔍 Verification
-
-### Check Cluster Status
+### 4. Access Applications
 
 ```bash
-# Check nodes
-kubectl get nodes
-
-# Check all pods across all namespaces
-kubectl get pods -A
-
-# Check ArgoCD applications
-kubectl get applications -n argocd
-
-# Check monitoring stack
-kubectl get pods -n monitoring
-
-# Check Prometheus status
-kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus
-
-# Check Grafana status
-kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana
-
-# Check AlertManager status
-kubectl get pods -n monitoring -l app.kubernetes.io/name=alertmanager
-```
-
-### Verify All Components Are Running
-
-```bash
-# Check that all critical pods are running
-kubectl get pods -n argocd
-kubectl get pods -n monitoring
-kubectl get pods -n kube-system
-
-# Verify ArgoCD applications are synced
-kubectl get applications -n argocd -o custom-columns="NAME:.metadata.name,STATUS:.status.sync.status,HEALTH:.status.health.status"
-
-# Check cluster resources
-kubectl top nodes
-kubectl top pods -A
-```
-
-### Access Applications
-
-#### ArgoCD UI
-```bash
-# Port-forward ArgoCD UI
+# Argo CD UI
 kubectl port-forward svc/argocd-server -n argocd 8080:443
+# Access: https://localhost:8080
 
-# Access at https://localhost:8080
-# Username: admin
-# Password: [from Step 2]
-```
+# Prometheus
+kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090
+# Access: http://localhost:9090
 
-#### Grafana
-```bash
-# Port-forward Grafana
+# Grafana
 kubectl port-forward svc/grafana -n monitoring 3000:80
+# Access: http://localhost:3000 (admin/changeme)
 
-# Access at http://localhost:3000
-# Username: admin
-# Password: [Generated randomly - check deployment log or grafana-admin-password.txt]
-# 
-# To get the actual password:
-kubectl get secret grafana-admin -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d
+# Vault
+kubectl port-forward svc/vault -n vault 8200:8200
+# Access: https://localhost:8200
 ```
 
-**Note:** The default Grafana password is stored in the `grafana-admin` secret. Change this password in production environments.
+## Detailed Configuration
 
-#### Prometheus
-```bash
-# Port-forward Prometheus
-kubectl port-forward svc/prometheus-server -n monitoring 9090:9090
+### Environment Variables
 
-# Access at http://localhost:9090
-```
+Before deploying, update these configuration values:
 
-#### AlertManager
-```bash
-# Port-forward AlertManager
-kubectl port-forward svc/alertmanager -n monitoring 9093:9093
+#### 1. Domain Configuration
 
-# Access at http://localhost:9093
-```
-
-## 🛠️ Makefile Commands
-
-### Available Makefile Targets
-
-The Makefile provides convenient targets for common operations:
+Replace `your-domain.com` with your actual domain:
 
 ```bash
-# Infrastructure Management
-make init      # Initialize Terraform backend
-make plan      # Show Terraform plan
-make apply     # Apply Terraform changes
-make destroy   # Destroy all infrastructure
-
-# Code Quality
-make lint      # Lint and validate Terraform code
-make fmt       # Auto-format Terraform code
-
-# ArgoCD Management
-make argo-sync # Bootstrap ArgoCD and root app
+# Update all domain references
+sed -i 's/your-domain\.com/your-actual-domain.com/g' \
+  apps/grafana/application.yaml \
+  apps/vault/values.yaml \
+  apps/prometheus/application.yaml
 ```
 
-**Features:**
-- ✅ Streamlined Terraform operations
-- ✅ ArgoCD bootstrap automation
-- ✅ Code validation and formatting
-- ✅ Consistent command interface
-- ✅ Environment variable support
+#### 2. AWS Account ID
 
-## 🛠️ Deployment Process Overview
+For AWS deployments, update the account ID:
 
-The deployment process consists of three main phases:
+```bash
+# Replace ACCOUNT_ID with your AWS account ID
+sed -i 's/ACCOUNT_ID/123456789012/g' apps/vault/values.yaml
+```
 
-1. **Infrastructure Provisioning** - Deploy EKS cluster and supporting AWS resources
-2. **ArgoCD Installation** - Install and configure ArgoCD for GitOps
-3. **Application Bootstrap** - Deploy monitoring stack and applications via ArgoCD
+#### 3. Repository URL
 
-Each phase builds upon the previous one, ensuring a reliable and repeatable deployment process.
+If you've forked the repository, update the URL:
 
-## 📊 Cost Estimation
+```bash
+# Update repository URL
+sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/your-org/your-repo|g' app-of-apps.yaml
+```
 
-**Estimated Monthly Costs:**
-- EKS Cluster: ~$73/month (control plane)
-- Worker Nodes: ~$50-200/month (depending on instance types)
-- Load Balancers: ~$20-50/month
-- Storage: ~$10-30/month
-- Data Transfer: ~$5-20/month
+### Customization Options
 
-**Total: $150-400/month** (varies by usage)
+#### Grafana Configuration
 
-## 🔧 Troubleshooting
+Update `apps/grafana/application.yaml`:
+
+```yaml
+# Change admin password
+adminPassword: "your-secure-password"
+
+# Enable external secrets integration
+admin:
+  existingSecret: grafana-admin
+  userKey: admin-user
+  passwordKey: admin-password
+```
+
+#### Prometheus Configuration
+
+Update `apps/prometheus/application.yaml`:
+
+```yaml
+# Adjust retention settings
+retention: 30d
+retentionSize: 50GB
+
+# Configure alerting
+alertmanager:
+  config:
+    global:
+      smtp_smarthost: 'your-smtp-server:587'
+      smtp_from: 'alerts@your-domain.com'
+```
+
+#### Vault Configuration
+
+Update `apps/vault/values.yaml`:
+
+```yaml
+# Configure backup settings
+server:
+  extraArgs: |
+    -config=/vault/config/extraconfig-from-values.hcl
+
+# Enable additional audit devices
+audit:
+  enabled: true
+  type: file
+  path: /vault/audit/audit.log
+```
+
+## Platform-Specific Guides
+
+### AWS EKS
+
+For complete AWS EKS deployment, see [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md).
+
+Key considerations:
+- IAM roles for service accounts (IRSA)
+- EBS CSI driver for persistent volumes
+- Load balancer controller for ingress
+- CloudWatch integration
+
+### Minikube
+
+For local development, see [MINIKUBE_DEPLOYMENT_GUIDE.md](MINIKUBE_DEPLOYMENT_GUIDE.md).
+
+Key considerations:
+- Local storage classes
+- Port forwarding for access
+- Resource limitations
+- Development workflows
+
+### Other Kubernetes Platforms
+
+#### Google GKE
+
+```bash
+# Enable required APIs
+gcloud services enable container.googleapis.com
+
+# Create cluster with workload identity
+gcloud container clusters create my-cluster \
+  --enable-workload-identity \
+  --num-nodes=3 \
+  --machine-type=e2-standard-2
+
+# Configure kubectl
+gcloud container clusters get-credentials my-cluster
+```
+
+#### Azure AKS
+
+```bash
+# Create resource group
+az group create --name myResourceGroup --location eastus
+
+# Create AKS cluster
+az aks create \
+  --resource-group myResourceGroup \
+  --name myAKSCluster \
+  --node-count 3 \
+  --enable-addons monitoring \
+  --generate-ssh-keys
+
+# Configure kubectl
+az aks get-credentials --resource-group myResourceGroup --name myAKSCluster
+```
+
+## Post-Deployment Setup
+
+### 1. Initialize Vault
+
+After Vault is deployed, initialize and unseal it:
+
+```bash
+# Initialize Vault (run once)
+kubectl exec -n vault vault-0 -- vault operator init
+
+# Save the unseal keys and root token securely!
+
+# Unseal Vault with 3 unseal keys
+kubectl exec -n vault vault-0 -- vault operator unseal <unseal-key-1>
+kubectl exec -n vault vault-0 -- vault operator unseal <unseal-key-2>
+kubectl exec -n vault vault-0 -- vault operator unseal <unseal-key-3>
+
+# Verify Vault is unsealed
+kubectl exec -n vault vault-0 -- vault status
+```
+
+### 2. Configure Grafana
+
+Access Grafana and configure:
+
+1. **Change admin password** (if not using external secrets)
+2. **Verify datasources** are connected
+3. **Import additional dashboards** if needed
+4. **Configure users and teams** for access control
+
+### 3. Set Up Monitoring
+
+Verify monitoring is working:
+
+```bash
+# Check Prometheus targets
+kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090
+# Visit: http://localhost:9090/targets
+
+# Check AlertManager
+kubectl port-forward svc/prometheus-kube-prometheus-stack-alertmanager -n monitoring 9093:9093
+# Visit: http://localhost:9093
+```
+
+### 4. Configure Backup
+
+Set up backup strategies:
+
+```bash
+# Backup Vault data
+kubectl exec -n vault vault-0 -- vault operator raft snapshot save /tmp/vault-backup.snap
+
+# Backup Grafana dashboards
+kubectl exec -n monitoring deployment/grafana -- grafana-cli admin export-dashboard > grafana-dashboards.json
+
+# Backup Prometheus data (if needed)
+kubectl exec -n monitoring deployment/prometheus-server -- promtool tsdb create-blocks-from openmetrics /tmp/backup.prom
+```
+
+## Troubleshooting
 
 ### Common Issues
 
-1. **Terraform fails with IAM permissions**
-   ```bash
-   # Check AWS credentials
-   aws sts get-caller-identity
-   
-   # Verify IAM permissions
-   aws iam list-attached-user-policies --user-name YOUR_USERNAME
-   ```
-
-2. **ArgoCD applications not syncing**
-   ```bash
-   # Check application status
-   kubectl describe application <app-name> -n argocd
-   
-   # Check ArgoCD logs
-   kubectl logs -n argocd deployment/argocd-application-controller
-   ```
-
-3. **Pods not starting**
-   ```bash
-   # Check pod status
-   kubectl describe pod <pod-name> -n <namespace>
-   
-   # Check pod logs
-   kubectl logs <pod-name> -n <namespace>
-   ```
-
-4. **Cluster access issues**
-   ```bash
-   # Reconfigure kubectl
-   aws eks update-kubeconfig --region <region> --name <cluster_name>
-   
-   # Check cluster status
-   aws eks describe-cluster --name <cluster_name> --region <region>
-   ```
-
-### Useful Commands
+#### Applications Not Syncing
 
 ```bash
-# Check cluster health
-kubectl get nodes
-kubectl get pods -A
-
-# Check ArgoCD status
+# Check application status
 kubectl get applications -n argocd
-kubectl get pods -n argocd
 
-# Check monitoring stack
+# Force sync
+kubectl patch application <app-name> -n argocd --type merge -p '{"operation":{"sync":{"syncStrategy":{"hook":{"force":true}}}}}'
+
+# Check Argo CD logs
+kubectl logs -n argocd deployment/argocd-application-controller
+```
+
+#### Pod Startup Issues
+
+```bash
+# Check pod status
 kubectl get pods -n monitoring
-kubectl get svc -n monitoring
+kubectl get pods -n vault
 
-# View logs
-kubectl logs -n argocd deployment/argocd-server
-kubectl logs -n monitoring deployment/prometheus-server
+# Describe problematic pods
+kubectl describe pod <pod-name> -n <namespace>
+
+# Check pod logs
+kubectl logs <pod-name> -n <namespace> --previous
 ```
 
-## 🧹 Teardown
-
-To destroy the infrastructure, use Terraform directly:
+#### Storage Issues
 
 ```bash
-# Destroy infrastructure using Makefile (recommended)
-make destroy
+# Check persistent volumes
+kubectl get pv,pvc -n monitoring
+kubectl get pv,pvc -n vault
 
-# Or manually with Terraform
-cd terraform
+# Check storage classes
+kubectl get storageclass
 
-# Review what will be destroyed
-terraform plan -destroy -var-file="terraform.tfvars"
-
-# Destroy infrastructure (interactive)
-terraform destroy -var-file="terraform.tfvars"
-
-# Force destroy without confirmations
-terraform destroy -var-file="terraform.tfvars" -auto-approve
+# Check volume attachments
+kubectl get volumeattachment
 ```
 
-### Teardown Process
-
-The teardown process involves the following steps:
-
-1. **Kubernetes Cleanup** (Manual):
-   ```bash
-   # Delete ArgoCD applications
-   kubectl delete applications --all -n argocd
-   
-   # Delete monitoring stack
-   kubectl delete namespace monitoring
-   
-   # Delete ArgoCD namespace
-   kubectl delete namespace argocd
-   ```
-
-2. **Terraform Destruction**:
-   ```bash
-   # Using Makefile
-   make destroy
-   
-   # Or manually
-   cd terraform
-   terraform destroy -var-file="terraform.tfvars"
-   ```
-
-3. **Verification**:
-   ```bash
-   # Verify cluster is destroyed
-   aws eks list-clusters --region <your-region>
-   
-   # Check for any remaining resources
-   aws ec2 describe-instances --region <your-region>
-   ```
-
-### Manual Cleanup (If Needed)
-
-If Terraform destroy fails, you may need to manually clean up resources:
+### Health Checks
 
 ```bash
-# Delete EKS cluster manually
-aws eks delete-cluster --name <cluster-name> --region <region>
-
-# Delete VPC and associated resources
-aws ec2 delete-vpc --vpc-id <vpc-id>
-
-# Clean up S3 bucket and DynamoDB table (if not managed by Terraform)
-aws s3 rb s3://<bucket-name> --force
-aws dynamodb delete-table --table-name <table-name>
+# Comprehensive health check script
+./scripts/health-check.sh
 ```
 
-### Manual Cleanup Steps
+For detailed troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
-1. **Delete ArgoCD Applications**: Remove all applications from ArgoCD UI or via kubectl
-2. **Delete Monitoring Stack**: Remove Prometheus, Grafana, and AlertManager
-3. **Destroy Infrastructure**: Use Terraform destroy as shown above
-4. **Clean Backend Resources**: Optionally delete S3 bucket and DynamoDB table
+## Security Considerations
 
-**⚠️ Warning:** This will permanently delete all resources and data.
+### Pre-Production Checklist
 
-## 📚 Additional Resources
+- [ ] **Change default passwords** (Grafana admin password)
+- [ ] **Configure TLS certificates** for all ingress resources
+- [ ] **Set up RBAC** with least privilege principles
+- [ ] **Enable audit logging** for all components
+- [ ] **Configure network policies** for traffic isolation
+- [ ] **Set up backup and disaster recovery**
+- [ ] **Enable monitoring and alerting**
+- [ ] **Review and update resource limits**
+- [ ] **Configure external secrets management**
+- [ ] **Set up log aggregation and analysis**
 
-- [Onboarding Guide](docs/onboarding.md)
-- [ArgoCD Configuration](docs/argocd-configuration.md)
-- [Monitoring & Alerting](docs/monitoring-alerting.md)
-- [Security Best Practices](docs/security-best-practices.md)
-- [Troubleshooting Guide](TROUBLESHOOTING.md)
+### Security Best Practices
 
-## 🆘 Support
+1. **Use External Secrets**: Store sensitive data in Vault or cloud secret managers
+2. **Enable Pod Security Standards**: Use restricted security contexts
+3. **Implement Network Policies**: Restrict inter-pod communication
+4. **Regular Updates**: Keep all components updated with security patches
+5. **Access Control**: Implement proper RBAC and user management
+6. **Audit Logging**: Enable comprehensive audit trails
+7. **Encryption**: Use TLS for all communications
+8. **Backup Security**: Encrypt backup data and secure backup access
 
-For issues and questions:
-1. Check the [Troubleshooting Guide](TROUBLESHOOTING.md)
-2. Open an issue in the repository
-3. Consult the documentation in the `docs/` directory
+### Compliance
+
+For compliance requirements:
+
+- **SOC 2**: Implement comprehensive logging and access controls
+- **PCI DSS**: Use encrypted storage and secure communications
+- **HIPAA**: Implement data encryption and access controls
+- **GDPR**: Enable data retention policies and audit trails
+
+## Support
+
+For additional support:
+
+1. **Documentation**: Check all guide files in this repository
+2. **Issues**: Open an issue on GitHub for bugs or feature requests
+3. **Community**: Join the Argo CD community for general questions
+4. **Professional Support**: Consider professional support for production environments
 
 ---
 
-**Happy Deploying! 🚀**
+**⚠️ Important**: This deployment guide is designed for production use. Always test in a development environment first and customize all configuration values according to your organization's requirements.

@@ -8,9 +8,11 @@ This guide outlines essential security practices for operating a production-grad
 - Use IRSA (IAM Roles for Service Accounts) for fine-grained permissions.
 
 ## Secrets Management
-- Store secrets in AWS Secrets Manager.
+- Store secrets in HashiCorp Vault with KV v2 secret engine.
 - Sync secrets to Kubernetes using the external-secrets operator (see `argo-cd/apps/grafana-admin-secret.yaml`).
 - Never commit secrets to version control. Only commit references to secret keys and properties.
+- Use Vault policies for fine-grained access control and audit logging.
+- Implement Vault unsealing with multiple key shares for high availability.
 
 ## Image & Code Security
 - Scan container images and Infrastructure as Code (IaC) for vulnerabilities (Trivy, Checkov).
