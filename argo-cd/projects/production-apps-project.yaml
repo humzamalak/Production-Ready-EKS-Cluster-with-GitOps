@@ -8,7 +8,7 @@ metadata:
 spec:
   description: Production workloads managed by ArgoCD
   sourceRepos:
-    - 'https://github.com/YOUR_ORG/*'   # Restrict to your org's repos
+    - 'https://github.com/humzamalak/*'   # Restrict to your org's repos
   destinations:
     - namespace: production
       server: https://kubernetes.default.svc
