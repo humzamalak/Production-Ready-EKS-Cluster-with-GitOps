@@ -1,0 +1,37 @@
+# Namespace definitions for GitOps applications
+# These namespaces are created before deploying applications to ensure proper isolation
+# All namespaces use restricted Pod Security Standards for enhanced security
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    purpose: monitoring
+    app.kubernetes.io/name: monitoring
+    app.kubernetes.io/part-of: gitops
+    # Pod Security Standards - Restricted mode for enhanced security
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    # Optional: Enable Istio service mesh injection
+    # istio-injection: enabled
+  annotations:
+    description: "Namespace for monitoring stack (Prometheus, Grafana, AlertManager)"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault
+  labels:
+    name: vault
+    purpose: secrets-management
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/part-of: gitops
+    # Pod Security Standards - Restricted mode for enhanced security
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    description: "Namespace for HashiCorp Vault secrets management"
