@@ -19,7 +19,7 @@ spec:
       values: |
         replicaCount: 3
         image:
-          repository: windwalker101/k8s-web-app
+          repository: k8s-web-app
           tag: "latest"
         ingress:
           enabled: true
