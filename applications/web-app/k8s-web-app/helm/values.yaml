@@ -162,13 +162,33 @@ serviceMonitor:
   labels:
     app: k8s-web-app
 
-# Vault configuration
+# Vault configuration - Phase 1: Disabled for initial deployment
+# Enable in Phase 2 after Vault is fully configured and initialized
 vault:
-  enabled: false  # Set to true only when Vault is properly configured
+  enabled: false  # Phase 1: Disabled, Phase 2: Enable after Vault setup
+  ready: false    # Phase 2: Set to true after Vault initialization
   role: "web-app-role"
   agent:
     config: |
       vault {
         address = "http://vault.vault.svc.cluster.local:8200"
+        retry {
+          num_retries = 5
+        }
+      }
+      
+      auto_auth {
+        method "kubernetes" {
+          mount_path = "auth/kubernetes"
+          config = {
+            role = "web-app-role"
+          }
+        }
+        
+        sink "file" {
+          config = {
+            path = "/vault/secrets/.vault-token"
+          }
+        }
       }
   secrets: []  # Empty array when vault is disabled

@@ -2,6 +2,8 @@
 
 Complete step-by-step guide for deploying the Production-Ready EKS Cluster with GitOps, Vault, Prometheus, and Grafana on Minikube for local development.
 
+> **⚠️ Important**: This guide has been updated to use a **wave-based deployment approach**. For the most reliable deployment experience, we recommend following the **[Wave-Based Deployment Guide](WAVE_BASED_DEPLOYMENT_GUIDE.md)** first, then using this guide for Minikube-specific setup.
+
 ## 🎯 Overview
 
 This guide will walk you through:
@@ -62,9 +64,9 @@ sudo apt update && sudo apt install vault
 - **macOS**: 10.15 or later
 - **Linux**: Ubuntu 18.04+ or equivalent
 - **Windows**: Windows 10/11 with WSL2
-- **RAM**: 8GB minimum, 16GB recommended
-- **CPU**: 4 cores minimum, 8 cores recommended
-- **Storage**: 50GB free disk space
+- **RAM**: 4GB minimum, 8GB recommended
+- **CPU**: 2 cores minimum, 4 cores recommended
+- **Storage**: 30GB free disk space
 - **Docker Desktop**: Running and configured
 
 ## 🏗️ Part 1: Local Infrastructure Setup
@@ -72,8 +74,8 @@ sudo apt update && sudo apt install vault
 ### Step 1: Start Minikube
 
 ```bash
-# Start Minikube with sufficient resources
-minikube start --memory=8192 --cpus=4 --disk-size=50g --driver=docker
+# Start Minikube with optimized resources for local development
+minikube start --memory=4096 --cpus=2 --disk-size=30g --driver=docker
 
 # Enable required addons
 minikube addons enable ingress
@@ -132,14 +134,16 @@ cd ../..
 ### Step 1: Deploy Core Components
 
 ```bash
-# Apply core namespaces and security policies
+# Apply core namespaces first
 kubectl apply -f bootstrap/00-namespaces.yaml
-kubectl apply -f bootstrap/01-pod-security-standards.yaml
-kubectl apply -f bootstrap/02-network-policy.yaml
-kubectl apply -f bootstrap/03-helm-repos.yaml
 
 # Verify namespaces were created
 kubectl get namespaces
+
+# Apply security policies and configurations
+kubectl apply -f bootstrap/01-pod-security-standards.yaml
+kubectl apply -f bootstrap/02-network-policy.yaml
+kubectl apply -f bootstrap/03-helm-repos.yaml
 ```
 
 ### Step 2: Install ArgoCD
@@ -431,21 +435,36 @@ sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
 
 ### Customize Resource Limits for Local Development
 
-Update resource limits for local development:
+For local development with limited resources, use the optimized values files:
 
 ```bash
-# Edit web application values
-vim applications/web-app/k8s-web-app/values.yaml
+# Use optimized values for web application
+helm upgrade --install k8s-web-app applications/web-app/k8s-web-app/helm \
+  -n production \
+  -f applications/web-app/k8s-web-app/values-local.yaml
 
-# Update resource limits for local development
-resources:
-  limits:
-    cpu: 500m
-    memory: 512Mi
-  requests:
-    cpu: 100m
-    memory: 128Mi
+# Use optimized values for Vault
+helm upgrade --install vault applications/security/vault/helm \
+  -n vault \
+  -f applications/security/vault/values-local.yaml
+
+# Use optimized values for Prometheus
+helm upgrade --install prometheus applications/monitoring/prometheus/helm \
+  -n monitoring \
+  -f applications/monitoring/prometheus/values-local.yaml
+
+# Use optimized values for Grafana
+helm upgrade --install grafana applications/monitoring/grafana/helm \
+  -n monitoring \
+  -f applications/monitoring/grafana/values-local.yaml
 ```
+
+The local values files include:
+- **Reduced memory requirements**: 64Mi-512Mi instead of 128Mi-1Gi
+- **Reduced CPU requirements**: 25m-250m instead of 50m-1000m
+- **Single replicas**: Disabled HA and autoscaling for local development
+- **Simplified configurations**: Disabled ingress, network policies, and complex features
+- **Reduced storage**: 1Gi-5Gi instead of 5Gi-20Gi
 
 ### Configure Local Storage
 
@@ -487,13 +506,33 @@ docker ps
 
 # Restart Minikube
 minikube stop
-minikube start --memory=8192 --cpus=4 --driver=docker
+minikube start --memory=4096 --cpus=2 --driver=docker
 
 # Check logs
 minikube logs
 ```
 
-#### 2. Pod Startup Issues
+#### 2. Namespace Not Found Errors
+```bash
+# Error: namespaces "argocd" not found
+# Solution: Ensure namespaces are created first
+
+# Check if namespaces exist
+kubectl get namespaces
+
+# If argocd namespace is missing, apply namespaces first
+kubectl apply -f bootstrap/00-namespaces.yaml
+
+# Verify all required namespaces exist
+kubectl get namespaces | grep -E "(argocd|vault|monitoring|production)"
+
+# Then proceed with other bootstrap components
+kubectl apply -f bootstrap/01-pod-security-standards.yaml
+kubectl apply -f bootstrap/02-network-policy.yaml
+kubectl apply -f bootstrap/03-helm-repos.yaml
+```
+
+#### 3. Pod Startup Issues
 ```bash
 # Check pod status
 kubectl describe pod <pod-name> -n <namespace>
@@ -505,7 +544,7 @@ kubectl logs <pod-name> -n <namespace> --previous
 kubectl get events -n <namespace> --sort-by=.metadata.creationTimestamp
 ```
 
-#### 3. Image Pull Issues
+#### 4. Image Pull Issues
 ```bash
 # Check if image exists in Minikube
 minikube image ls | grep k8s-web-app
@@ -516,7 +555,7 @@ docker build -t k8s-web-app:latest .
 minikube image load k8s-web-app:latest
 ```
 
-#### 4. Port Forward Issues
+#### 5. Port Forward Issues
 ```bash
 # Check if service exists
 kubectl get svc -n <namespace>
@@ -528,7 +567,7 @@ kubectl get pods -n <namespace>
 kubectl port-forward svc/<service-name> 8081:80 -n <namespace>
 ```
 
-#### 5. ArgoCD Applications Not Syncing
+#### 6. ArgoCD Applications Not Syncing
 ```bash
 # Check application status
 kubectl describe application <app-name> -n argocd
@@ -540,7 +579,7 @@ kubectl patch application <app-name> -n argocd --type merge -p '{"operation":{"s
 kubectl logs -n argocd deployment/argocd-application-controller
 ```
 
-#### 6. Vault Integration Issues
+#### 7. Vault Integration Issues
 ```bash
 # Check Vault agent logs
 kubectl logs -n production -l app.kubernetes.io/name=k8s-web-app -c vault-agent
@@ -550,6 +589,65 @@ kubectl exec -n vault vault-0 -- vault status
 
 # Check service account
 kubectl get sa k8s-web-app-vault-sa -n production
+```
+
+#### 8. ArgoCD Finalizer Warnings
+```bash
+# Warning: metadata.finalizers: "resources-finalizer.argocd.argoproj.io": prefer a domain-qualified finalizer name
+
+# This is a warning, not an error. The application will still work correctly.
+# The warning occurs because Kubernetes prefers more specific finalizer names to avoid conflicts.
+# This is a cosmetic warning from Kubernetes - ArgoCD applications work perfectly fine with this finalizer.
+
+# The warning is safe to ignore. Your GitOps deployment will function correctly.
+# To verify the application is working:
+kubectl get applications -n argocd
+kubectl describe application production-cluster -n argocd
+
+# Note: This warning is common with ArgoCD and doesn't affect functionality.
+```
+
+#### 9. YAML Syntax Errors in Helm Templates
+```bash
+# Error: Failed to unmarshal "deployment.yaml": yaml: line X: did not find expected node content
+
+# This error indicates malformed YAML in Helm templates.
+# Common causes:
+# 1. Duplicate YAML keys (like duplicate 'annotations:' sections)
+# 2. Incorrect indentation in Helm template loops
+# 3. Malformed Helm template syntax
+
+# To debug:
+kubectl get applications -n argocd
+kubectl describe application <app-name> -n argocd
+
+# Check ArgoCD logs for more details:
+kubectl logs -n argocd deployment/argocd-repo-server
+
+# Fix by correcting the YAML syntax in the problematic template file.
+# The deployment.yaml template has been fixed to resolve this issue.
+
+#### 10. Helm Template Configuration Issues
+```bash
+# Issue: Hardcoded values in Helm templates instead of using values.yaml
+# This can cause configuration drift and inconsistent deployments
+
+# Common problems:
+# 1. HPA behavior values hardcoded in template instead of using .Values.autoscaling.behavior
+# 2. Duplicate annotations sections causing YAML parsing errors
+# 3. Incorrect conditional logic in Helm templates
+
+# To debug Helm template issues:
+helm template <release-name> <chart-path> --values <values-file>
+
+# To validate Helm templates:
+helm lint <chart-path>
+
+# Check rendered output:
+helm template k8s-web-app applications/web-app/k8s-web-app/helm \
+  --values applications/web-app/k8s-web-app/values.yaml
+
+# The HPA template has been fixed to use values from values.yaml instead of hardcoded values.
 ```
 
 ### Debug Commands
@@ -574,20 +672,40 @@ minikube addons list
 
 ## 📊 Performance Optimization
 
+### Memory Optimization for Local Development
+
+This deployment has been optimized for local development with the following memory reductions:
+
+**Minikube Cluster:**
+- Memory: 8GB → 4GB (50% reduction)
+- CPU: 4 cores → 2 cores (50% reduction)
+- Disk: 50GB → 30GB (40% reduction)
+
+**Application Resources:**
+- Web App: 1Gi → 256Mi memory (75% reduction)
+- Vault: 1Gi → 256Mi memory (75% reduction)
+- Prometheus: 1Gi → 512Mi memory (50% reduction)
+- Grafana: 512Mi → 256Mi memory (50% reduction)
+
+**Total Estimated Memory Usage:**
+- **Before optimization**: ~6-8GB
+- **After optimization**: ~2-3GB
+- **Savings**: ~60-70% reduction
+
 ### Minikube Optimization
 
 ```bash
-# Start with more resources
-minikube start --memory=16384 --cpus=8 --disk-size=100g
+# Start with more resources (if you have them available)
+minikube start --memory=8192 --cpus=4 --disk-size=50g
 
 # Use Docker driver for better performance
-minikube start --driver=docker --memory=8192 --cpus=4
+minikube start --driver=docker --memory=4096 --cpus=2
 
 # Enable GPU support if available
-minikube start --memory=8192 --cpus=4 --gpus=1
+minikube start --memory=4096 --cpus=2 --gpus=1
 
 # Use HyperKit driver on macOS for better performance
-minikube start --driver=hyperkit --memory=8192 --cpus=4
+minikube start --driver=hyperkit --memory=4096 --cpus=2
 ```
 
 ### Application Optimization
@@ -673,7 +791,7 @@ docker system prune -a
 
 ```bash
 # Start development environment
-minikube start --memory=8192 --cpus=4
+minikube start --memory=4096 --cpus=2
 
 # Deploy applications
 kubectl apply -f clusters/production/app-of-apps.yaml

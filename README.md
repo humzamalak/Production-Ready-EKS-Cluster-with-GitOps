@@ -36,12 +36,24 @@ This repository follows GitOps principles to manage a production-ready EKS clust
 
 ## 🚀 Quick Start
 
-Choose your deployment platform and follow the comprehensive step-by-step guide:
+### 🌊 Wave-Based Deployment (Recommended)
+
+We use a **wave-based deployment approach** to ensure proper dependency ordering and avoid common deployment issues:
+
+1. **Wave 1**: Bootstrap and Infrastructure
+2. **Wave 2**: Monitoring Stack
+3. **Wave 3**: Security Stack (Vault)
+4. **Wave 3.5**: Vault Initialization
+5. **Wave 5**: Web Applications
+
+**📖 [Complete Wave-Based Deployment Guide](WAVE_BASED_DEPLOYMENT_GUIDE.md)**
 
 ### 📖 Deployment Guides
 
+- **[Wave-Based Deployment Guide](WAVE_BASED_DEPLOYMENT_GUIDE.md)** - **RECOMMENDED**: Step-by-step wave deployment
 - **[AWS EKS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md)** - Complete production deployment on AWS
 - **[Minikube Deployment Guide](MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development environment
+- **[Local Development Optimization Guide](LOCAL_DEVELOPMENT_OPTIMIZATION.md)** - Memory optimization for local development
 
 Both guides cover:
 - **Infrastructure Setup**: Creating cluster and supporting resources

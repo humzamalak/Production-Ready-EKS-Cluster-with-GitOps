@@ -2,6 +2,8 @@
 
 Complete step-by-step guide for deploying a production-ready EKS cluster with GitOps, Vault, Prometheus, and Grafana on AWS.
 
+> **⚠️ Important**: This guide has been updated to use a **wave-based deployment approach**. For the most reliable deployment experience, we recommend following the **[Wave-Based Deployment Guide](WAVE_BASED_DEPLOYMENT_GUIDE.md)** first, then using this guide for AWS-specific infrastructure setup.
+
 ## 🎯 Overview
 
 This guide will walk you through:
