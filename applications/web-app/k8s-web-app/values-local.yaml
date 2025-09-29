@@ -1,0 +1,129 @@
+# Local development values for k8s-web-app
+# Optimized for Minikube with reduced resource requirements
+
+replicaCount: 1
+
+image:
+  repository: k8s-web-app
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3000"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+    prometheus.io/path: "/metrics"
+
+ingress:
+  enabled: false  # Disable ingress for local development
+
+# Reduced resource limits for local development
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+autoscaling:
+  enabled: false  # Disable autoscaling for local development
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Environment variables
+env:
+  NODE_ENV: "development"
+  APP_VERSION: "1.0.0"
+  PORT: "3000"
+  LOG_LEVEL: "debug"
+
+# Vault Agent Injection Configuration (simplified for local development)
+vault:
+  enabled: false  # Disable vault for local development to avoid template issues
+  role: "web-app-role"
+  agent:
+    config: |
+      vault {
+        address = "http://vault.vault.svc.cluster.local:8200"
+      }
+  secrets: []  # Empty array when vault is disabled
+
+# Legacy secret references (deprecated - use Vault instead)
+secretRefs: []
+
+# Health check configuration
+healthCheck:
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 3000
+      httpHeaders:
+      - name: Custom-Header
+        value: Awesome
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: 3000
+      httpHeaders:
+      - name: Custom-Header
+        value: Awesome
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+
+# Network Policy for security (simplified for local development)
+networkPolicy:
+  enabled: false  # Disable network policy for local development
+
+# Service Monitor for Prometheus
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  labels:
+    app: k8s-web-app
+  interval: 30s
+  path: /metrics
+  port: http
