@@ -24,7 +24,15 @@ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stabl
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
 # Helm v3
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+# SAFER: install via package manager or verify signature instead of piping to bash
+# Ubuntu/Debian (APT):
+sudo snap install helm --classic || {
+  wget https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz && \
+  wget https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz.sha256sum && \
+  sha256sum -c helm-v3.14.4-linux-amd64.tar.gz.sha256sum && \
+  tar -xzvf helm-v3.14.4-linux-amd64.tar.gz && \
+  sudo mv linux-amd64/helm /usr/local/bin/helm;
+}
 
 # Terraform >=1.4.0
 wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg

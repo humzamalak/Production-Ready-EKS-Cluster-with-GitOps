@@ -21,14 +21,11 @@ spec:
     helm:
       values: |
         # Grafana configuration
-        adminUser: admin
-        adminPassword: "changeme"  # ⚠️ CRITICAL: Change this in production!
-        
         # External secrets integration (recommended for production)
-        # admin:
-        #   existingSecret: grafana-admin
-        #   userKey: admin-user
-        #   passwordKey: admin-password
+        admin:
+          existingSecret: grafana-admin
+          userKey: admin-user
+          passwordKey: admin-password
         
         # Persistence
         persistence:
