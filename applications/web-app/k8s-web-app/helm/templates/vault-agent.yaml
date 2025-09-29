@@ -1,0 +1,107 @@
+{{- if .Values.vault.enabled }}
+# Vault Agent Injection Configuration
+# This template configures Vault agent injection for the web application
+
+---
+# Vault Agent ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "k8s-web-app.fullname" . }}-vault-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "k8s-web-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: vault-config
+data:
+  vault-agent.hcl: |
+    {{- .Values.vault.agent.config | nindent 4 }}
+  
+  # Database connection template
+  db-connection.tpl: |
+    {{- with .Values.vault.secrets | selectattr "secretPath" "equalto" "secret/data/production/web-app/db" | first -}}
+    {{- .template | nindent 4 }}
+    {{- end }}
+  
+  # API secrets template
+  api-secrets.tpl: |
+    {{- with .Values.vault.secrets | selectattr "secretPath" "equalto" "secret/data/production/web-app/api" | first -}}
+    {{- .template | nindent 4 }}
+    {{- end }}
+  
+  # External services template
+  external-services.tpl: |
+    {{- with .Values.vault.secrets | selectattr "secretPath" "equalto" "secret/data/production/web-app/external" | first -}}
+    {{- .template | nindent 4 }}
+    {{- end }}
+
+---
+# Vault Agent Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "k8s-web-app.fullname" . }}-vault-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "k8s-web-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: vault-sa
+  annotations:
+    {{- with .Values.serviceAccount.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    vault.hashicorp.com/agent-inject: "true"
+    vault.hashicorp.com/role: {{ .Values.vault.role }}
+    vault.hashicorp.com/agent-inject-secret-db: "secret/data/production/web-app/db"
+    vault.hashicorp.com/agent-inject-template-db: |
+      {{- with .Values.vault.secrets | selectattr "secretPath" "equalto" "secret/data/production/web-app/db" | first -}}
+      {{- .template | nindent 6 }}
+      {{- end }}
+    vault.hashicorp.com/agent-inject-secret-api: "secret/data/production/web-app/api"
+    vault.hashicorp.com/agent-inject-template-api: |
+      {{- with .Values.vault.secrets | selectattr "secretPath" "equalto" "secret/data/production/web-app/api" | first -}}
+      {{- .template | nindent 6 }}
+      {{- end }}
+    vault.hashicorp.com/agent-inject-secret-external: "secret/data/production/web-app/external"
+    vault.hashicorp.com/agent-inject-template-external: |
+      {{- with .Values.vault.secrets | selectattr "secretPath" "equalto" "secret/data/production/web-app/external" | first -}}
+      {{- .template | nindent 6 }}
+      {{- end }}
+    vault.hashicorp.com/agent-pre-populate-only: "true"
+    vault.hashicorp.com/agent-inject-status: "update"
+
+---
+# Vault Agent Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "k8s-web-app.fullname" . }}-vault-role
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "k8s-web-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: vault-role
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+
+---
+# Vault Agent RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "k8s-web-app.fullname" . }}-vault-rolebinding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "k8s-web-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: vault-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "k8s-web-app.fullname" . }}-vault-role
+subjects:
+- kind: ServiceAccount
+  name: {{ include "k8s-web-app.fullname" . }}-vault-sa
+  namespace: {{ .Release.Namespace }}
+{{- end }}

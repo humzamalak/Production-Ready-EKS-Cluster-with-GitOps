@@ -15,9 +15,13 @@ This repository follows GitOps principles to manage a production-ready EKS clust
 │   │   ├── 📄 app-of-apps.yaml     # Monitoring stack bootstrap
 │   │   ├── 📁 prometheus/          # Prometheus monitoring
 │   │   └── 📁 grafana/             # Grafana dashboards
-│   └── 📁 security/                # Security applications
-│       ├── 📄 app-of-apps.yaml     # Security stack bootstrap
-│       └── 📁 vault/               # HashiCorp Vault
+│   ├── 📁 security/                # Security applications
+│   │   ├── 📄 app-of-apps.yaml     # Security stack bootstrap
+│   │   └── 📁 vault/               # HashiCorp Vault
+│   └── 📁 web-app/                 # Web application deployments
+│       ├── 📄 app-of-apps.yaml     # Web app stack bootstrap
+│       ├── 📄 namespace.yaml       # Production namespace
+│       └── 📁 k8s-web-app/         # Node.js web application
 ├── 📁 bootstrap/                   # Bootstrap manifests
 │   ├── 📄 00-namespaces.yaml       # Core namespaces with PSS labels
 │   ├── 📄 01-pod-security-standards.yaml # Security standards
@@ -32,45 +36,74 @@ This repository follows GitOps principles to manage a production-ready EKS clust
 
 ## 🚀 Quick Start
 
+Choose your deployment platform and follow the comprehensive step-by-step guide:
+
+### 📖 Deployment Guides
+
+- **[AWS EKS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md)** - Complete production deployment on AWS
+- **[Minikube Deployment Guide](MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development environment
+
+Both guides cover:
+- **Infrastructure Setup**: Creating cluster and supporting resources
+- **GitOps Bootstrap**: Installing ArgoCD and core components  
+- **Monitoring Stack**: Deploying Prometheus and Grafana
+- **Security Stack**: Setting up Vault with agent injection
+- **Web Application**: Deploying production-ready Node.js app
+- **Verification**: Testing all components and access
+
 ### Prerequisites
 
-- Kubernetes cluster (EKS recommended)
-- ArgoCD installed and configured
-- kubectl configured with cluster access
+#### For AWS EKS:
+- AWS CLI configured with appropriate permissions
+- Terraform >=1.5.0
+- kubectl v1.28+
+- Helm v3.12+
 
-### 1. Bootstrap Core (see DEPLOYMENT_GUIDE.md for full steps)
+#### For Minikube:
+- Docker Desktop
+- Minikube
+- kubectl v1.28+
+- Helm v3.12+
 
+### Quick Start Commands
+
+#### AWS EKS:
 ```bash
-# Core namespaces, security, Argo CD
-kubectl apply -f bootstrap/00-namespaces.yaml
-kubectl apply -f bootstrap/01-pod-security-standards.yaml
-kubectl apply -f bootstrap/02-network-policy.yaml
-kubectl apply -f bootstrap/04-argo-cd-install.yaml
-kubectl apply -f bootstrap/05-vault-policies.yaml
-kubectl apply -f bootstrap/06-etcd-backup.yaml
+# Clone repository
+git clone https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps.git
+cd Production-Ready-EKS-Cluster-with-GitOps
 
-# Wait for ArgoCD to be ready
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
+# Follow the AWS Deployment Guide
+open AWS_DEPLOYMENT_GUIDE.md
 ```
 
-### 2. Deploy Applications
-
+#### Minikube:
 ```bash
-# Apply the root application (app-of-apps pattern)
-kubectl apply -f clusters/production/app-of-apps.yaml
+# Clone repository
+git clone https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps.git
+cd Production-Ready-EKS-Cluster-with-GitOps
 
-# ArgoCD will automatically discover and deploy all applications in sync waves:
-# Wave 1: Production cluster bootstrap
-# Wave 2: Monitoring stack (Prometheus, Grafana)
-# Wave 3: Security stack (Vault)
+# Follow the Minikube Deployment Guide
+open MINIKUBE_DEPLOYMENT_GUIDE.md
 ```
 
-### 3. Access Applications
+## 📚 Documentation
+
+- **[Project Structure Guide](docs/PROJECT_STRUCTURE.md)** - Comprehensive overview of the repository structure
+- **[Vault Setup Guide](docs/VAULT_SETUP_GUIDE.md)** - Detailed Vault configuration and troubleshooting
+- **[Security Best Practices](docs/security-best-practices.md)** - Security guidelines and recommendations
+- **[Disaster Recovery Runbook](docs/disaster-recovery-runbook.md)** - Backup and recovery procedures
+- **[GitOps Structure](docs/gitops-structure.md)** - GitOps architecture and patterns
+- **[Changelog](docs/CHANGELOG.md)** - Version history and changes
+
+## 🔧 Application Access
+
+After deployment, access your applications:
 
 #### ArgoCD UI
 ```bash
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-# Access: https://localhost:8080 (admin / get password with kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443
+# Access: https://localhost:8080 (admin / password from secret)
 ```
 
 #### Prometheus
@@ -82,70 +115,39 @@ kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitori
 #### Grafana
 ```bash
 kubectl port-forward svc/grafana -n monitoring 3000:80
-# Access: http://localhost:3000 (admin / changeme)
+# Access: http://localhost:3000 (admin / password from secret)
 ```
 
 #### Vault
 ```bash
 kubectl port-forward svc/vault -n vault 8200:8200
-# Access: https://localhost:8200
+# Access: http://localhost:8200 (root / root)
 ```
 
 ## 📋 Applications Managed
 
 ### Monitoring Stack
 - **Prometheus**: Metrics collection and alerting
-- **Grafana**: Dashboards and visualization
+- **Grafana**: Dashboards and visualization  
 - **AlertManager**: Alert routing and notification
 
 ### Security Stack
-- **HashiCorp Vault**: Secrets management
-- **Vault Agent Injector**: Pod-level secret injection without Kubernetes Secret objects
+- **HashiCorp Vault**: Secrets management with agent injection
+- **Pod Security Standards**: Restricted security contexts
+- **Network Policies**: Traffic isolation between components
 
-## 🔧 Configuration
-
-### Customizing Applications
-
-1. **Modify Helm Values**: Edit values files in application directories
-2. **Add New Applications**: Create new directories under `applications/`
-3. **Environment-Specific Configs**: Use `clusters/` for environment differences
-
-### Required Customizations
-
-Before deploying, update the following:
-
-1. **Repository URL**: Update `repoURL` in `clusters/production/app-of-apps.yaml`
-2. **Domain Names**: Update ingress hosts in application manifests
-3. **AWS Account ID**: Update IAM role ARNs in Vault configuration
-4. **TLS Certificates**: Configure cert-manager or provide your own certificates
-
-### Quick Configuration Script
-
-For easy setup, use the provided configuration script:
-
-```bash
-# Run the interactive configuration script
-./examples/scripts/configure-deployment.sh
-```
+### Web Application
+- **Node.js Application**: Production-ready with health checks
+- **Auto-scaling**: Horizontal Pod Autoscaler configuration
+- **Vault Integration**: Automatic secret injection
 
 ## 🔒 Security Features
 
 - **Pod Security Standards**: Restricted mode enforced
 - **Network Policies**: Traffic isolation between components
 - **RBAC**: Role-based access control
-- **External Secrets**: Secure secret management via Vault
+- **Vault Agent Injection**: Secure secret management without Kubernetes Secrets
 - **TLS Encryption**: All communications encrypted
-
-## 📚 Documentation
-
-- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Comprehensive deployment instructions
-- [AWS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md) - AWS-specific setup
-- [Minikube Guide](MINIKUBE_DEPLOYMENT_GUIDE.md) - Local development setup
-- [Troubleshooting](TROUBLESHOOTING.md) - Common issues and solutions
-- [GitOps Structure](docs/gitops-structure.md) - Detailed repository structure guide
-- [Security Best Practices](docs/security-best-practices.md) - Security guidelines
-- [Disaster Recovery](docs/disaster-recovery-runbook.md) - Disaster recovery procedures
-- [Changelog](docs/CHANGELOG.md) - Version history and changes
 
 ## 🏷️ GitOps Principles
 

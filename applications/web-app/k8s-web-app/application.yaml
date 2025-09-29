@@ -1,0 +1,48 @@
+# K8s Web Application - ArgoCD Application
+# Deploys the Node.js web application using Helm
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: k8s-web-app
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: k8s-web-app
+    app.kubernetes.io/part-of: web-app
+    app.kubernetes.io/version: "1.0.0"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: production-apps
+  source:
+    repoURL: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
+    targetRevision: main
+    path: applications/web-app/k8s-web-app
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 3
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

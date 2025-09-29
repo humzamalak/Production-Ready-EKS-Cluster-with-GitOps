@@ -25,14 +25,10 @@ The bootstrap directory provides:
 - **`pod-security-standards.yaml`**: Pod Security Standards configuration
 
 ### Secrets Management
-- **`external-secrets-operator.yaml`**: External Secrets Operator installation
-- **`external-secrets.yaml`**: External Secrets configuration
-- **`vault-secret-stores.yaml`**: HashiCorp Vault SecretStore configurations
-- **`vault-policies.yaml`**: Vault policies and permissions
+- **`05-vault-policies.yaml`**: Vault policies, authentication, and initialization scripts
 
 ### Backup and Recovery
-- **`etcd-backup.yaml`**: etcd backup configuration
-- **`vault-setup-script.sh`**: Vault initialization script
+- **`06-etcd-backup.yaml`**: etcd backup configuration
 
 ### Configuration
 - **`values.yaml`**: ArgoCD Helm values for customization
@@ -128,9 +124,32 @@ Default network policies are applied to:
 
 ### Vault Integration
 
-- Vault Agent Injector for pod-level secret injection (no Kubernetes Secret objects)
-- Vault policies for fine-grained access control
-- Annotations-based per-pod secret templates
+The Vault setup provides enterprise-grade secret management with automatic injection:
+
+**Features**:
+- **Vault Agent Injector**: Automatically injects secrets into pods without creating Kubernetes Secret objects
+- **Kubernetes Authentication**: Uses service account tokens for secure authentication
+- **Policy-based Access Control**: Fine-grained permissions for different applications
+- **Secret Templates**: Customizable secret formatting using Vault templates
+- **Automatic Token Renewal**: Seamless token refresh and renewal
+
+**Current Setup**:
+- Vault deployed via Helm with development mode for easy setup
+- Agent injector enabled for automatic secret injection
+- Web app policy and role pre-configured
+- KV v2 secrets engine enabled at `secret/` path
+- Kubernetes authentication configured
+
+**Usage**:
+```bash
+# Deploy Vault with agent injector
+helm install vault hashicorp/vault -n vault --create-namespace \
+  --set "server.dev.enabled=true" \
+  --set "server.dev.devRootToken=root" \
+  --set "injector.enabled=true"
+
+# Configure for web app integration (see applications/web-app/README.md)
+```
 
 ## 🛠️ Troubleshooting
 
