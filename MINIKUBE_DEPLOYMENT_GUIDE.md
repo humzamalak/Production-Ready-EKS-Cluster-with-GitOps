@@ -191,38 +191,45 @@ helm install k8s-web-app ./helm \
 kubectl port-forward svc/k8s-web-app-service 8080:80 -n production
 ```
 
-### Option 3: GitOps with ArgoCD (Advanced)
+### Option 3: GitOps with Argo CD (Recommended)
 
-For a complete GitOps experience:
+For a complete GitOps experience on Minikube:
 
 ```bash
-# 1. Start Minikube
+# 1) Start Minikube
 minikube start --memory=4096 --cpus=2
 
-# 2. Bootstrap ArgoCD and components
-# Core phase
+# 2) Bootstrap core namespaces/security
 kubectl apply -f bootstrap/00-namespaces.yaml
 kubectl apply -f bootstrap/01-pod-security-standards.yaml
 kubectl apply -f bootstrap/02-network-policy.yaml
 kubectl apply -f bootstrap/03-helm-repos.yaml
-kubectl apply -f bootstrap/04-argo-cd-install.yaml
-kubectl apply -f bootstrap/05-vault-policies.yaml
-kubectl apply -f bootstrap/06-etcd-backup.yaml
 
-# 3. Wait for ArgoCD to be ready (full install)
+# 3) Install Argo CD (full) via Helm
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+helm upgrade --install argo-cd argo/argo-cd \
+  -n argocd --create-namespace \
+  -f bootstrap/helm-values/argo-cd-values.yaml
+
+# 4) Wait for Argo CD server
 kubectl wait --for=condition=available --timeout=300s deployment/argo-cd-argocd-server -n argocd
 
-# 4. Get ArgoCD admin password
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+# 5) Get Argo CD admin password
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 
-# 5. Port forward ArgoCD UI (full install)
-kubectl port-forward svc/argo-cd-argocd-server 8080:443 -n argocd
-# Access at https://localhost:8080 (Username: admin, Password: from step 4)
+# 6) Port-forward Argo CD UI
+# If 8080 is busy, use 8443 instead
+kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 --address=127.0.0.1
+# Open: https://localhost:8080 (user: admin, pass: above)
 
-# 6. Deploy applications via ArgoCD (app-of-apps pattern)
+# 7) Create Argo CD Project (required by apps)
+kubectl apply -f clusters/production/production-apps-project.yaml
+
+# 8) Deploy App-of-Apps (recurses applications/)
 kubectl apply -f clusters/production/app-of-apps.yaml
 
-# 7. Monitor application deployment
+# 9) Watch applications
 watch kubectl get applications -n argocd
 ```
 
