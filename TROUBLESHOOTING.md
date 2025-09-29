@@ -20,8 +20,10 @@ unzip awscliv2.zip && sudo ./aws/install
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
-# Helm
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+# Helm (install safely)
+# Prefer package managers or verify signatures to avoid piping to bash.
+# macOS (Homebrew): brew install helm
+# Linux: see https://helm.sh/docs/intro/install/ for verified methods
 
 # Terraform
 sudo apt update && sudo apt install terraform

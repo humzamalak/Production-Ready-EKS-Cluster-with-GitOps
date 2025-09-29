@@ -26,7 +26,19 @@ sudo install -o root -g wheel -m 0755 kubectl /usr/local/bin/kubectl
 # Download from: https://www.docker.com/products/docker-desktop
 
 # Install Helm (optional)
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+# SAFER: install via package manager or verify signature instead of piping to bash
+# macOS (Homebrew):
+brew install helm
+
+# Linux (script with signature verification):
+# See: https://helm.sh/docs/intro/install/
+# Example (verify checksum):
+# VERSION=v3.14.4
+# wget https://get.helm.sh/helm-${VERSION}-linux-amd64.tar.gz
+# wget https://get.helm.sh/helm-${VERSION}-linux-amd64.tar.gz.sha256sum
+# sha256sum -c helm-${VERSION}-linux-amd64.tar.gz.sha256sum
+# tar -xzvf helm-${VERSION}-linux-amd64.tar.gz
+# sudo mv linux-amd64/helm /usr/local/bin/helm
 ```
 
 ### System Requirements
