@@ -1,4 +1,4 @@
-{{- if .Values.vault.enabled }}
+{{- if and .Values.vault.enabled .Values.vault.ready }}
 # Vault Agent Injection Configuration
 # This template configures Vault agent injection for the web application
 

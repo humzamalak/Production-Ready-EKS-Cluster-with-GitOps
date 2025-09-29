@@ -10,6 +10,8 @@ metadata:
     app.kubernetes.io/name: vault
     app.kubernetes.io/part-of: secrets-management
     app.kubernetes.io/version: "1.16.1"
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
