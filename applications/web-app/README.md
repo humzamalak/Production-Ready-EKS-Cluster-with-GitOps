@@ -6,14 +6,15 @@ This directory contains the ArgoCD applications and Helm charts for deploying we
 
 ```
 web-app/
-├── app-of-apps.yaml              # ArgoCD App of Apps for web applications
 ├── namespace.yaml                # Production namespace definition
 └── k8s-web-app/                 # Node.js web application
     ├── application.yaml          # ArgoCD Application manifest
     ├── values.yaml              # Production Helm values
+    ├── values-local.yaml        # Local development values
+    ├── values-vault-enabled.yaml # Vault integration override
     └── helm/                    # Helm chart
         ├── Chart.yaml
-        ├── values.yaml
+        ├── values.yaml          # Default Helm chart values
         └── templates/
             ├── deployment.yaml
             ├── service.yaml

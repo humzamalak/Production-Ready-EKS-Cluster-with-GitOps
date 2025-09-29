@@ -9,10 +9,11 @@ Complete step-by-step guide for deploying the Production-Ready EKS Cluster with 
 This guide will walk you through:
 1. **Local Infrastructure Setup**: Creating Minikube cluster with required addons
 2. **GitOps Bootstrap**: Installing ArgoCD and core cluster components
-3. **Monitoring Stack**: Deploying Prometheus and Grafana
-4. **Security Stack**: Setting up Vault with agent injection
-5. **Web Application**: Deploying a production-ready Node.js application
-6. **Verification**: Testing all components and access
+3. **Monitoring Stack**: Deploying Prometheus and Grafana (Wave 2)
+4. **Security Stack**: Setting up Vault server and agent injector (Wave 3)
+5. **Vault Initialization**: Initializing Vault with policies and secrets (Wave 3.5)
+6. **Web Application**: Deploying with progressive Vault integration (Wave 5)
+7. **Verification**: Testing all components and access
 
 ## 📋 Prerequisites
 
@@ -240,7 +241,7 @@ kubectl port-forward svc/prometheus-kube-prometheus-stack-alertmanager -n monito
 # Access at http://localhost:9093
 ```
 
-## 🔐 Part 4: Vault Security Stack
+## 🔐 Part 4: Vault Security Stack (Wave 3)
 
 ### Step 1: Deploy Vault
 
@@ -253,112 +254,108 @@ kubectl get pods -n vault
 
 # Wait for Vault to be ready
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=vault -n vault --timeout=300s
-```
 
-### Step 2: Configure Vault
-
-```bash
-# Set up port forwarding to Vault
-kubectl port-forward -n vault svc/vault 8200:8200 &
+# Check Vault status (should show "Initialized: false" and "Sealed: true")
+kubectl port-forward svc/vault -n vault 8200:8200 &
 export VAULT_ADDR="http://localhost:8200"
-export VAULT_TOKEN="root"
-
-# Enable KV v2 secrets engine
-vault secrets enable -path=secret kv-v2
-
-# Enable Kubernetes authentication
-vault auth enable kubernetes
-
-# Configure Kubernetes authentication
-vault write auth/kubernetes/config kubernetes_host="https://kubernetes.default.svc.cluster.local"
+vault status
 ```
 
-### Step 3: Create Web App Policy and Role
+### Expected Outcome
+- ✅ Vault server running
+- ✅ Vault agent injector ready
+- ✅ RBAC configured
+- ✅ Vault is sealed and uninitialized
+
+---
+
+## 🔧 Part 4.5: Vault Initialization (Wave 3.5)
+
+### Step 1: Deploy Vault Initialization
 
 ```bash
-# Create web app policy
-vault policy write k8s-web-app - <<EOF
-path "secret/data/production/web-app/*" { capabilities = ["read"] }
-path "secret/metadata/production/web-app/*" { capabilities = ["read", "list"] }
-path "auth/kubernetes/login" { capabilities = ["create", "update"] }
-path "auth/token/renew-self" { capabilities = ["update"] }
-EOF
+# Deploy Vault initialization job
+kubectl apply -f applications/security/vault/init-job.yaml
 
-# Create Kubernetes role for web app
-vault write auth/kubernetes/role/k8s-web-app \
-  bound_service_account_names=k8s-web-app \
-  bound_service_account_namespaces=production \
-  policies=k8s-web-app ttl=1h max_ttl=24h
+# Monitor initialization job
+kubectl get jobs -n vault
+kubectl logs job/vault-init -n vault -f
 ```
 
-### Step 4: Create Sample Secrets
+### Step 2: Verify Vault Initialization
 
 ```bash
-# Create database secrets
-vault kv put secret/production/web-app/db \
-  host="localhost" \
-  port="5432" \
-  name="k8s_web_app_dev" \
-  username="dev_user" \
-  password="$(openssl rand -base64 16)"
+# Verify Vault is initialized and unsealed
+vault status
+# Should show "Initialized: true" and "Sealed: false"
 
-# Create API secrets
-vault kv put secret/production/web-app/api \
-  jwt_secret="$(openssl rand -base64 32)" \
-  encryption_key="$(openssl rand -base64 16)" \
-  api_key="$(openssl rand -base64 16)"
-
-# Create external services secrets
-vault kv put secret/production/web-app/external \
-  smtp_host="localhost" \
-  smtp_port="587" \
-  smtp_username="dev-smtp-user" \
-  smtp_password="dev-smtp-password" \
-  redis_url="redis://localhost:6379"
-
-# Verify secrets were created
+# Check created secrets
 vault kv list secret/production/web-app/
+# Should show: db, api, external
 ```
 
-## 🌐 Part 5: Web Application Deployment
+### Expected Outcome
+- ✅ Vault initialized and unsealed
+- ✅ Kubernetes auth enabled
+- ✅ Web-app role and policy created
+- ✅ Sample secrets populated
 
-### Step 1: Deploy Web Application
+## 🌐 Part 5: Web Application Deployment (Wave 5)
+
+### Phase 1: Deploy Without Vault Integration
 
 ```bash
 # Wait for web application to sync
-kubectl wait --for=condition=Synced --timeout=600s application/web-app-stack -n argocd
+kubectl wait --for=condition=Synced --timeout=600s application/k8s-web-app -n argocd
 
 # Check web application pods
 kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app
 
-# Check if Vault agent is injected
-kubectl describe pod -n production -l app.kubernetes.io/name=k8s-web-app
+# Check application logs (should show app running with K8s secrets)
+kubectl logs -n production deployment/k8s-web-app
+
+# Test application access
+kubectl port-forward svc/k8s-web-app -n production 8080:80
+# Access http://localhost:8080
 ```
 
-### Step 2: Verify Vault Integration
+### Expected Outcome
+- ✅ Web application running
+- ✅ Using Kubernetes secrets (not Vault)
+- ✅ All health checks passing
+
+### Phase 2: Enable Vault Integration
 
 ```bash
-# Check if secrets are injected
-kubectl exec -n production -l app.kubernetes.io/name=k8s-web-app -- ls -la /vault/secrets/
+# Update web app to use Vault
+kubectl patch application k8s-web-app -n argocd --type merge -p '
+{
+  "spec": {
+    "source": {
+      "helm": {
+        "valueFiles": ["values.yaml", "values-vault-enabled.yaml"]
+      }
+    }
+  }
+}'
 
-# Check environment variables
-kubectl exec -n production -l app.kubernetes.io/name=k8s-web-app -- printenv | grep DB_HOST
+# Wait for sync and verify
+kubectl get pods -n production
+kubectl logs -n production deployment/k8s-web-app
+# Should show Vault integration working
+
+# Verify Vault secrets are injected
+kubectl exec -n production deployment/k8s-web-app -- env | grep DB_
+# Should show database environment variables from Vault
 
 # Check Vault agent logs
-kubectl logs -n production -l app.kubernetes.io/name=k8s-web-app -c vault-agent
+kubectl logs -n production deployment/k8s-web-app -c vault-agent
 ```
 
-### Step 3: Access Web Application
-
-```bash
-# Port forward to web application
-kubectl port-forward svc/k8s-web-app-service -n production 8080:80
-
-# Test the application
-curl http://localhost:8080/health
-curl http://localhost:8080/
-curl http://localhost:8080/api/info
-```
+### Expected Outcome
+- ✅ Web application using Vault secrets
+- ✅ Vault agent injection working
+- ✅ Zero-downtime migration
 
 ## ✅ Part 6: Verification and Testing
 
@@ -430,7 +427,7 @@ sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
   clusters/production/app-of-apps.yaml \
   applications/monitoring/app-of-apps.yaml \
   applications/security/app-of-apps.yaml \
-  applications/web-app/app-of-apps.yaml
+  applications/web-app/k8s-web-app/application.yaml
 ```
 
 ### Customize Resource Limits for Local Development

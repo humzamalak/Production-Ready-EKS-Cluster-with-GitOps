@@ -301,9 +301,57 @@ If migrating from Kubernetes secrets to Vault:
 4. **Verify secret injection** is working
 5. **Remove old Kubernetes secrets**
 
+## 🔄 Progressive Integration Approach
+
+The web application supports a **progressive Vault integration** to avoid YAML parsing errors and ensure reliable GitOps deployment:
+
+### **Phase 1: Initial Deployment (Vault Disabled)**
+- `vault.enabled: false`
+- `vault.ready: false`
+- Uses Kubernetes secrets via `secretRefs`
+- Deploys successfully without Vault dependencies
+
+### **Phase 2: Enable Vault Integration**
+- Prerequisites: Vault deployed and initialized (Wave 3.5)
+- Update ArgoCD application to use `values-vault-enabled.yaml`
+- Zero-downtime migration to Vault secrets
+- Environment variables from Vault
+
+### **Configuration Update**
+```bash
+# Update ArgoCD application to use vault-enabled values
+kubectl patch application k8s-web-app -n argocd --type merge -p '
+{
+  "spec": {
+    "source": {
+      "helm": {
+        "valueFiles": ["values.yaml", "values-vault-enabled.yaml"]
+      }
+    }
+  }
+}'
+```
+
+### **Revert to Phase 1**
+```bash
+# Remove vault-enabled values
+kubectl patch application k8s-web-app -n argocd --type merge -p '
+{
+  "spec": {
+    "source": {
+      "helm": {
+        "valueFiles": ["values.yaml"]
+      }
+    }
+  }
+}'
+```
+
 ## References
 
 - [HashiCorp Vault Documentation](https://www.vaultproject.io/docs)
 - [Vault Agent Injector](https://www.vaultproject.io/docs/platform/k8s/injector)
 - [Kubernetes Authentication](https://www.vaultproject.io/docs/auth/kubernetes)
 - [Secret Templates](https://www.vaultproject.io/docs/agent/template)
+- [Wave-Based Deployment Guide](../../WAVE_BASED_DEPLOYMENT_GUIDE.md)
+- [Progressive Integration Guide](VAULT_PROGRESSIVE_INTEGRATION.md)
