@@ -1,0 +1,11 @@
+# Production Namespace for Web Applications
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    name: production
+    app.kubernetes.io/name: production
+    app.kubernetes.io/part-of: gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"

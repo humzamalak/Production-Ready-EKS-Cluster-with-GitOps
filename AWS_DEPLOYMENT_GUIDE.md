@@ -1,98 +1,110 @@
 # AWS EKS Deployment Guide
 
-Complete guide for deploying the Production-Ready EKS Cluster with GitOps to AWS.
+Complete step-by-step guide for deploying a production-ready EKS cluster with GitOps, Vault, Prometheus, and Grafana on AWS.
 
-## Overview
+## 🎯 Overview
 
-This guide covers deploying a production-ready EKS cluster with:
-- **Infrastructure as Code**: Terraform modules for VPC, EKS, IAM, and backup
-- **GitOps with ArgoCD**: Declarative application management
-- **Monitoring Stack**: Prometheus, Grafana, AlertManager
-- **Security**: Pod Security Standards, IRSA, Vault Agent Injector
-- **Web Application**: Node.js app with auto-scaling
+This guide will walk you through:
+1. **Infrastructure Setup**: Creating EKS cluster, VPC, and supporting AWS resources
+2. **GitOps Bootstrap**: Installing ArgoCD and core cluster components
+3. **Monitoring Stack**: Deploying Prometheus and Grafana
+4. **Security Stack**: Setting up Vault with agent injection
+5. **Web Application**: Deploying a production-ready Node.js application
+6. **Verification**: Testing all components and access
 
-## Prerequisites
+## 📋 Prerequisites
 
 ### Required Tools
+
 ```bash
 # AWS CLI v2
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 unzip awscliv2.zip && sudo ./aws/install
 
-# kubectl v1.31+
+# kubectl v1.28+
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
-# Helm v3
-# SAFER: install via package manager or verify signature instead of piping to bash
-# Ubuntu/Debian (APT):
-sudo snap install helm --classic || {
-  wget https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz && \
-  wget https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz.sha256sum && \
-  sha256sum -c helm-v3.14.4-linux-amd64.tar.gz.sha256sum && \
-  tar -xzvf helm-v3.14.4-linux-amd64.tar.gz && \
-  sudo mv linux-amd64/helm /usr/local/bin/helm;
-}
+# Helm v3.12+
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-# Terraform >=1.4.0
+# Terraform >=1.5.0
 wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 sudo apt update && sudo apt install terraform
+
+# Vault CLI (for secret management)
+curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+sudo apt-get update && sudo apt-get install vault
 ```
 
-### AWS Requirements
+### AWS Account Setup
 
-1. **AWS Account** with permissions for:
-   - EKS (Elastic Kubernetes Service)
-   - VPC (Virtual Private Cloud)
-   - IAM (Identity and Access Management)
-   - EC2 (Elastic Compute Cloud)
-   - CloudWatch
-   - S3 (for Terraform state)
+#### 1. Configure AWS Credentials
+```bash
+aws configure
+# Enter your AWS Access Key ID, Secret Access Key, region (e.g., us-west-2), and output format (json)
 
-2. **IAM Role for VPC Flow Logs** (required):
-   ```bash
-   # Create IAM role for VPC flow logs
-   aws iam create-role --role-name flow-logs-role --assume-role-policy-document '{
-     "Version": "2012-10-17",
-     "Statement": [
-       {
-         "Effect": "Allow",
-         "Principal": {
-           "Service": "vpc-flow-logs.amazonaws.com"
-         },
-         "Action": "sts:AssumeRole"
-       }
-     ]
-   }'
-   
-   # Attach policy for CloudWatch Logs
-   aws iam attach-role-policy --role-name flow-logs-role --policy-arn arn:aws:iam::aws:policy/service-role/VPCFlowLogsDeliveryRole
-   
-   # Get the role ARN
-   aws iam get-role --role-name flow-logs-role --query 'Role.Arn' --output text
-   ```
+# Verify AWS access
+aws sts get-caller-identity
+```
 
-3. **Configure AWS Credentials**:
-   ```bash
-   aws configure
-   # Enter your AWS Access Key ID, Secret Access Key, and region (e.g., eu-west-1)
-   
-   # Verify AWS access
-   aws sts get-caller-identity
-   ```
+#### 2. Create Required IAM Role for VPC Flow Logs
+```bash
+# Create IAM role for VPC flow logs
+aws iam create-role --role-name flow-logs-role --assume-role-policy-document '{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "vpc-flow-logs.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}'
 
-## Configuration
+# Attach policy for CloudWatch Logs
+aws iam attach-role-policy --role-name flow-logs-role --policy-arn arn:aws:iam::aws:policy/service-role/VPCFlowLogsDeliveryRole
 
-### 1. Update Terraform Configuration
+# Get the role ARN (save this for later)
+aws iam get-role --role-name flow-logs-role --query 'Role.Arn' --output text
+```
 
-Edit `terraform/terraform.tfvars`:
+#### 3. Required AWS Permissions
+Your AWS user/role needs permissions for:
+- EKS (Elastic Kubernetes Service)
+- VPC (Virtual Private Cloud)
+- IAM (Identity and Access Management)
+- EC2 (Elastic Compute Cloud)
+- CloudWatch
+- S3 (for Terraform state)
+- DynamoDB (for Terraform state locking)
+
+## 🏗️ Part 1: Infrastructure Deployment
+
+### Step 1: Clone Repository and Configure
+
+```bash
+# Clone the repository
+git clone https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps.git
+cd Production-Ready-EKS-Cluster-with-GitOps
+
+# Navigate to infrastructure directory
+cd infrastructure/terraform
+```
+
+### Step 2: Configure Terraform Variables
+
+Create `terraform.tfvars`:
 
 ```hcl
 # Basic Configuration
 project_prefix = "my-eks-cluster"
 environment    = "prod"
-aws_region     = "eu-west-1"
+aws_region     = "us-west-2"
 
 # REQUIRED: Replace with your actual IAM role ARN for VPC flow logs
 flow_log_iam_role_arn = "arn:aws:iam::YOUR_ACCOUNT_ID:role/flow-logs-role"
@@ -100,9 +112,9 @@ flow_log_iam_role_arn = "arn:aws:iam::YOUR_ACCOUNT_ID:role/flow-logs-role"
 # EKS Configuration
 cluster_version = "1.28"
 node_instance_types = ["t3.medium"]
-min_size = 1
-max_size = 3
-desired_size = 2
+min_size = 2
+max_size = 5
+desired_size = 3
 
 # Optional: Custom tags for all resources
 tags = {
@@ -113,34 +125,11 @@ tags = {
 }
 ```
 
-**Important Notes:**
-- Replace `YOUR_ACCOUNT_ID` with your actual AWS account ID
-- The `flow_log_iam_role_arn` must be created before deployment (see prerequisites)
-- Adjust `node_instance_types` and sizing based on your workload requirements
-- The `cluster_version` should be compatible with your kubectl version
+**Important**: Replace `YOUR_ACCOUNT_ID` with your actual AWS account ID from the flow logs role ARN.
 
-### 2. Update ArgoCD Configuration
-
-Replace the repository URL in ArgoCD manifests with your GitHub organization:
+### Step 3: Deploy Infrastructure
 
 ```bash
-# Update root application
-sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/your-org/your-repo|g' clusters/production/app-of-apps.yaml
-
-# Update monitoring applications
-sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/your-org/your-repo|g' applications/monitoring/app-of-apps.yaml
-
-# Update security applications
-sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/your-org/your-repo|g' applications/security/app-of-apps.yaml
-```
-
-## Deployment Steps
-
-### Step 1: Infrastructure Deployment
-
-```bash
-cd terraform
-
 # Initialize Terraform
 terraform init
 
@@ -162,279 +151,500 @@ kubectl get namespaces
 ```
 
 **Expected Output:**
-- EKS cluster with worker nodes
-- VPC with public/private subnets
+- EKS cluster with 3 worker nodes
+- VPC with public/private subnets across 2 AZs
 - Security groups and IAM roles
 - S3 bucket for Terraform state
 - DynamoDB table for state locking
 
-### Step 2: Bootstrap Argo CD and Components
+### Step 4: Verify Infrastructure
 
 ```bash
-# Core namespaces/security
+# Check cluster status
+kubectl get nodes -o wide
+
+# Check cluster info
+kubectl cluster-info
+
+# Check available storage classes
+kubectl get storageclass
+
+# Check available namespaces
+kubectl get namespaces
+```
+
+## 🚀 Part 2: GitOps Bootstrap
+
+### Step 1: Deploy Core Components
+
+```bash
+# Navigate back to repository root
+cd ../..
+
+# Apply core namespaces and security policies
 kubectl apply -f bootstrap/00-namespaces.yaml
 kubectl apply -f bootstrap/01-pod-security-standards.yaml
 kubectl apply -f bootstrap/02-network-policy.yaml
 kubectl apply -f bootstrap/03-helm-repos.yaml
 
-# Install Argo CD (full) via Helm
+# Verify namespaces were created
+kubectl get namespaces
+```
+
+### Step 2: Install ArgoCD
+
+```bash
+# Add ArgoCD Helm repository
 helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update
+
+# Install ArgoCD with custom values
 helm upgrade --install argo-cd argo/argo-cd \
   -n argocd --create-namespace \
   -f bootstrap/helm-values/argo-cd-values.yaml
 
-# Wait for Argo CD server
+# Wait for ArgoCD server to be ready
 kubectl wait --for=condition=available --timeout=300s deployment/argo-cd-argocd-server -n argocd
 
-# Verify Argo CD installation
+# Verify ArgoCD installation
 kubectl get pods -n argocd
 kubectl get svc -n argocd
-
-# Get Argo CD admin password
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
-
-# (Optional) Port-forward UI locally
-# If 8080 is busy, use 8443 instead
-kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 --address=127.0.0.1
-# Open: https://localhost:8080 (user: admin, pass: above)
 ```
 
-**Expected Output:**
-- ArgoCD server, application controller, and repo server pods running
-- ArgoCD services exposed
-- Admin password for initial login
-
-### Step 3: Application Bootstrap
+### Step 3: Access ArgoCD
 
 ```bash
-# Apply the root application (app-of-apps pattern)
+# Get ArgoCD admin password
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+
+# Port-forward ArgoCD UI
+kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 --address=127.0.0.1
+
+# Access ArgoCD at https://localhost:8080
+# Username: admin
+# Password: (from the command above)
+```
+
+## 📊 Part 3: Monitoring Stack Deployment
+
+### Step 1: Create ArgoCD Project
+
+```bash
+# Create the project used by applications
+kubectl apply -f clusters/production/production-apps-project.yaml
+
+# Verify project was created
+kubectl get appproject -n argocd
+```
+
+### Step 2: Deploy Root Application
+
+```bash
+# Deploy the root application (app-of-apps pattern)
 kubectl apply -f clusters/production/app-of-apps.yaml
 
-# Monitor application deployment - applications deploy in sync waves:
-# Wave 1: Production cluster bootstrap
-# Wave 2: Monitoring stack (Prometheus, Grafana)
-# Wave 3: Security stack (Vault)
+# Monitor application deployment
 kubectl get applications -n argocd
 watch kubectl get applications -n argocd
+```
 
+### Step 3: Monitor Deployment Progress
+
+Applications deploy in sync waves:
+- **Wave 1**: Production cluster bootstrap
+- **Wave 2**: Monitoring stack (Prometheus, Grafana)
+- **Wave 3**: Security stack (Vault)
+- **Wave 4**: Web application
+
+```bash
 # Check application sync status
 kubectl get applications -n argocd -o wide
 
-# Wait for applications to be synced
-kubectl wait --for=condition=Synced --timeout=600s application/production-cluster -n argocd
-```
+# Wait for monitoring applications to sync
+kubectl wait --for=condition=Synced --timeout=600s application/monitoring-stack -n argocd
 
-**Expected Output:**
-- Root application created in ArgoCD
-- Monitoring stack (Prometheus, Grafana, AlertManager) deployed
-- Sample applications deployed
-- All applications showing "Synced" status
-
-### Step 4: Web Application Deployment
-
-```bash
-# Deploy the web application via ArgoCD
-kubectl apply -f examples/web-app/helm/
-
-# Check web application status
-kubectl get applications -n argocd | grep k8s-web-app
-
-# Monitor web application deployment
-kubectl get pods -n production -l app=k8s-web-app
-```
-
-## Verification
-
-### Check Cluster Status
-
-```bash
-# Check nodes
-kubectl get nodes
-
-# Check all pods across all namespaces
-kubectl get pods -A
-
-# Check ArgoCD applications
-kubectl get applications -n argocd
-
-# Check monitoring stack
+# Check monitoring pods
 kubectl get pods -n monitoring
-
-# Check web application
-kubectl get pods -n production -l app=k8s-web-app
 ```
 
-### Access Applications
+### Step 4: Access Monitoring Stack
 
-#### ArgoCD UI (full install)
 ```bash
-# Port-forward ArgoCD UI
-kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443
+# Access Prometheus
+kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090
+# Access at http://localhost:9090
 
-# Access at https://localhost:8080
-# Username: admin
-# Password: (retrieve via)
-# kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
-```
-
-#### Grafana
-```bash
-# Port-forward Grafana
+# Access Grafana
 kubectl port-forward svc/grafana -n monitoring 3000:80
-
 # Access at http://localhost:3000
 # Username: admin
-# Password: [Generated randomly - check deployment log or grafana-admin-password.txt]
-# 
-# To get the actual password:
-kubectl get secret grafana-admin -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d
+# Password: Get with: kubectl get secret grafana-admin -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d
+
+# Access AlertManager
+kubectl port-forward svc/prometheus-kube-prometheus-stack-alertmanager -n monitoring 9093:9093
+# Access at http://localhost:9093
 ```
 
-#### Prometheus
-```bash
-# Port-forward Prometheus
-kubectl port-forward svc/prometheus-server -n monitoring 9090:9090
+## 🔐 Part 4: Vault Security Stack
 
-# Access at http://localhost:9090
+### Step 1: Deploy Vault
+
+```bash
+# Wait for Vault application to sync
+kubectl wait --for=condition=Synced --timeout=600s application/security-stack -n argocd
+
+# Check Vault pods
+kubectl get pods -n vault
+
+# Wait for Vault to be ready
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=vault -n vault --timeout=300s
 ```
 
-#### Web Application
+### Step 2: Configure Vault
+
 ```bash
-# Port-forward web application
+# Set up port forwarding to Vault
+kubectl port-forward -n vault svc/vault 8200:8200 &
+export VAULT_ADDR="http://localhost:8200"
+export VAULT_TOKEN="root"
+
+# Enable KV v2 secrets engine
+vault secrets enable -path=secret kv-v2
+
+# Enable Kubernetes authentication
+vault auth enable kubernetes
+
+# Configure Kubernetes authentication
+vault write auth/kubernetes/config kubernetes_host="https://kubernetes.default.svc.cluster.local"
+```
+
+### Step 3: Create Web App Policy and Role
+
+```bash
+# Create web app policy
+vault policy write k8s-web-app - <<EOF
+path "secret/data/production/web-app/*" { capabilities = ["read"] }
+path "secret/metadata/production/web-app/*" { capabilities = ["read", "list"] }
+path "auth/kubernetes/login" { capabilities = ["create", "update"] }
+path "auth/token/renew-self" { capabilities = ["update"] }
+EOF
+
+# Create Kubernetes role for web app
+vault write auth/kubernetes/role/k8s-web-app \
+  bound_service_account_names=k8s-web-app \
+  bound_service_account_namespaces=production \
+  policies=k8s-web-app ttl=1h max_ttl=24h
+```
+
+### Step 4: Create Sample Secrets
+
+```bash
+# Create database secrets
+vault kv put secret/production/web-app/db \
+  host="your-production-db.amazonaws.com" \
+  port="5432" \
+  name="k8s_web_app_prod" \
+  username="k8s_web_app_user" \
+  password="$(openssl rand -base64 32)"
+
+# Create API secrets
+vault kv put secret/production/web-app/api \
+  jwt_secret="$(openssl rand -base64 64)" \
+  encryption_key="$(openssl rand -base64 32)" \
+  api_key="$(openssl rand -base64 32)"
+
+# Create external services secrets
+vault kv put secret/production/web-app/external \
+  smtp_host="smtp.your-provider.com" \
+  smtp_port="587" \
+  smtp_username="your-smtp-username" \
+  smtp_password="your-smtp-password" \
+  redis_url="redis://your-redis-host:6379"
+
+# Verify secrets were created
+vault kv list secret/production/web-app/
+```
+
+## 🌐 Part 5: Web Application Deployment
+
+### Step 1: Deploy Web Application
+
+```bash
+# Wait for web application to sync
+kubectl wait --for=condition=Synced --timeout=600s application/web-app-stack -n argocd
+
+# Check web application pods
+kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app
+
+# Check if Vault agent is injected
+kubectl describe pod -n production -l app.kubernetes.io/name=k8s-web-app
+```
+
+### Step 2: Verify Vault Integration
+
+```bash
+# Check if secrets are injected
+kubectl exec -n production -l app.kubernetes.io/name=k8s-web-app -- ls -la /vault/secrets/
+
+# Check environment variables
+kubectl exec -n production -l app.kubernetes.io/name=k8s-web-app -- printenv | grep DB_HOST
+
+# Check Vault agent logs
+kubectl logs -n production -l app.kubernetes.io/name=k8s-web-app -c vault-agent
+```
+
+### Step 3: Access Web Application
+
+```bash
+# Port forward to web application
 kubectl port-forward svc/k8s-web-app-service -n production 8080:80
 
 # Test the application
 curl http://localhost:8080/health
 curl http://localhost:8080/
+curl http://localhost:8080/api/info
 ```
 
-## Cost Estimation
+## ✅ Part 6: Verification and Testing
 
-**Estimated Monthly Costs:**
-- EKS Cluster: ~$73/month (control plane)
-- Worker Nodes: ~$50-200/month (depending on instance types)
-- Load Balancers: ~$20-50/month
-- Storage: ~$10-30/month
-- Data Transfer: ~$5-20/month
+### Step 1: Comprehensive Health Check
 
-**Total: $150-400/month** (varies by usage)
+```bash
+# Check all pods across all namespaces
+kubectl get pods -A
 
-## Troubleshooting
+# Check ArgoCD applications status
+kubectl get applications -n argocd
+
+# Check monitoring stack
+kubectl get pods -n monitoring
+
+# Check Vault
+kubectl get pods -n vault
+
+# Check web application
+kubectl get pods -n production
+```
+
+### Step 2: Test Application Endpoints
+
+```bash
+# Test web application health
+curl -s http://localhost:8080/health | jq
+
+# Test web application readiness
+curl -s http://localhost:8080/ready | jq
+
+# Test web application info
+curl -s http://localhost:8080/api/info | jq
+```
+
+### Step 3: Verify Monitoring
+
+```bash
+# Check Prometheus targets
+curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.health == "up")'
+
+# Check Grafana datasources
+curl -s -u admin:$(kubectl get secret grafana-admin -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d) \
+  http://localhost:3000/api/datasources
+```
+
+### Step 4: Verify Vault Integration
+
+```bash
+# Check Vault status
+vault status
+
+# List available secrets
+vault kv list secret/production/web-app/
+
+# Test secret retrieval
+vault kv get secret/production/web-app/db
+```
+
+## 🔧 Configuration and Customization
+
+### Update Repository URLs
+
+If you've forked the repository, update the URLs:
+
+```bash
+# Update repository URL in all application manifests
+sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/your-org/your-repo|g' \
+  clusters/production/app-of-apps.yaml \
+  applications/monitoring/app-of-apps.yaml \
+  applications/security/app-of-apps.yaml \
+  applications/web-app/app-of-apps.yaml
+```
+
+### Configure Domain Names
+
+Update domain names for production use:
+
+```bash
+# Update domain references
+sed -i 's/yourdomain\.com/your-actual-domain.com/g' \
+  applications/web-app/k8s-web-app/values.yaml
+```
+
+### Customize Resource Limits
+
+Update resource limits based on your requirements:
+
+```bash
+# Edit web application values
+vim applications/web-app/k8s-web-app/values.yaml
+
+# Update resource limits
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+```
+
+## 🚨 Troubleshooting
 
 ### Common Issues
 
-1. **Terraform fails with IAM permissions**
-   ```bash
-   # Check AWS credentials
-   aws sts get-caller-identity
-   
-   # Verify IAM permissions
-   aws iam list-attached-user-policies --user-name YOUR_USERNAME
-   ```
+#### 1. Terraform Deployment Fails
+```bash
+# Check AWS credentials
+aws sts get-caller-identity
 
-2. **ArgoCD applications not syncing**
-   ```bash
-   # Check application status
-   kubectl describe application <app-name> -n argocd
-   
-   # Check ArgoCD logs
-   kubectl logs -n argocd deployment/argocd-application-controller
-   ```
+# Check Terraform state
+terraform state list
 
-3. **Pods not starting**
-   ```bash
-   # Check pod status
-   kubectl describe pod <pod-name> -n <namespace>
-   
-   # Check pod logs
-   kubectl logs <pod-name> -n <namespace>
-   ```
+# Review Terraform plan
+terraform plan -var-file="terraform.tfvars"
+```
 
-4. **Cluster access issues**
-   ```bash
-   # Reconfigure kubectl
-   aws eks update-kubeconfig --region <region> --name <cluster_name>
-   
-   # Check cluster status
-   aws eks describe-cluster --name <cluster_name> --region <region>
-   ```
+#### 2. ArgoCD Applications Not Syncing
+```bash
+# Check application status
+kubectl describe application <app-name> -n argocd
 
-## Teardown
+# Force sync
+kubectl patch application <app-name> -n argocd --type merge -p '{"operation":{"sync":{"syncStrategy":{"hook":{"force":true}}}}}'
 
-To destroy the infrastructure:
+# Check ArgoCD logs
+kubectl logs -n argocd deployment/argocd-application-controller
+```
+
+#### 3. Pods Not Starting
+```bash
+# Check pod status
+kubectl describe pod <pod-name> -n <namespace>
+
+# Check pod logs
+kubectl logs <pod-name> -n <namespace> --previous
+
+# Check events
+kubectl get events -n <namespace> --sort-by=.metadata.creationTimestamp
+```
+
+#### 4. Vault Integration Issues
+```bash
+# Check Vault agent logs
+kubectl logs -n production -l app.kubernetes.io/name=k8s-web-app -c vault-agent
+
+# Verify Vault connectivity
+kubectl exec -n vault vault-0 -- vault status
+
+# Check service account
+kubectl get sa k8s-web-app-vault-sa -n production
+```
+
+### Debug Commands
 
 ```bash
-# Destroy infrastructure using Makefile (recommended)
-make destroy
+# Get detailed pod information
+kubectl describe pod <pod-name> -n <namespace>
 
-# Or manually with Terraform
-cd terraform
+# Execute into pod for debugging
+kubectl exec -it <pod-name> -n <namespace> -- /bin/sh
+
+# Check resource usage
+kubectl top pods -n <namespace>
+kubectl top nodes
+
+# Check persistent volumes
+kubectl get pv,pvc -A
+```
+
+## 💰 Cost Estimation
+
+**Estimated Monthly Costs:**
+- EKS Cluster: ~$73/month (control plane)
+- Worker Nodes (3x t3.medium): ~$150/month
+- Load Balancers: ~$30/month
+- Storage (EBS): ~$20/month
+- Data Transfer: ~$10/month
+- CloudWatch Logs: ~$15/month
+
+**Total: ~$300/month** (varies by usage and region)
+
+## 🧹 Cleanup
+
+### Destroy Infrastructure
+
+```bash
+# Navigate to terraform directory
+cd infrastructure/terraform
 
 # Review what will be destroyed
 terraform plan -destroy -var-file="terraform.tfvars"
 
-# Destroy infrastructure (interactive)
+# Destroy infrastructure
 terraform destroy -var-file="terraform.tfvars"
 
-# Force destroy without confirmations
-terraform destroy -var-file="terraform.tfvars" -auto-approve
+# Clean up local files
+rm -f ../infrastructure-outputs.txt
 ```
 
 ### Manual Kubernetes Cleanup
 
-Before destroying infrastructure, clean up Kubernetes resources:
+Before destroying infrastructure:
 
 ```bash
 # Delete ArgoCD applications
 kubectl delete applications --all -n argocd
 
-# Delete monitoring stack
+# Delete namespaces
 kubectl delete namespace monitoring
-
-# Delete ArgoCD namespace
+kubectl delete namespace vault
+kubectl delete namespace production
 kubectl delete namespace argocd
 ```
 
 **⚠️ Warning:** This will permanently delete all resources and data.
 
-## Next Steps
+## 📚 Next Steps
 
 After successful deployment:
 
-1. **Set up monitoring**: Configure Prometheus and Grafana dashboards
+1. **Configure Ingress**: Set up domain names and SSL certificates
 2. **Implement CI/CD**: Set up GitHub Actions for automated builds
-3. **Add observability**: Implement distributed tracing with Jaeger
-4. **Security scanning**: Add container vulnerability scanning
-5. **Backup strategy**: Implement application data backup procedures
-6. **Load testing**: Perform load testing to validate auto-scaling
-7. **Documentation**: Update team documentation with access procedures
+3. **Add Observability**: Implement distributed tracing with Jaeger
+4. **Security Scanning**: Add container vulnerability scanning
+5. **Load Testing**: Perform load testing to validate auto-scaling
+6. **Backup Strategy**: Implement application data backup procedures
+7. **Monitoring**: Configure alerts and dashboards
+8. **Documentation**: Update team documentation with access procedures
 
-## Automation Scripts
-
-This repository includes helpful automation scripts:
-
-### Configuration Script
-```bash
-# Interactive configuration script for easy setup
-# Note: Scripts may need to be created or updated for current setup
-# ./examples/scripts/configure-deployment.sh
-```
-
-### Health Check Script
-```bash
-# Comprehensive health check script
-# Note: Scripts may need to be created or updated for current setup
-# ./examples/scripts/health-check.sh
-```
-
-## Support
+## 🆘 Support
 
 For issues and questions:
-1. Check the [Troubleshooting Guide](TROUBLESHOOTING.md)
-2. Open an issue in the repository
-3. Consult the documentation in the `docs/` directory
+1. Check the troubleshooting section above
+2. Review the [TROUBLESHOOTING.md](TROUBLESHOOTING.md) file
+3. Open an issue in the repository
+4. Consult AWS EKS documentation
 
 ---
+
+**🎉 Congratulations!** You now have a production-ready EKS cluster with GitOps, monitoring, security, and a sample application deployed and running!
 
 **Happy Deploying! 🚀**

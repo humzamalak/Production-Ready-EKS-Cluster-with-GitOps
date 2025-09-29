@@ -295,3 +295,11 @@ argocd app sync <app-name>
 - Document all applications
 - Keep README files updated
 - Provide troubleshooting guides
+
+## 📖 Additional Documentation
+
+- [Project Structure Guide](PROJECT_STRUCTURE.md) - Comprehensive overview of the cleaned-up project structure
+- [Security Best Practices](security-best-practices.md)
+- [Disaster Recovery Runbook](disaster-recovery-runbook.md)
+- [Vault Setup Guide](VAULT_SETUP_GUIDE.md)
+- [Changelog](CHANGELOG.md)

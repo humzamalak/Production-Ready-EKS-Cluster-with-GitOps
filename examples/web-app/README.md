@@ -12,6 +12,7 @@ A production-ready Node.js web application designed for deployment on Kubernetes
 - **Auto-scaling**: Horizontal Pod Autoscaler (HPA) configuration
 - **Security**: Non-root user, read-only filesystem, and security contexts
 - **Monitoring**: Health and readiness probes for proper lifecycle management
+- **Vault Integration**: Automatic secret injection using Vault agent sidecar
 
 ## Application Structure
 
@@ -21,18 +22,15 @@ web-app/
 ├── package.json           # Node.js dependencies
 ├── Dockerfile            # Container image definition
 ├── .dockerignore         # Docker ignore file
-├── k8s/                  # Kubernetes manifests
-│   ├── deployment.yaml   # Deployment configuration
+├── k8s/                  # Kubernetes manifests (basic examples)
 │   ├── service.yaml      # Service configuration
 │   ├── ingress.yaml      # Ingress configuration
 │   └── hpa.yaml         # Horizontal Pod Autoscaler
-├── helm/                 # Helm chart
-│   ├── Chart.yaml       # Chart metadata
-│   ├── values.yaml      # Default values
-│   └── templates/       # Kubernetes templates
-├── values/              # Environment-specific values
+├── values/              # Environment-specific values (examples)
 └── README.md           # This file
 ```
+
+**Note**: The production-ready Helm chart and deployment manifests have been moved to `applications/web-app/k8s-web-app/` as part of the GitOps structure. This directory contains example configurations for reference and development.
 
 ## Quick Start
 
