@@ -13,34 +13,38 @@ spec:
       {{- include "k8s-web-app.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- if .Values.vault.enabled }}
+      {{- if or .Values.podAnnotations .Values.vault.enabled }}
       annotations:
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- if .Values.vault.enabled }}
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: {{ .Values.vault.role }}
         vault.hashicorp.com/agent-inject-secret-db: "secret/data/production/web-app/db"
         vault.hashicorp.com/agent-inject-template-db: |
-          {{- with .Values.vault.secrets | selectattr "secretPath" "equalto" "secret/data/production/web-app/db" | first -}}
+          {{- range .Values.vault.secrets -}}
+          {{- if eq .secretPath "secret/data/production/web-app/db" -}}
           {{- .template | nindent 10 }}
+          {{- end -}}
           {{- end }}
         vault.hashicorp.com/agent-inject-secret-api: "secret/data/production/web-app/api"
         vault.hashicorp.com/agent-inject-template-api: |
-          {{- with .Values.vault.secrets | selectattr "secretPath" "equalto" "secret/data/production/web-app/api" | first -}}
+          {{- range .Values.vault.secrets -}}
+          {{- if eq .secretPath "secret/data/production/web-app/api" -}}
           {{- .template | nindent 10 }}
+          {{- end -}}
           {{- end }}
         vault.hashicorp.com/agent-inject-secret-external: "secret/data/production/web-app/external"
         vault.hashicorp.com/agent-inject-template-external: |
-          {{- with .Values.vault.secrets | selectattr "secretPath" "equalto" "secret/data/production/web-app/external" | first -}}
+          {{- range .Values.vault.secrets -}}
+          {{- if eq .secretPath "secret/data/production/web-app/external" -}}
           {{- .template | nindent 10 }}
+          {{- end -}}
           {{- end }}
         vault.hashicorp.com/agent-pre-populate-only: "true"
         vault.hashicorp.com/agent-inject-status: "update"
+        {{- end }}
       {{- end }}
       labels:
         {{- include "k8s-web-app.selectorLabels" . | nindent 8 }}
