@@ -9,7 +9,7 @@ This guide outlines essential security practices for operating a production-grad
 
 ## Secrets Management
 - Store secrets in HashiCorp Vault with KV v2 secret engine.
-- Sync secrets to Kubernetes using the external-secrets operator (see `argo-cd/apps/grafana-admin-secret.yaml`).
+- Inject secrets at runtime using Vault Agent Injector (avoid Kubernetes Secret objects).
 - Never commit secrets to version control. Only commit references to secret keys and properties.
 - Use Vault policies for fine-grained access control and audit logging.
 - Implement Vault unsealing with multiple key shares for high availability.

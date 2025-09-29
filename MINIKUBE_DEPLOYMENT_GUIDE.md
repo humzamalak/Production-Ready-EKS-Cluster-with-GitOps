@@ -1,14 +1,15 @@
 # Minikube Deployment Guide
 
-Complete guide for deploying the K8s Web Application to Minikube on your local MacBook.
+Complete guide for deploying the Production-Ready EKS Cluster with GitOps to Minikube for local development.
 
 ## Overview
 
-This guide covers deploying the Node.js web application to Minikube with:
+This guide covers deploying the Production-Ready EKS Cluster with GitOps to Minikube for local development with:
 - **Local Development**: Minikube cluster setup
+- **GitOps with ArgoCD**: Declarative application management
+- **Security**: Vault for secrets management (dev mode)
+- **Monitoring**: Prometheus and Grafana stack
 - **Web Application**: Node.js app with health checks and auto-scaling
-- **Optional GitOps**: ArgoCD for GitOps workflow (optional)
-- **Monitoring**: Basic monitoring setup (optional)
 
 ## Prerequisites
 
@@ -199,17 +200,24 @@ For a complete GitOps experience:
 minikube start --memory=4096 --cpus=2
 
 # 2. Bootstrap ArgoCD and components
-kubectl apply -f bootstrap/
+# Core phase
+kubectl apply -f bootstrap/00-namespaces.yaml
+kubectl apply -f bootstrap/01-pod-security-standards.yaml
+kubectl apply -f bootstrap/02-network-policy.yaml
+kubectl apply -f bootstrap/03-helm-repos.yaml
+kubectl apply -f bootstrap/04-argo-cd-install.yaml
+kubectl apply -f bootstrap/05-vault-policies.yaml
+kubectl apply -f bootstrap/06-etcd-backup.yaml
 
-# 3. Wait for ArgoCD to be ready
-kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
+# 3. Wait for ArgoCD to be ready (full install)
+kubectl wait --for=condition=available --timeout=300s deployment/argo-cd-argocd-server -n argocd
 
 # 4. Get ArgoCD admin password
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 
-# 5. Port forward ArgoCD UI
-kubectl port-forward svc/argocd-server 8080:443 -n argocd
-# Access at https://localhost:8080 (admin/[password from step 4])
+# 5. Port forward ArgoCD UI (full install)
+kubectl port-forward svc/argo-cd-argocd-server 8080:443 -n argocd
+# Access at https://localhost:8080 (Username: admin, Password: from step 4)
 
 # 6. Deploy applications via ArgoCD (app-of-apps pattern)
 kubectl apply -f clusters/production/app-of-apps.yaml
@@ -510,6 +518,7 @@ kubectl port-forward svc/grafana -n monitoring 3000:80
 
 # Access Vault (after initialization)
 kubectl port-forward svc/vault -n vault 8200:8200
+# Access at http://localhost:8200 (dev mode with root token: "root")
 ```
 
 ## Automation Scripts
@@ -519,13 +528,15 @@ This repository includes helpful automation scripts:
 ### Configuration Script
 ```bash
 # Interactive configuration script for easy setup
-./examples/scripts/configure-deployment.sh
+# Note: Scripts may need to be created or updated for current setup
+# ./examples/scripts/configure-deployment.sh
 ```
 
 ### Health Check Script
 ```bash
 # Comprehensive health check script
-./examples/scripts/health-check.sh
+# Note: Scripts may need to be created or updated for current setup
+# ./examples/scripts/health-check.sh
 ```
 
 ## Support

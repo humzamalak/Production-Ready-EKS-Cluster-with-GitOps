@@ -64,21 +64,26 @@ cd Production-Ready-EKS-Cluster-with-GitOps
 # 3. Update AWS Account ID in Vault configuration
 ```
 
-### 2. Bootstrap ArgoCD
+### 2. Bootstrap Core (Cluster Primitives + Argo CD)
 
 ```bash
-# Apply bootstrap manifests (includes ArgoCD, External Secrets, and security policies)
-kubectl apply -f bootstrap/
+# Core namespaces, security, Argo CD
+kubectl apply -f bootstrap/00-namespaces.yaml
+kubectl apply -f bootstrap/01-pod-security-standards.yaml
+kubectl apply -f bootstrap/02-network-policy.yaml
+kubectl apply -f bootstrap/03-helm-repos.yaml
+kubectl apply -f bootstrap/04-argo-cd-install.yaml
+kubectl apply -f bootstrap/05-vault-policies.yaml
+kubectl apply -f bootstrap/06-etcd-backup.yaml
 
-# Wait for ArgoCD to be ready
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
+# Wait for ArgoCD to be ready (full install)
+kubectl wait --for=condition=available --timeout=300s deployment/argo-cd-argocd-server -n argocd
 
 # Verify bootstrap components
 kubectl get pods -n argocd
-kubectl get pods -n external-secrets-system
 ```
 
-### 3. Deploy Applications
+### 3. Deploy Applications (GitOps via Argo CD)
 
 ```bash
 # Deploy the root application (app-of-apps pattern)
@@ -97,9 +102,9 @@ watch kubectl get applications -n argocd
 ### 4. Access Applications
 
 ```bash
-# Argo CD UI
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-# Access: https://localhost:8080
+# Argo CD UI (full install)
+kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443
+# Access: https://localhost:8080 (Username: admin, Password: from admin secret)
 
 # Prometheus
 kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090
@@ -111,7 +116,7 @@ kubectl port-forward svc/grafana -n monitoring 3000:80
 
 # Vault
 kubectl port-forward svc/vault -n vault 8200:8200
-# Access: https://localhost:8200
+# Access: http://localhost:8200 (dev mode with root token: "root")
 ```
 
 ## Detailed Configuration
@@ -189,19 +194,16 @@ alertmanager:
 
 #### Vault Configuration
 
-Update `applications/security/vault/values.yaml`:
+Update `applications/security/vault/values.yaml` (enable injector):
 
 ```yaml
-# Configure backup settings
+injector:
+  enabled: true
 server:
+  affinity: {}
+  resources: {}
   extraArgs: |
     -config=/vault/config/extraconfig-from-values.hcl
-
-# Enable additional audit devices
-audit:
-  enabled: true
-  type: file
-  path: /vault/audit/audit.log
 ```
 
 ## Platform-Specific Guides
@@ -264,23 +266,27 @@ az aks get-credentials --resource-group myResourceGroup --name myAKSCluster
 
 ## Post-Deployment Setup
 
-### 1. Initialize Vault
+### 1. Initialize Vault (after Vault app syncs)
 
 After Vault is deployed, initialize and unseal it:
 
 ```bash
-# Initialize Vault (run once)
-kubectl exec -n vault vault-0 -- vault operator init
+# Note: Current setup uses Vault in dev mode for development
+# Vault is automatically initialized and unsealed with root token: "root"
 
-# Save the unseal keys and root token securely!
+# Verify Vault is running and unsealed
+kubectl exec -n vault deployment/vault -- vault status
 
-# Unseal Vault with 3 unseal keys
-kubectl exec -n vault vault-0 -- vault operator unseal <unseal-key-1>
-kubectl exec -n vault vault-0 -- vault operator unseal <unseal-key-2>
-kubectl exec -n vault vault-0 -- vault operator unseal <unseal-key-3>
-
-# Verify Vault is unsealed
-kubectl exec -n vault vault-0 -- vault status
+# For production setup, you would need to:
+# 1. Initialize Vault (run once)
+# kubectl exec -n vault vault-0 -- vault operator init
+# 
+# 2. Save the unseal keys and root token securely!
+# 
+# 3. Unseal Vault with 3 unseal keys
+# kubectl exec -n vault vault-0 -- vault operator unseal <unseal-key-1>
+# kubectl exec -n vault vault-0 -- vault operator unseal <unseal-key-2>
+# kubectl exec -n vault vault-0 -- vault operator unseal <unseal-key-3>
 ```
 
 ### 2. Configure Grafana
@@ -311,8 +317,9 @@ kubectl port-forward svc/prometheus-kube-prometheus-stack-alertmanager -n monito
 Set up backup strategies:
 
 ```bash
-# Backup Vault data
-kubectl exec -n vault vault-0 -- vault operator raft snapshot save /tmp/vault-backup.snap
+# Backup Vault data (for production setup)
+# Note: Current dev setup doesn't require backup as data is in-memory
+# kubectl exec -n vault vault-0 -- vault operator raft snapshot save /tmp/vault-backup.snap
 
 # Backup Grafana dashboards
 kubectl exec -n monitoring deployment/grafana -- grafana-cli admin export-dashboard > grafana-dashboards.json
@@ -392,7 +399,7 @@ For detailed troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ### Security Best Practices
 
-1. **Use External Secrets**: Store sensitive data in Vault or cloud secret managers
+1. **Use Vault Agent Injector**: Fetch secrets at runtime without K8s Secrets
 2. **Enable Pod Security Standards**: Use restricted security contexts
 3. **Implement Network Policies**: Restrict inter-pod communication
 4. **Regular Updates**: Keep all components updated with security patches
@@ -417,13 +424,15 @@ This repository includes helpful automation scripts:
 ### Configuration Script
 ```bash
 # Interactive configuration script for easy setup
-./examples/scripts/configure-deployment.sh
+# Note: Scripts may need to be created or updated for current setup
+# ./examples/scripts/configure-deployment.sh
 ```
 
 ### Health Check Script
 ```bash
 # Comprehensive health check script
-./examples/scripts/health-check.sh
+# Note: Scripts may need to be created or updated for current setup
+# ./examples/scripts/health-check.sh
 ```
 
 ## Support

@@ -19,13 +19,12 @@ This repository follows GitOps principles to manage a production-ready EKS clust
 │       ├── 📄 app-of-apps.yaml     # Security stack bootstrap
 │       └── 📁 vault/               # HashiCorp Vault
 ├── 📁 bootstrap/                   # Bootstrap manifests
-│   ├── 📄 argo-cd-install.yaml     # ArgoCD installation
-│   ├── 📄 external-secrets.yaml    # External secrets setup
-│   ├── 📄 helm-repos.yaml          # Helm repository configuration
-│   ├── 📄 network-policy.yaml      # Network policies
-│   ├── 📄 pod-security-standards.yaml # Security standards
-│   ├── 📄 vault-policies.yaml      # Vault policies
-│   └── 📄 vault-secret-stores.yaml # Vault secret stores
+│   ├── 📄 00-namespaces.yaml       # Core namespaces with PSS labels
+│   ├── 📄 01-pod-security-standards.yaml # Security standards
+│   ├── 📄 02-network-policy.yaml   # Network policies
+│   ├── 📄 05-argo-cd-install.yaml  # Argo CD installation
+│   ├── 📄 20-etcd-backup.yaml      # etcd backup cronjob
+│   └── 📁 helm-values/             # Helm values (not applied via kubectl)
 ├── 📁 infrastructure/              # Infrastructure as Code (Terraform)
 ├── 📁 examples/                    # Example applications and scripts
 └── 📁 docs/                        # Documentation
@@ -39,11 +38,16 @@ This repository follows GitOps principles to manage a production-ready EKS clust
 - ArgoCD installed and configured
 - kubectl configured with cluster access
 
-### 1. Bootstrap ArgoCD
+### 1. Bootstrap Core (see DEPLOYMENT_GUIDE.md for full steps)
 
 ```bash
-# Apply bootstrap manifests
-kubectl apply -f bootstrap/
+# Core namespaces, security, Argo CD
+kubectl apply -f bootstrap/00-namespaces.yaml
+kubectl apply -f bootstrap/01-pod-security-standards.yaml
+kubectl apply -f bootstrap/02-network-policy.yaml
+kubectl apply -f bootstrap/04-argo-cd-install.yaml
+kubectl apply -f bootstrap/05-vault-policies.yaml
+kubectl apply -f bootstrap/06-etcd-backup.yaml
 
 # Wait for ArgoCD to be ready
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
@@ -96,7 +100,7 @@ kubectl port-forward svc/vault -n vault 8200:8200
 
 ### Security Stack
 - **HashiCorp Vault**: Secrets management
-- **External Secrets Operator**: Kubernetes-Vault integration
+- **Vault Agent Injector**: Pod-level secret injection without Kubernetes Secret objects
 
 ## 🔧 Configuration
 

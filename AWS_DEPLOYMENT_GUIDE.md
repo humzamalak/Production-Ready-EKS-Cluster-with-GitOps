@@ -8,7 +8,7 @@ This guide covers deploying a production-ready EKS cluster with:
 - **Infrastructure as Code**: Terraform modules for VPC, EKS, IAM, and backup
 - **GitOps with ArgoCD**: Declarative application management
 - **Monitoring Stack**: Prometheus, Grafana, AlertManager
-- **Security**: Pod Security Standards, IRSA, external-secrets
+- **Security**: Pod Security Standards, IRSA, Vault Agent Injector
 - **Web Application**: Node.js app with auto-scaling
 
 ## Prerequisites
@@ -171,21 +171,25 @@ kubectl get namespaces
 ### Step 2: Bootstrap ArgoCD and Components
 
 ```bash
-# Apply bootstrap manifests (includes ArgoCD, External Secrets, and security policies)
-kubectl apply -f bootstrap/
+# Apply bootstrap manifests (ArgoCD and security prerequisites)
+kubectl apply -f bootstrap/00-namespaces.yaml
+kubectl apply -f bootstrap/01-pod-security-standards.yaml
+kubectl apply -f bootstrap/02-network-policy.yaml
+kubectl apply -f bootstrap/03-helm-repos.yaml
+kubectl apply -f bootstrap/04-argo-cd-install.yaml
+kubectl apply -f bootstrap/05-vault-policies.yaml
+kubectl apply -f bootstrap/06-etcd-backup.yaml
 
-# Wait for ArgoCD to be ready
-kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
+# Wait for ArgoCD to be ready (full install)
+kubectl wait --for=condition=available --timeout=300s deployment/argo-cd-argocd-server -n argocd
 
 # Verify ArgoCD installation
 kubectl get pods -n argocd
 kubectl get svc -n argocd
 
-# Verify External Secrets Operator
-kubectl get pods -n external-secrets-system
-
-# Get ArgoCD admin password
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
+# Get ArgoCD admin password (if using Helm chart)
+# Note: With current setup, ArgoCD runs in insecure mode for development
+# kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
 ```
 
 **Expected Output:**
@@ -255,14 +259,15 @@ kubectl get pods -n production -l app=k8s-web-app
 
 ### Access Applications
 
-#### ArgoCD UI
+#### ArgoCD UI (full install)
 ```bash
 # Port-forward ArgoCD UI
-kubectl port-forward svc/argocd-server -n argocd 8080:443
+kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443
 
 # Access at https://localhost:8080
 # Username: admin
-# Password: [from Step 2]
+# Password: (retrieve via)
+# kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
 #### Grafana
@@ -404,13 +409,15 @@ This repository includes helpful automation scripts:
 ### Configuration Script
 ```bash
 # Interactive configuration script for easy setup
-./examples/scripts/configure-deployment.sh
+# Note: Scripts may need to be created or updated for current setup
+# ./examples/scripts/configure-deployment.sh
 ```
 
 ### Health Check Script
 ```bash
 # Comprehensive health check script
-./examples/scripts/health-check.sh
+# Note: Scripts may need to be created or updated for current setup
+# ./examples/scripts/health-check.sh
 ```
 
 ## Support
