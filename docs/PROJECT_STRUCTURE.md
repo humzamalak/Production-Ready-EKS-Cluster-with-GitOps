@@ -157,7 +157,7 @@ docs/
 └── disaster-recovery-runbook.md # Disaster recovery procedures
 ```
 
-## 🔄 **GitOps Flow**
+## 🔄 **GitOps Workflow**
 
 ### **1. Bootstrap Phase**
 ```bash
@@ -171,17 +171,157 @@ kubectl apply -f bootstrap/05-vault-policies.yaml
 kubectl apply -f bootstrap/06-etcd-backup.yaml
 ```
 
-### **2. Application Discovery**
+This sets up:
+- ArgoCD installation
+- Helm repositories
+- Security policies
+- Vault integration components
+
+### **2. Application Deployment Phase**
 ```bash
-# ArgoCD discovers applications via app-of-apps pattern
+# Apply root application
 kubectl apply -f clusters/production/app-of-apps.yaml
 ```
 
-### **3. Application Deployment**
-ArgoCD automatically deploys:
-- **Monitoring Stack**: Prometheus + Grafana
-- **Security Stack**: Vault with agent injection
-- **Web Application**: Production-ready with Vault integration
+This triggers:
+- Namespace creation
+- Application discovery
+- Automated deployment
+- Continuous reconciliation
+
+### **3. Application Management Phase**
+
+Applications are managed through:
+- Git commits (declarative changes)
+- ArgoCD UI (observability)
+- Automated reconciliation
+- Health monitoring
+
+## 🎯 **GitOps Principles Applied**
+
+### **1. Declarative Configuration**
+- All desired state defined in YAML manifests
+- No imperative commands required
+- Version-controlled configurations
+
+### **2. Version Control**
+- All changes tracked in Git
+- Immutable infrastructure
+- Audit trail for all changes
+
+### **3. Automated Reconciliation**
+- ArgoCD continuously monitors Git
+- Automatic drift detection and correction
+- Self-healing capabilities
+
+### **4. Observable**
+- ArgoCD UI for application status
+- Prometheus metrics for monitoring
+- Grafana dashboards for observability
+
+## 🔧 **Application Structure**
+
+### **App-of-Apps Pattern**
+
+The repository uses the app-of-apps pattern for hierarchical application management:
+
+```
+Root App (clusters/production/app-of-apps.yaml)
+├── Monitoring Stack (applications/monitoring/app-of-apps.yaml)
+│   ├── Prometheus (applications/monitoring/prometheus/application.yaml)
+│   └── Grafana (applications/monitoring/grafana/application.yaml)
+├── Security Stack (applications/security/app-of-apps.yaml)
+│   └── Vault (applications/security/vault/application.yaml)
+└── K8s Web App (applications/web-app/k8s-web-app/application.yaml)
+```
+
+### **Sync Waves**
+
+Applications are deployed in waves using ArgoCD sync waves:
+
+1. **Wave 1**: Root application and namespaces
+2. **Wave 2**: Monitoring stack
+3. **Wave 3**: Security stack
+4. **Wave 3.5**: Vault initialization
+5. **Wave 5**: Web applications
+
+This ensures proper dependency ordering.
+
+## 🚀 **Adding New Applications**
+
+### **1. Create Application Directory**
+```bash
+mkdir -p applications/new-stack/new-app
+```
+
+### **2. Create Application Manifest**
+```yaml
+# applications/new-stack/new-app/application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: new-app
+  namespace: argocd
+spec:
+  project: production-apps
+  source:
+    repoURL: https://github.com/your-org/your-repo
+    chart: your-chart
+    targetRevision: 1.0.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: your-namespace
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+```
+
+### **3. Update App-of-Apps**
+Add the new application to the appropriate app-of-apps.yaml file.
+
+### **4. Commit and Deploy**
+```bash
+git add .
+git commit -m "Add new application"
+git push
+```
+
+ArgoCD will automatically detect and deploy the new application.
+
+## 🛠️ **Troubleshooting**
+
+### **Common Issues**
+
+1. **Application Not Syncing**
+   - Check ArgoCD UI for errors
+   - Verify repository access
+   - Check namespace permissions
+
+2. **Resource Conflicts**
+   - Review resource quotas
+   - Check for naming conflicts
+   - Verify RBAC permissions
+
+3. **Bootstrap Issues**
+   - Ensure ArgoCD is installed
+   - Check bootstrap manifests
+   - Verify cluster connectivity
+
+### **Debug Commands**
+```bash
+# Check ArgoCD application status
+kubectl get applications -n argocd
+
+# View application details
+kubectl describe application <app-name> -n argocd
+
+# Check sync status
+argocd app get <app-name>
+
+# Force sync
+argocd app sync <app-name>
+```
 
 ## 🧹 **Cleanup Summary**
 
@@ -191,6 +331,9 @@ ArgoCD automatically deploys:
 - ❌ `applications/web-app/k8s-web-app/secrets-example.yaml` - Deprecated (using Vault)
 - ❌ `bootstrap/vault-setup-script.sh` - Redundant with web app specific script
 - ❌ `applications/web-app/vault-config.yaml` - Redundant with script approach
+- ❌ `docs/gitops-structure.md` - Merged into PROJECT_STRUCTURE.md
+- ❌ `applications/web-app/app-of-apps.yaml` - Redundant layer for single application
+- ❌ `applications/web-app/k8s-web-app/helm/values.yaml` - Redundant with production values file
 
 ### **Benefits of Cleanup**
 - ✅ **Reduced Confusion**: Clear separation between examples and production configs

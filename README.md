@@ -19,7 +19,6 @@ This repository follows GitOps principles to manage a production-ready EKS clust
 │   │   ├── 📄 app-of-apps.yaml     # Security stack bootstrap
 │   │   └── 📁 vault/               # HashiCorp Vault
 │   └── 📁 web-app/                 # Web application deployments
-│       ├── 📄 app-of-apps.yaml     # Web app stack bootstrap
 │       ├── 📄 namespace.yaml       # Production namespace
 │       └── 📁 k8s-web-app/         # Node.js web application
 ├── 📁 bootstrap/                   # Bootstrap manifests

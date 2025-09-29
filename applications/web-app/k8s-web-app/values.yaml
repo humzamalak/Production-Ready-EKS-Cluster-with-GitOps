@@ -56,19 +56,19 @@ ingress:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/rate-limit: "100"
     nginx.ingress.kubernetes.io/rate-limit-window: "1m"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/client-max-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
   hosts:
-    - host: k8s-web-app.yourdomain.com  # Update with your actual domain
+    - host: k8s-web-app.yourdomain.com
       paths:
         - path: /
           pathType: Prefix
   tls:
     - secretName: k8s-web-app-tls
       hosts:
-        - k8s-web-app.yourdomain.com  # Update with your actual domain
+        - k8s-web-app.yourdomain.com
 
 resources:
   limits:
@@ -129,45 +129,14 @@ env:
 
 # Vault Agent Injection Configuration
 vault:
-  enabled: true
+  enabled: false  # Phase 1: Disabled for initial deployment
+  ready: false    # Phase 1: Set to false until Vault is initialized
   address: "http://vault.vault.svc.cluster.local:8200"
   role: "k8s-web-app"
   authPath: "auth/kubernetes"
-  secrets:
-    # Database secrets from Vault
-    - secretPath: "secret/data/production/web-app/db"
-      mountPath: "/vault/secrets/db"
-      template: |
-        {{- with secret "secret/data/production/web-app/db" -}}
-        DB_HOST={{ .Data.data.host }}
-        DB_PORT={{ .Data.data.port }}
-        DB_NAME={{ .Data.data.name }}
-        DB_USERNAME={{ .Data.data.username }}
-        DB_PASSWORD={{ .Data.data.password }}
-        {{- end }}
-    # API secrets from Vault
-    - secretPath: "secret/data/production/web-app/api"
-      mountPath: "/vault/secrets/api"
-      template: |
-        {{- with secret "secret/data/production/web-app/api" -}}
-        JWT_SECRET={{ .Data.data.jwt_secret }}
-        ENCRYPTION_KEY={{ .Data.data.encryption_key }}
-        API_KEY={{ .Data.data.api_key }}
-        {{- end }}
-    # External services secrets from Vault
-    - secretPath: "secret/data/production/web-app/external"
-      mountPath: "/vault/secrets/external"
-      template: |
-        {{- with secret "secret/data/production/web-app/external" -}}
-        SMTP_HOST={{ .Data.data.smtp_host }}
-        SMTP_PORT={{ .Data.data.smtp_port }}
-        SMTP_USERNAME={{ .Data.data.smtp_username }}
-        SMTP_PASSWORD={{ .Data.data.smtp_password }}
-        REDIS_URL={{ .Data.data.redis_url }}
-        {{- end }}
-  # Vault agent configuration
+  # Agent sidecar configuration
   agent:
-    image: "hashicorp/vault-k8s:1.1.0"
+    # Agent resource limits
     resources:
       requests:
         memory: "64Mi"
@@ -178,6 +147,7 @@ vault:
     # Agent configuration
     config: |
       vault {
+        address = "http://vault.vault.svc.cluster.local:8200"
         retry {
           num_retries = 5
         }
@@ -212,6 +182,37 @@ vault:
         source      = "/vault/secrets/external/external-services.tpl"
         destination = "/vault/secrets/external/external-services.env"
       }
+
+  # Vault secrets configuration
+  secrets:
+    - secretPath: "secret/data/production/web-app/db"
+      mountPath: "/vault/secrets/db"
+      template: |
+        {{- with secret "secret/data/production/web-app/db" -}}
+        DB_HOST={{ .Data.data.host }}
+        DB_PORT={{ .Data.data.port }}
+        DB_NAME={{ .Data.data.name }}
+        DB_USERNAME={{ .Data.data.username }}
+        DB_PASSWORD={{ .Data.data.password }}
+        {{- end }}
+    - secretPath: "secret/data/production/web-app/api"
+      mountPath: "/vault/secrets/api"
+      template: |
+        {{- with secret "secret/data/production/web-app/api" -}}
+        JWT_SECRET={{ .Data.data.jwt_secret }}
+        ENCRYPTION_KEY={{ .Data.data.encryption_key }}
+        API_KEY={{ .Data.data.api_key }}
+        {{- end }}
+    - secretPath: "secret/data/production/web-app/external"
+      mountPath: "/vault/secrets/external"
+      template: |
+        {{- with secret "secret/data/production/web-app/external" -}}
+        SMTP_HOST={{ .Data.data.smtp_host }}
+        SMTP_PORT={{ .Data.data.smtp_port }}
+        SMTP_USERNAME={{ .Data.data.smtp_username }}
+        SMTP_PASSWORD={{ .Data.data.smtp_password }}
+        REDIS_URL={{ .Data.data.redis_url }}
+        {{- end }}
 
 # Legacy secret references (deprecated - use Vault instead)
 secretRefs: []
@@ -267,7 +268,9 @@ serviceMonitor:
   enabled: true
   namespace: monitoring
   labels:
-    app: k8s-web-app
+    app.kubernetes.io/name: k8s-web-app
+    app.kubernetes.io/part-of: web-app
   interval: 30s
+  scrapeTimeout: 10s
   path: /metrics
   port: http

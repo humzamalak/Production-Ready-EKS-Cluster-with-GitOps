@@ -18,10 +18,10 @@ spec:
   source:
     repoURL: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
     targetRevision: main
-    path: applications/web-app/k8s-web-app
+    path: applications/web-app/k8s-web-app/helm
     helm:
       valueFiles:
-        - values.yaml
+        - ../../values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: production
