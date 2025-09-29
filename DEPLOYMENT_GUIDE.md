@@ -67,16 +67,20 @@ cd Production-Ready-EKS-Cluster-with-GitOps
 ### 2. Bootstrap Core (Cluster Primitives + Argo CD)
 
 ```bash
-# Core namespaces, security, Argo CD
+# Core namespaces & security
 kubectl apply -f bootstrap/00-namespaces.yaml
 kubectl apply -f bootstrap/01-pod-security-standards.yaml
 kubectl apply -f bootstrap/02-network-policy.yaml
 kubectl apply -f bootstrap/03-helm-repos.yaml
-kubectl apply -f bootstrap/04-argo-cd-install.yaml
-kubectl apply -f bootstrap/05-vault-policies.yaml
-kubectl apply -f bootstrap/06-etcd-backup.yaml
 
-# Wait for ArgoCD to be ready (full install)
+# Install Argo CD (full) via Helm
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+helm upgrade --install argo-cd argo/argo-cd \
+  -n argocd --create-namespace \
+  -f bootstrap/helm-values/argo-cd-values.yaml
+
+# Wait for Argo CD server
 kubectl wait --for=condition=available --timeout=300s deployment/argo-cd-argocd-server -n argocd
 
 # Verify bootstrap components
@@ -86,12 +90,15 @@ kubectl get pods -n argocd
 ### 3. Deploy Applications (GitOps via Argo CD)
 
 ```bash
-# Deploy the root application (app-of-apps pattern)
+# Create the Project used by Applications
+kubectl apply -f clusters/production/production-apps-project.yaml
+
+# Deploy the root application (App-of-Apps; recurses applications/)
 kubectl apply -f clusters/production/app-of-apps.yaml
 
 # Verify deployment - applications deploy in sync waves:
 # Wave 1: Production cluster bootstrap
-# Wave 2: Monitoring stack (Prometheus, Grafana) 
+# Wave 2: Monitoring stack (Prometheus, Grafana)
 # Wave 3: Security stack (Vault)
 kubectl get applications -n argocd
 

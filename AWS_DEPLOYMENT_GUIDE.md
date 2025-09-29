@@ -168,28 +168,36 @@ kubectl get namespaces
 - S3 bucket for Terraform state
 - DynamoDB table for state locking
 
-### Step 2: Bootstrap ArgoCD and Components
+### Step 2: Bootstrap Argo CD and Components
 
 ```bash
-# Apply bootstrap manifests (ArgoCD and security prerequisites)
+# Core namespaces/security
 kubectl apply -f bootstrap/00-namespaces.yaml
 kubectl apply -f bootstrap/01-pod-security-standards.yaml
 kubectl apply -f bootstrap/02-network-policy.yaml
 kubectl apply -f bootstrap/03-helm-repos.yaml
-kubectl apply -f bootstrap/04-argo-cd-install.yaml
-kubectl apply -f bootstrap/05-vault-policies.yaml
-kubectl apply -f bootstrap/06-etcd-backup.yaml
 
-# Wait for ArgoCD to be ready (full install)
+# Install Argo CD (full) via Helm
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+helm upgrade --install argo-cd argo/argo-cd \
+  -n argocd --create-namespace \
+  -f bootstrap/helm-values/argo-cd-values.yaml
+
+# Wait for Argo CD server
 kubectl wait --for=condition=available --timeout=300s deployment/argo-cd-argocd-server -n argocd
 
-# Verify ArgoCD installation
+# Verify Argo CD installation
 kubectl get pods -n argocd
 kubectl get svc -n argocd
 
-# Get ArgoCD admin password (if using Helm chart)
-# Note: With current setup, ArgoCD runs in insecure mode for development
-# kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
+# Get Argo CD admin password
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+
+# (Optional) Port-forward UI locally
+# If 8080 is busy, use 8443 instead
+kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 --address=127.0.0.1
+# Open: https://localhost:8080 (user: admin, pass: above)
 ```
 
 **Expected Output:**
