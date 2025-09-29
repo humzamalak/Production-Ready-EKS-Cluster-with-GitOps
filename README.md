@@ -55,7 +55,10 @@ kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -
 # Apply the root application (app-of-apps pattern)
 kubectl apply -f clusters/production/app-of-apps.yaml
 
-# ArgoCD will automatically discover and deploy all applications
+# ArgoCD will automatically discover and deploy all applications in sync waves:
+# Wave 1: Production cluster bootstrap
+# Wave 2: Monitoring stack (Prometheus, Grafana)
+# Wave 3: Security stack (Vault)
 ```
 
 ### 3. Access Applications
@@ -112,6 +115,15 @@ Before deploying, update the following:
 3. **AWS Account ID**: Update IAM role ARNs in Vault configuration
 4. **TLS Certificates**: Configure cert-manager or provide your own certificates
 
+### Quick Configuration Script
+
+For easy setup, use the provided configuration script:
+
+```bash
+# Run the interactive configuration script
+./examples/scripts/configure-deployment.sh
+```
+
 ## 🔒 Security Features
 
 - **Pod Security Standards**: Restricted mode enforced
@@ -129,6 +141,7 @@ Before deploying, update the following:
 - [GitOps Structure](docs/gitops-structure.md) - Detailed repository structure guide
 - [Security Best Practices](docs/security-best-practices.md) - Security guidelines
 - [Disaster Recovery](docs/disaster-recovery-runbook.md) - Disaster recovery procedures
+- [Changelog](docs/CHANGELOG.md) - Version history and changes
 
 ## 🏷️ GitOps Principles
 
