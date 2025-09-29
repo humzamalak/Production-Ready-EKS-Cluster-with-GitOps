@@ -113,14 +113,17 @@ tags = {
 
 ### 2. Update ArgoCD Configuration
 
-Replace `YOUR_ORG` in ArgoCD manifests with your GitHub organization:
+Replace the repository URL in ArgoCD manifests with your GitHub organization:
 
 ```bash
 # Update root application
-sed -i 's/YOUR_ORG/your-github-org/g' argo-cd/apps/root-app.yaml
+sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/your-org/your-repo|g' clusters/production/app-of-apps.yaml
 
-# Update other applications if needed
-find argo-cd/apps -name "*.yaml" -exec sed -i 's/YOUR_ORG/your-github-org/g' {} \;
+# Update monitoring applications
+sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/your-org/your-repo|g' applications/monitoring/app-of-apps.yaml
+
+# Update security applications
+sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/your-org/your-repo|g' applications/security/app-of-apps.yaml
 ```
 
 ## Deployment Steps
@@ -157,19 +160,11 @@ kubectl get namespaces
 - S3 bucket for Terraform state
 - DynamoDB table for state locking
 
-### Step 2: ArgoCD Installation
+### Step 2: Bootstrap ArgoCD and Components
 
 ```bash
-# Add ArgoCD Helm repository
-helm repo add argo https://argoproj.github.io/argo-helm
-helm repo update
-
-# Install ArgoCD with production configuration
-helm upgrade --install argocd argo/argo-cd \
-  --namespace argocd \
-  --create-namespace \
-  --values argo-cd/bootstrap/values.yaml \
-  --wait
+# Apply bootstrap manifests (includes ArgoCD, External Secrets, and security policies)
+kubectl apply -f bootstrap/
 
 # Wait for ArgoCD to be ready
 kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
@@ -177,6 +172,9 @@ kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -
 # Verify ArgoCD installation
 kubectl get pods -n argocd
 kubectl get svc -n argocd
+
+# Verify External Secrets Operator
+kubectl get pods -n external-secrets-system
 
 # Get ArgoCD admin password
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
@@ -191,9 +189,12 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 ```bash
 # Apply the root application (app-of-apps pattern)
-kubectl apply -f argo-cd/apps/root-app.yaml
+kubectl apply -f clusters/production/app-of-apps.yaml
 
-# Monitor application deployment
+# Monitor application deployment - applications deploy in sync waves:
+# Wave 1: Production cluster bootstrap
+# Wave 2: Monitoring stack (Prometheus, Grafana)
+# Wave 3: Security stack (Vault)
 kubectl get applications -n argocd
 watch kubectl get applications -n argocd
 
@@ -201,7 +202,7 @@ watch kubectl get applications -n argocd
 kubectl get applications -n argocd -o wide
 
 # Wait for applications to be synced
-kubectl wait --for=condition=Synced --timeout=600s application/root-app -n argocd
+kubectl wait --for=condition=Synced --timeout=600s application/production-cluster -n argocd
 ```
 
 **Expected Output:**
@@ -214,7 +215,7 @@ kubectl wait --for=condition=Synced --timeout=600s application/root-app -n argoc
 
 ```bash
 # Deploy the web application via ArgoCD
-kubectl apply -f argo-cd/apps/k8s-web-app.yaml
+kubectl apply -f examples/web-app/helm/
 
 # Check web application status
 kubectl get applications -n argocd | grep k8s-web-app
@@ -387,6 +388,22 @@ After successful deployment:
 5. **Backup strategy**: Implement application data backup procedures
 6. **Load testing**: Perform load testing to validate auto-scaling
 7. **Documentation**: Update team documentation with access procedures
+
+## Automation Scripts
+
+This repository includes helpful automation scripts:
+
+### Configuration Script
+```bash
+# Interactive configuration script for easy setup
+./examples/scripts/configure-deployment.sh
+```
+
+### Health Check Script
+```bash
+# Comprehensive health check script
+./examples/scripts/health-check.sh
+```
 
 ## Support
 

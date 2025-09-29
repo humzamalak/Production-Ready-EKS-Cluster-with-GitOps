@@ -186,9 +186,8 @@ For a complete GitOps experience:
 # 1. Start Minikube
 minikube start --memory=4096 --cpus=2
 
-# 2. Install ArgoCD
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# 2. Bootstrap ArgoCD and components
+kubectl apply -f bootstrap/
 
 # 3. Wait for ArgoCD to be ready
 kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
@@ -200,8 +199,11 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 kubectl port-forward svc/argocd-server 8080:443 -n argocd
 # Access at https://localhost:8080 (admin/[password from step 4])
 
-# 6. Deploy web application via ArgoCD
-kubectl apply -f argo-cd/apps/k8s-web-app.yaml
+# 6. Deploy applications via ArgoCD (app-of-apps pattern)
+kubectl apply -f clusters/production/app-of-apps.yaml
+
+# 7. Monitor application deployment
+watch kubectl get applications -n argocd
 ```
 
 ## Verification and Testing
@@ -475,12 +477,44 @@ helm upgrade k8s-web-app ./helm \
 
 After successful deployment:
 
-1. **Set up monitoring**: Deploy Prometheus and Grafana
+1. **Set up monitoring**: Deploy Prometheus and Grafana via ArgoCD
 2. **Implement CI/CD**: Set up GitHub Actions for automated builds
 3. **Add observability**: Implement distributed tracing
 4. **Security scanning**: Add container vulnerability scanning
 5. **Load testing**: Perform load testing to validate auto-scaling
 6. **Documentation**: Update team documentation with access procedures
+
+## GitOps Integration
+
+For a complete GitOps workflow with this repository:
+
+```bash
+# Deploy the full monitoring and security stack
+kubectl apply -f clusters/production/app-of-apps.yaml
+
+# Access monitoring stack
+kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090
+kubectl port-forward svc/grafana -n monitoring 3000:80
+
+# Access Vault (after initialization)
+kubectl port-forward svc/vault -n vault 8200:8200
+```
+
+## Automation Scripts
+
+This repository includes helpful automation scripts:
+
+### Configuration Script
+```bash
+# Interactive configuration script for easy setup
+./examples/scripts/configure-deployment.sh
+```
+
+### Health Check Script
+```bash
+# Comprehensive health check script
+./examples/scripts/health-check.sh
+```
 
 ## Support
 

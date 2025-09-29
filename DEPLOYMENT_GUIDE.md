@@ -55,7 +55,10 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 git clone https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps.git
 cd Production-Ready-EKS-Cluster-with-GitOps
 
-# Update configuration for your environment
+# Option A: Use the interactive configuration script (recommended)
+./examples/scripts/configure-deployment.sh
+
+# Option B: Manual configuration
 # 1. Update repoURL in clusters/production/app-of-apps.yaml
 # 2. Update domain names in application manifests
 # 3. Update AWS Account ID in Vault configuration
@@ -64,11 +67,15 @@ cd Production-Ready-EKS-Cluster-with-GitOps
 ### 2. Bootstrap ArgoCD
 
 ```bash
-# Apply bootstrap manifests
+# Apply bootstrap manifests (includes ArgoCD, External Secrets, and security policies)
 kubectl apply -f bootstrap/
 
 # Wait for ArgoCD to be ready
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
+
+# Verify bootstrap components
+kubectl get pods -n argocd
+kubectl get pods -n external-secrets-system
 ```
 
 ### 3. Deploy Applications
@@ -77,8 +84,14 @@ kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -
 # Deploy the root application (app-of-apps pattern)
 kubectl apply -f clusters/production/app-of-apps.yaml
 
-# Verify deployment
+# Verify deployment - applications deploy in sync waves:
+# Wave 1: Production cluster bootstrap
+# Wave 2: Monitoring stack (Prometheus, Grafana) 
+# Wave 3: Security stack (Vault)
 kubectl get applications -n argocd
+
+# Monitor sync status
+watch kubectl get applications -n argocd
 ```
 
 ### 4. Access Applications
@@ -112,11 +125,11 @@ Before deploying, update these configuration values:
 Replace `your-domain.com` with your actual domain:
 
 ```bash
-# Update all domain references
+# Update all domain references in application manifests
 sed -i 's/your-domain\.com/your-actual-domain.com/g' \
-  apps/grafana/application.yaml \
-  apps/vault/values.yaml \
-  apps/prometheus/application.yaml
+  applications/monitoring/grafana/application.yaml \
+  applications/security/vault/values.yaml \
+  applications/monitoring/prometheus/application.yaml
 ```
 
 #### 2. AWS Account ID
@@ -125,7 +138,7 @@ For AWS deployments, update the account ID:
 
 ```bash
 # Replace ACCOUNT_ID with your AWS account ID
-sed -i 's/ACCOUNT_ID/123456789012/g' apps/vault/values.yaml
+sed -i 's/ACCOUNT_ID/123456789012/g' applications/security/vault/values.yaml
 ```
 
 #### 3. Repository URL
@@ -133,15 +146,18 @@ sed -i 's/ACCOUNT_ID/123456789012/g' apps/vault/values.yaml
 If you've forked the repository, update the URL:
 
 ```bash
-# Update repository URL
-sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/your-org/your-repo|g' app-of-apps.yaml
+# Update repository URL in all application manifests
+sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/your-org/your-repo|g' \
+  clusters/production/app-of-apps.yaml \
+  applications/monitoring/app-of-apps.yaml \
+  applications/security/app-of-apps.yaml
 ```
 
 ### Customization Options
 
 #### Grafana Configuration
 
-Update `apps/grafana/application.yaml`:
+Update `applications/monitoring/grafana/application.yaml`:
 
 ```yaml
 # Change admin password
@@ -156,7 +172,7 @@ admin:
 
 #### Prometheus Configuration
 
-Update `apps/prometheus/application.yaml`:
+Update `applications/monitoring/prometheus/application.yaml`:
 
 ```yaml
 # Adjust retention settings
@@ -173,7 +189,7 @@ alertmanager:
 
 #### Vault Configuration
 
-Update `apps/vault/values.yaml`:
+Update `applications/security/vault/values.yaml`:
 
 ```yaml
 # Configure backup settings
@@ -354,7 +370,7 @@ kubectl get volumeattachment
 
 ```bash
 # Comprehensive health check script
-./scripts/health-check.sh
+./examples/scripts/health-check.sh
 ```
 
 For detailed troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
@@ -393,6 +409,22 @@ For compliance requirements:
 - **PCI DSS**: Use encrypted storage and secure communications
 - **HIPAA**: Implement data encryption and access controls
 - **GDPR**: Enable data retention policies and audit trails
+
+## Automation Scripts
+
+This repository includes helpful automation scripts:
+
+### Configuration Script
+```bash
+# Interactive configuration script for easy setup
+./examples/scripts/configure-deployment.sh
+```
+
+### Health Check Script
+```bash
+# Comprehensive health check script
+./examples/scripts/health-check.sh
+```
 
 ## Support
 
