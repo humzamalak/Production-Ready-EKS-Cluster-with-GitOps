@@ -25,7 +25,9 @@ spec:
     spec:
       containers:
         - name: argocd-server
-          image: argoproj/argocd:v2.11.1 # Pin to a stable version compatible with K8s 1.31
+          image: argoproj/argocd:v2.6.0 # Pin to a stable version compatible with K8s 1.31
+          command: ["argocd-server"]
+          args: ["--insecure", "--port", "8080"]
           resources:
             requests:
               cpu: 250m
@@ -37,6 +39,22 @@ spec:
             - containerPort: 8080
           env:
             - name: ARGOCD_API_SERVER_INSECURE
-              value: "false"
+              value: "true"
         # Add more containers for other ArgoCD components as needed
+---
+# Service for ArgoCD Server
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  selector:
+    app.kubernetes.io/name: argocd-server
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP
 # For full production, use Helm chart with values.yaml (see values.yaml for custom config)

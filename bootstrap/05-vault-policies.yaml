@@ -339,6 +339,99 @@ data:
     echo "Please save these credentials securely!"
 
 ---
+# Vault Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault
+  namespace: vault
+  labels:
+    app: vault
+    component: service-account
+
+---
+# Vault Server Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  namespace: vault
+  labels:
+    app: vault
+    component: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+      component: server
+  template:
+    metadata:
+      labels:
+        app: vault
+        component: server
+    spec:
+      serviceAccountName: vault
+      containers:
+      - name: vault
+        image: hashicorp/vault:1.16.1
+        command:
+        - vault
+        args:
+        - server
+        - -dev
+        - -dev-listen-address=0.0.0.0:8200
+        - -dev-root-token-id=root
+        ports:
+        - containerPort: 8200
+          name: http
+        env:
+        - name: VAULT_DEV_ROOT_TOKEN_ID
+          value: "root"
+        - name: VAULT_DEV_LISTEN_ADDRESS
+          value: "0.0.0.0:8200"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        readinessProbe:
+          httpGet:
+            path: /v1/sys/health
+            port: 8200
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /v1/sys/health
+            port: 8200
+          initialDelaySeconds: 15
+          periodSeconds: 20
+
+---
+# Vault Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: vault
+  labels:
+    app: vault
+    component: server
+spec:
+  selector:
+    app: vault
+    component: server
+  ports:
+  - name: http
+    port: 8200
+    targetPort: 8200
+    protocol: TCP
+  type: ClusterIP
+
+---
 # Vault Unseal Job
 apiVersion: batch/v1
 kind: Job
@@ -360,7 +453,7 @@ spec:
       - name: vault-unseal
         image: hashicorp/vault:1.16.1
         command:
-        - /bin/bash
+        - /bin/sh
         - -c
         - |
           # Wait for Vault to be ready
@@ -384,9 +477,9 @@ spec:
           vault operator unseal $VAULT_UNSEAL_KEY_3
         env:
         - name: VAULT_ADDR
-          value: "https://vault.vault.svc.cluster.local:8200"
-        - name: VAULT_CACERT
-          value: "/vault/tls/ca.crt"
+          value: "http://vault.vault.svc.cluster.local:8200"
+        # - name: VAULT_CACERT
+        #   value: "/vault/tls/ca.crt"
         - name: VAULT_UNSEAL_KEY_1
           valueFrom:
             secretKeyRef:
@@ -402,14 +495,14 @@ spec:
             secretKeyRef:
               name: vault-unseal-keys
               key: unseal-key-3
-        volumeMounts:
-        - name: vault-tls
-          mountPath: /vault/tls
-          readOnly: true
-      volumes:
-      - name: vault-tls
-        secret:
-          secretName: vault-tls
+        # volumeMounts:
+        # - name: vault-tls
+        #   mountPath: /vault/tls
+        #   readOnly: true
+      # volumes:
+      # - name: vault-tls
+      #   secret:
+      #     secretName: vault-tls
       restartPolicy: OnFailure
   backoffLimit: 3
 

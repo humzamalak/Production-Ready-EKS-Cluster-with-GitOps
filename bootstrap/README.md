@@ -4,9 +4,14 @@ This directory contains the bootstrap configuration for the GitOps environment. 
 
 ## 🎯 Purpose
 
+### Why the numeric prefixes?
+- They enforce apply order (lower runs first).
+- Gaps are avoided; contiguous numbering (00..06) reflects current implementation order.
+- If you add a new step, increment at the end (e.g., 07-...).
+
 The bootstrap directory provides:
 - ArgoCD installation and configuration
-- External Secrets Operator setup
+- Vault Agent Injector usage notes
 - Helm repository configurations
 - Security policies and standards
 - Vault integration components
@@ -34,16 +39,17 @@ The bootstrap directory provides:
 
 ## 🚀 Usage
 
-### 1. Apply Bootstrap Manifests
+### 1. Apply Bootstrap Manifests (ordered by filename)
 
 ```bash
-# Apply all bootstrap components
-kubectl apply -f bootstrap/
-
-# Or apply individually
-kubectl apply -f bootstrap/argo-cd-install.yaml
-kubectl apply -f bootstrap/external-secrets-operator.yaml
-kubectl apply -f bootstrap/helm-repos.yaml
+# Apply in natural order (filenames are intentionally numbered to preserve order)
+kubectl apply -f bootstrap/00-namespaces.yaml      # create namespaces first
+kubectl apply -f bootstrap/01-pod-security-standards.yaml
+kubectl apply -f bootstrap/02-network-policy.yaml
+kubectl apply -f bootstrap/03-helm-repos.yaml      # add shared Helm repos
+kubectl apply -f bootstrap/04-argo-cd-install.yaml # install Argo CD
+kubectl apply -f bootstrap/05-vault-policies.yaml  # baseline Vault policies
+kubectl apply -f bootstrap/06-etcd-backup.yaml     # etcd backup cronjob
 ```
 
 ### 2. Verify Installation
@@ -52,8 +58,8 @@ kubectl apply -f bootstrap/helm-repos.yaml
 # Check ArgoCD deployment
 kubectl get pods -n argocd
 
-# Check External Secrets Operator
-kubectl get pods -n external-secrets-system
+# Check Vault (if installed via security stack)
+kubectl get pods -n vault
 
 # Check Helm repositories
 kubectl get helmrepositories -A
@@ -73,8 +79,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 ### Customizing ArgoCD
 
-Edit `values.yaml` to customize ArgoCD installation:
-
+Edit `helm-values/argo-cd-values.yaml` to customize ArgoCD installation:
 ```yaml
 # Example customizations
 global:
@@ -89,8 +94,7 @@ server:
 
 ### Adding Helm Repositories
 
-Add new repositories in `helm-repos.yaml`:
-
+Add new repositories in `helm-repos.yaml` (if present) or manage via your GitOps tooling:
 ```yaml
 apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: HelmRepository
@@ -124,9 +128,9 @@ Default network policies are applied to:
 
 ### Vault Integration
 
-- External Secrets Operator for secure secret management
+- Vault Agent Injector for pod-level secret injection (no Kubernetes Secret objects)
 - Vault policies for fine-grained access control
-- Secret stores for different environments
+- Annotations-based per-pod secret templates
 
 ## 🛠️ Troubleshooting
 
@@ -138,10 +142,11 @@ Default network policies are applied to:
    kubectl logs -l app.kubernetes.io/name=argocd-server -n argocd
    ```
 
-2. **External Secrets Not Working**
+2. **Vault Agent Injector Issues**
    ```bash
-   kubectl get secretstores -A
-   kubectl describe secretstore vault-secret-store -n monitoring
+   kubectl get pods -n vault
+   kubectl get pods -n vault -l app.kubernetes.io/name=vault-agent-injector
+   kubectl get mutatingwebhookconfiguration | grep vault
    ```
 
 3. **Helm Repositories Not Syncing**

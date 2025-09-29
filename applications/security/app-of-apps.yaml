@@ -14,7 +14,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: production-apps
+  project: default
   source:
     repoURL: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
     targetRevision: main

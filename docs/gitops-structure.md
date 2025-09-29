@@ -53,13 +53,13 @@ Contains manifests required to bootstrap the GitOps environment.
 
 ```
 bootstrap/
-├── argo-cd-install.yaml       # ArgoCD installation
-├── external-secrets.yaml      # External secrets setup
-├── helm-repos.yaml           # Helm repository configuration
-├── network-policy.yaml       # Network policies
-├── pod-security-standards.yaml # Security standards
-├── vault-policies.yaml       # Vault policies
-└── vault-secret-stores.yaml  # Vault secret stores
+├── 00-namespaces.yaml          # Core namespaces with PSS labels
+├── 01-pod-security-standards.yaml # Pod Security Standards
+├── 02-network-policy.yaml      # Network policies
+├── 05-argo-cd-install.yaml     # Argo CD installation
+├── 10-external-secrets-operator.yaml # ESO scaffolding note
+├── 20-etcd-backup.yaml         # etcd backup cronjob
+└── helm-values/                # Helm values (not applied via kubectl)
 ```
 
 **Purpose**:
@@ -73,8 +73,11 @@ bootstrap/
 ### 1. Bootstrap Phase
 
 ```bash
-# Apply bootstrap manifests
-kubectl apply -f bootstrap/
+kubectl apply -f bootstrap/00-namespaces.yaml
+kubectl apply -f bootstrap/01-pod-security-standards.yaml
+kubectl apply -f bootstrap/02-network-policy.yaml
+kubectl apply -f bootstrap/05-argo-cd-install.yaml
+kubectl apply -f bootstrap/20-etcd-backup.yaml
 ```
 
 This sets up:
