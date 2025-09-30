@@ -166,11 +166,12 @@ spec:
             {{- else if .Values.secretRefs }}
             # Legacy Kubernetes secret references
             {{- range .Values.secretRefs }}
+            {{- $secretName := .name }}
             {{- range .keys }}
             - name: {{ .envVar }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ $.name }}
+                  name: {{ $secretName }}
                   key: {{ .key }}
             {{- end }}
             {{- end }}
