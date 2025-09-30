@@ -6,9 +6,8 @@ This directory contains comprehensive documentation for the Production-Ready EKS
 
 ### 🚀 **Getting Started**
 - **[Main README](../README.md)** - Project overview and quick start
-- **[Wave-Based Deployment Guide](../WAVE_BASED_DEPLOYMENT_GUIDE.md)** - **RECOMMENDED** deployment approach
-- **[AWS Deployment Guide](../AWS_DEPLOYMENT_GUIDE.md)** - Complete AWS EKS deployment
-- **[Minikube Deployment Guide](../MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development setup
+- **[AWS Deployment Guide](../AWS_DEPLOYMENT_GUIDE.md)** - Production deployment on AWS (6-phase approach, ~60 min)
+- **[Minikube Deployment Guide](../MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development setup (6-phase approach, ~40 min)
 
 ### 🏗️ **Architecture & Structure**
 - **[Project Structure Guide](PROJECT_STRUCTURE.md)** - Complete repository structure and GitOps patterns
@@ -21,7 +20,6 @@ This directory contains comprehensive documentation for the Production-Ready EKS
 ### 🛠️ **Operations & Maintenance**
 - **[Troubleshooting Guide](../TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Disaster Recovery Runbook](disaster-recovery-runbook.md)** - Recovery procedures
-- **[Local Development Optimization](../LOCAL_DEVELOPMENT_OPTIMIZATION.md)** - Local dev optimizations
 
 ### 📊 **Project Management**
 - **[Changelog](CHANGELOG.md)** - Version history and changes
@@ -30,13 +28,13 @@ This directory contains comprehensive documentation for the Production-Ready EKS
 
 ### **For New Users:**
 1. Start with [Main README](../README.md)
-2. Follow [Wave-Based Deployment Guide](../WAVE_BASED_DEPLOYMENT_GUIDE.md)
-3. Choose your platform: [AWS](../AWS_DEPLOYMENT_GUIDE.md) or [Minikube](../MINIKUBE_DEPLOYMENT_GUIDE.md)
+2. Choose your platform: [AWS](../AWS_DEPLOYMENT_GUIDE.md) or [Minikube](../MINIKUBE_DEPLOYMENT_GUIDE.md)
+3. Follow the phase-based deployment guide step-by-step
 
 ### **For Developers:**
 1. Review [Project Structure Guide](PROJECT_STRUCTURE.md)
-2. Understand [GitOps Structure Guide](gitops-structure.md)
-3. Check [Local Development Optimization](../LOCAL_DEVELOPMENT_OPTIMIZATION.md)
+2. Set up local environment with [Minikube Deployment Guide](../MINIKUBE_DEPLOYMENT_GUIDE.md)
+3. See optimization tips in Minikube guide's "Local Development Tips & Optimization" section
 
 ### **For Operators:**
 1. Familiarize with [Security Best Practices](security-best-practices.md)

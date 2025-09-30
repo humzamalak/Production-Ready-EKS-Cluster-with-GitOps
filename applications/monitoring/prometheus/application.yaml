@@ -47,7 +47,7 @@ spec:
         # Grafana configuration (embedded but will be exposed separately)
         grafana:
           enabled: false  # Disable embedded Grafana as we deploy it separately
-          # Note: Standalone Grafana is deployed via apps/grafana/application.yaml
+          # Note: Standalone Grafana is deployed via applications/monitoring/grafana/application.yaml
         
         # AlertManager configuration
         alertmanager:

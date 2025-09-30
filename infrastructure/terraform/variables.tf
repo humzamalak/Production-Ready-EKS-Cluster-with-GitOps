@@ -36,7 +36,7 @@ variable "azs" {
 variable "kubernetes_version" {
   description = "Kubernetes version for EKS cluster. Use the latest stable version unless you have specific requirements."
   type        = string
-  default     = "1.31"
+  default     = "1.33"
 }
 
 variable "tags" {

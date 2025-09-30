@@ -334,6 +334,8 @@ argocd app sync <app-name>
 - ❌ `docs/gitops-structure.md` - Merged into PROJECT_STRUCTURE.md
 - ❌ `applications/web-app/app-of-apps.yaml` - Redundant layer for single application
 - ❌ `applications/web-app/k8s-web-app/helm/values.yaml` - Redundant with production values file
+- ❌ `WAVE_BASED_DEPLOYMENT_GUIDE.md` - Merged into AWS and Minikube deployment guides
+- ❌ `LOCAL_DEVELOPMENT_OPTIMIZATION.md` - Merged into Minikube deployment guide
 
 ### **Benefits of Cleanup**
 - ✅ **Reduced Confusion**: Clear separation between examples and production configs

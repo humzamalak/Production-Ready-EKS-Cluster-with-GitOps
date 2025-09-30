@@ -5,7 +5,7 @@
 project_prefix      = "your-project-name"
 environment         = "prod"  # or "staging", "dev"
 aws_region          = "eu-west-1"  # or your preferred AWS region
-kubernetes_version  = "1.31"  # Kubernetes version for EKS cluster
+kubernetes_version  = "1.33"  # Kubernetes version for EKS cluster
 
 # VPC flow logs IAM role is now created automatically by the IAM module
 # No manual IAM role creation required

@@ -9,6 +9,9 @@ spec:
   description: Production workloads managed by ArgoCD
   sourceRepos:
     - https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps  # Restrict to your org's repos
+    - https://helm.releases.hashicorp.com  # Vault Helm chart repository
+    - https://prometheus-community.github.io/helm-charts  # Prometheus Helm chart repository
+    - https://grafana.github.io/helm-charts  # Grafana Helm chart repository
   destinations:
     - namespace: production
       server: https://kubernetes.default.svc
