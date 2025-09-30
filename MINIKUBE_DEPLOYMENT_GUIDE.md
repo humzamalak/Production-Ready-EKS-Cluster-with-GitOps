@@ -1115,6 +1115,103 @@ kubectl rollout restart deployment k8s-web-app -n production
 
 ## 🚨 Troubleshooting
 
+### ArgoCD Application Sync Errors
+
+#### Secret Reference Errors (Invalid secretKeyRef.name)
+
+**Symptom**: ArgoCD shows sync error with multiple "Invalid value: ""  for secretKeyRef.name"
+
+```
+Failed sync attempt: Deployment.apps "k8s-web-app" is invalid: 
+spec.template.spec.containers[0].env[3].valueFrom.secretKeyRef.name: 
+Invalid value: "": a lowercase RFC 1123 subdomain must consist of...
+```
+
+**Cause**: Helm template has empty secret names, usually due to:
+1. Missing or incorrect values file configuration
+2. Helm template bug in nested loops
+3. Secret references when secrets don't exist
+
+**Solution 1 - Use values-local.yaml** (Recommended for Minikube):
+```bash
+# Update ArgoCD to use local values (no secrets)
+kubectl patch application k8s-web-app -n argocd --type merge -p '
+{
+  "spec": {
+    "source": {
+      "helm": {
+        "valueFiles": ["values-local.yaml"]
+      }
+    }
+  }
+}'
+
+# Wait for sync
+kubectl wait --for=condition=Synced --timeout=300s application/k8s-web-app -n argocd
+```
+
+**Solution 2 - Debug the Helm Template**:
+```bash
+# View the rendered manifest
+kubectl get application k8s-web-app -n argocd -o yaml
+
+# Check helm values being used
+helm template applications/web-app/k8s-web-app/helm \
+  -f applications/web-app/k8s-web-app/values-local.yaml | grep -A 10 "secretKeyRef"
+
+# Verify values file has correct configuration
+cat applications/web-app/k8s-web-app/values-local.yaml | grep -A 5 "vault:"
+# Should show: vault.enabled: false
+
+cat applications/web-app/k8s-web-app/values-local.yaml | grep "secretRefs"
+# Should show: secretRefs: []
+```
+
+**Solution 3 - Force Refresh**:
+```bash
+# Hard refresh ArgoCD application
+kubectl delete application k8s-web-app -n argocd
+kubectl apply -f applications/web-app/k8s-web-app/application.yaml
+
+# Wait for sync
+kubectl wait --for=condition=Synced --timeout=300s application/k8s-web-app -n argocd
+```
+
+#### Application Stuck in "Progressing" State
+
+**Symptom**: Application shows "Progressing" for extended period
+
+**Solution**:
+```bash
+# Check application status
+kubectl get application k8s-web-app -n argocd -o jsonpath='{.status.sync.status}'
+
+# Check detailed sync status
+kubectl describe application k8s-web-app -n argocd | grep -A 20 "Status:"
+
+# Check if pods are running
+kubectl get pods -n production
+
+# View ArgoCD application events
+kubectl logs -n argocd deployment/argocd-application-controller | grep k8s-web-app
+```
+
+#### "OutOfSync" Despite No Changes
+
+**Symptom**: Application shows "OutOfSync" even after sync
+
+**Solution**:
+```bash
+# Check diff
+argocd app diff k8s-web-app
+
+# Sync with replace
+argocd app sync k8s-web-app --replace
+
+# Or force sync via kubectl
+kubectl patch application k8s-web-app -n argocd --type merge -p '{"operation":{"sync":{"syncStrategy":{"hook":{"force":true}}}}}'
+```
+
 ### Minikube Not Starting
 
 ```bash
