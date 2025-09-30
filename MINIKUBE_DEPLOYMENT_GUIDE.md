@@ -6,7 +6,7 @@ Complete local development deployment guide for Minikube with GitOps, using a **
 
 ## 🎯 Overview
 
-This deployment follows a **6-phase approach** optimized for local development:
+This deployment follows a **7-phase approach** optimized for local development:
 
 | Phase | Component | Purpose | Duration |
 |-------|-----------|---------|----------|
@@ -15,9 +15,10 @@ This deployment follows a **6-phase approach** optimized for local development:
 | **Phase 3** | Monitoring | Prometheus, Grafana (optimized) | 5 min |
 | **Phase 4** | Vault Deployment | Vault server, agent injector | 5 min |
 | **Phase 5** | Vault Configuration | Initialize, policies, secrets | 10 min |
-| **Phase 6** | Applications | Web app with Vault integration | 10 min |
+| **Phase 6** | Web App Deployment | Deploy app WITHOUT secrets | 5 min |
+| **Phase 7** | Vault Integration | Add Vault secrets to web app | 10 min |
 
-**Total Time**: ~40 minutes
+**Total Time**: ~45 minutes
 
 ---
 
@@ -588,121 +589,391 @@ kubectl delete pod vault-test -n vault
 
 ---
 
-## 🌐 Phase 6: Application Deployment
+## 🌐 Phase 6: Web Application Deployment (Without Secrets)
 
-### Step 6.1: Deploy Web Application (Phase 1 - Without Vault)
+> **Note**: This phase deploys the web app WITHOUT any secret dependencies. Vault integration is added in Phase 7.
+
+### Step 6.1: Verify Application Configuration
+
+```bash
+# Check the application is configured to use values-local.yaml
+kubectl get application k8s-web-app -n argocd -o yaml | grep -A 5 valueFiles
+# Expected: valueFiles: [values-local.yaml]
+```
+
+### Step 6.2: Deploy Web Application
 
 ```bash
 # The application should already be syncing from Phase 2
 # Check application status
 kubectl get applications -n argocd | grep k8s-web-app
 
-# Wait for app to sync (defaults to Vault disabled)
+# Wait for app to sync (using values-local.yaml with no secrets)
 kubectl wait --for=condition=Synced --timeout=600s \
   application/k8s-web-app -n argocd
 
 # Check pods
 kubectl get pods -n production
-# Expected: k8s-web-app pods Running (1 container per pod)
+# Expected: k8s-web-app pods Running (1/1 container per pod - NO vault-agent yet)
 ```
 
-### Step 6.2: Verify Application (Without Vault)
+### Step 6.3: Verify Application Health
 
 ```bash
 # Check pod logs
 kubectl logs -n production deployment/k8s-web-app --tail=20
 
+# Verify only 1 container per pod (no Vault sidecar yet)
+kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app \
+  -o jsonpath='{.items[0].spec.containers[*].name}'
+# Expected: k8s-web-app (only one container)
+
+# Check pod status
+kubectl describe pod -n production -l app.kubernetes.io/name=k8s-web-app | grep -A 10 "Containers:"
+# Expected: Only k8s-web-app container, State: Running
+```
+
+### Step 6.4: Test Application
+
+```bash
 # Port forward to application
 kubectl port-forward svc/k8s-web-app -n production 8081:80 > /dev/null 2>&1 &
 echo "Web App: http://localhost:8081"
 
-# Test application
+# Test application health
 sleep 3
 curl -s http://localhost:8081/health
 # Expected: {"status":"ok"}
+
+# Test application endpoint
+curl -s http://localhost:8081/
+# Expected: HTML response or welcome message
 ```
 
-### Step 6.3: Enable Vault Integration (Phase 2)
+### Step 6.5: Verify No Secret Dependencies
 
 ```bash
-# Update application to use local Vault-enabled values
+# Check environment variables (should only have basic env vars from values-local.yaml)
+kubectl exec -n production deployment/k8s-web-app -- env | grep -E "NODE_ENV|APP_VERSION|PORT"
+# Expected:
+# NODE_ENV=development
+# APP_VERSION=1.0.0
+# PORT=3000
+
+# Verify NO secret-related env vars
+kubectl exec -n production deployment/k8s-web-app -- env | grep -E "DB_|JWT_|API_KEY|SMTP_|REDIS"
+# Expected: (empty - no secret env vars yet)
+```
+
+**✅ Phase 6 Complete Checklist:**
+- [ ] Application deployed and Running (1/1 containers)
+- [ ] Application accessible at http://localhost:8081
+- [ ] Health check returns {"status":"ok"}
+- [ ] No Vault sidecar container present
+- [ ] No secret environment variables configured
+- [ ] Application works without any secrets
+
+---
+
+## 🔐 Phase 7: Adding Vault Secrets to Web Application
+
+> **Prerequisites**: Phases 4, 5, and 6 must be complete. Vault must be initialized and unsealed.
+
+This phase demonstrates how to add Vault secret injection to an already-deployed application.
+
+### Step 7.1: Verify Vault is Ready
+
+```bash
+# Port forward to Vault (if not already running)
+kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
+
+# Load Vault credentials
+source ~/.vault-local-env
+
+# Verify Vault status
+vault status
+# Expected: Initialized: true, Sealed: false
+
+# Verify web app secrets exist in Vault
+vault kv list secret/production/web-app/
+# Expected: api, db, external
+
+# Check a sample secret
+vault kv get secret/production/web-app/db
+# Expected: host, port, name, username, password fields
+```
+
+### Step 7.2: Understand the Values Files
+
+Before making changes, let's understand the configuration files:
+
+```bash
+# View current config (no secrets)
+cat applications/web-app/k8s-web-app/values-local.yaml | grep -A 5 "vault:"
+# Shows: vault.enabled: false
+
+# View Vault-enabled config
+cat applications/web-app/k8s-web-app/values-vault-enabled.yaml | grep -A 20 "vault:"
+# Shows: vault.enabled: true, vault.ready: true, vault secrets configuration
+```
+
+### Step 7.3: Update Application to Enable Vault
+
+Now we'll update the ArgoCD application to use both values files:
+
+```bash
+# Update application to merge values-local.yaml + values-vault-enabled.yaml
 kubectl patch application k8s-web-app -n argocd --type merge -p '
 {
   "spec": {
     "source": {
       "helm": {
-        "valueFiles": ["../values-local.yaml", "../values-vault-enabled.yaml"]
+        "valueFiles": ["values-local.yaml", "values-vault-enabled.yaml"]
       }
     }
   }
 }'
 
-# Wait for sync
+# Verify the patch applied
+kubectl get application k8s-web-app -n argocd -o jsonpath='{.spec.source.helm.valueFiles}'
+# Expected: ["values-local.yaml","values-vault-enabled.yaml"]
+```
+
+### Step 7.4: Monitor the Deployment Update
+
+```bash
+# Watch application sync in ArgoCD
+kubectl get application k8s-web-app -n argocd -w
+# Wait until STATUS shows "Synced"
+# Press Ctrl+C when ready
+
+# Or wait programmatically
 kubectl wait --for=condition=Synced --timeout=300s \
   application/k8s-web-app -n argocd
 
-# Monitor pod restart (will have 2 containers now)
-kubectl get pods -n production -w
-# Wait for new pods with 2/2 Ready
+# Monitor pod rollout (pods will restart with 2 containers now)
+kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app -w
+# Wait for new pods showing 2/2 Ready (app + vault-agent)
 # Press Ctrl+C when ready
 ```
 
-### Step 6.4: Verify Vault Integration
+### Step 7.5: Verify Vault Sidecar Injection
 
 ```bash
-# Check pod has Vault agent sidecar
+# Check pod now has 2 containers
 kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app \
   -o jsonpath='{.items[0].spec.containers[*].name}'
 # Expected: k8s-web-app vault-agent
 
-# Check Vault agent logs
-kubectl logs -n production deployment/k8s-web-app -c vault-agent --tail=30
-# Expected: "renewal loop" or "template render" messages
+# Check Vault annotations on pod
+kubectl get pod -n production -l app.kubernetes.io/name=k8s-web-app \
+  -o jsonpath='{.items[0].metadata.annotations}' | grep vault
+# Expected: vault.hashicorp.com/agent-inject: "true", vault.hashicorp.com/role: "web-app-role"
 
-# Check if secrets are injected
-kubectl exec -n production deployment/k8s-web-app -- ls -la /vault/secrets/
-# Expected: db/, api/, external/ directories
-
-# Verify environment variables from Vault
-kubectl exec -n production deployment/k8s-web-app -- sh -c 'cat /vault/secrets/db/db-connection.env'
-# Expected: DB_HOST=localhost, DB_PORT=5432, etc.
+# Verify init containers ran
+kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app \
+  -o jsonpath='{.items[0].spec.initContainers[*].name}'
+# Expected: vault-wait vault-agent-init
 ```
 
-### Step 6.5: Test Application with Vault
+### Step 7.6: Verify Vault Agent Logs
 
 ```bash
-# Test application endpoints
+# Check Vault agent init logs
+kubectl logs -n production -l app.kubernetes.io/name=k8s-web-app \
+  -c vault-agent-init --tail=30
+# Expected: "rendering" and "created" messages for secrets
+
+# Check Vault agent sidecar logs
+kubectl logs -n production -l app.kubernetes.io/name=k8s-web-app \
+  -c vault-agent --tail=30 --follow
+# Expected: "renewal loop" and "template render" messages
+# Press Ctrl+C to stop following logs
+```
+
+### Step 7.7: Verify Secrets Are Injected
+
+```bash
+# List injected secret files
+kubectl exec -n production deployment/k8s-web-app -- ls -la /vault/secrets/
+# Expected: db, api, external files
+
+# Check database secrets
+kubectl exec -n production deployment/k8s-web-app -- cat /vault/secrets/db
+# Expected: DB_HOST=..., DB_PORT=5432, DB_NAME=..., etc.
+
+# Check API secrets
+kubectl exec -n production deployment/k8s-web-app -- cat /vault/secrets/api
+# Expected: JWT_SECRET=..., ENCRYPTION_KEY=..., API_KEY=...
+
+# Check external service secrets
+kubectl exec -n production deployment/k8s-web-app -- cat /vault/secrets/external
+# Expected: SMTP_HOST=..., REDIS_URL=..., etc.
+```
+
+### Step 7.8: Verify Environment Variables
+
+The deployment template is configured to read secrets from Vault-injected files. Verify:
+
+```bash
+# Check environment variables now include secrets from Vault
+kubectl exec -n production deployment/k8s-web-app -- env | grep -E "DB_|JWT_|API_KEY|SMTP_|REDIS" | sort
+# Expected: All secret environment variables populated from Vault
+
+# Compare with before (should see many more env vars now)
+kubectl exec -n production deployment/k8s-web-app -- env | wc -l
+# Expected: More environment variables than before
+```
+
+### Step 7.9: Test Application with Secrets
+
+```bash
+# Test application still responds
 curl -s http://localhost:8081/health
 # Expected: {"status":"ok"}
 
+# Test application functionality
 curl -s http://localhost:8081/
-# Expected: HTML response
+# Expected: HTML response or welcome message
+
+# Check application logs for any secret-related errors
+kubectl logs -n production deployment/k8s-web-app -c k8s-web-app --tail=50
+# Expected: No errors, application should be using secrets
 ```
 
-### Step 6.6: Access Application via Minikube
+### Step 7.10: Verify Secret Rotation (Optional)
+
+Test that the application can handle secret updates:
 
 ```bash
-# Get Minikube IP
-minikube service k8s-web-app -n production --url
-# This will open your browser or give you the URL
+# Update a secret in Vault
+vault kv patch secret/production/web-app/db port=5433
 
-# Or use ingress (if configured)
-minikube tunnel
-# Keep this running in a separate terminal
+# Restart pods to pick up new secrets
+kubectl rollout restart deployment k8s-web-app -n production
+
+# Wait for rollout
+kubectl rollout status deployment k8s-web-app -n production
+
+# Verify updated secret
+kubectl exec -n production deployment/k8s-web-app -- cat /vault/secrets/db | grep DB_PORT
+# Expected: DB_PORT=5433 (updated value)
+
+# Revert change
+vault kv patch secret/production/web-app/db port=5432
+kubectl rollout restart deployment k8s-web-app -n production
 ```
 
-**✅ Phase 6 Complete Checklist:**
-- [ ] Application deployed and Running
-- [ ] Application accessible without Vault
-- [ ] Vault integration enabled
+**✅ Phase 7 Complete Checklist:**
+- [ ] Application updated to use Vault secrets
 - [ ] Pods have 2/2 containers (app + vault-agent)
-- [ ] Vault agent logs show successful auth
-- [ ] Secrets injected at /vault/secrets/
-- [ ] Application can read Vault secrets
+- [ ] Vault agent init container completed successfully
+- [ ] Vault agent logs show successful authentication
+- [ ] Secrets injected at /vault/secrets/ (db, api, external)
+- [ ] Environment variables populated from Vault
+- [ ] Application functions correctly with secrets
+- [ ] No errors in application or Vault agent logs
+
+---
+
+## 📝 How to Add Vault Secrets to Any Application
+
+The web app integration serves as a template. To add Vault secrets to your own applications:
+
+### 1. Create Your Application Values Files
+
+**Base values file** (`values.yaml` or `values-local.yaml`):
+```yaml
+vault:
+  enabled: false  # Start with Vault disabled
+  ready: false
+  role: "your-app-role"
+  secrets: []
+
+# No secret environment variables
+secretRefs: []
+```
+
+**Vault-enabled values file** (`values-vault-enabled.yaml`):
+```yaml
+vault:
+  enabled: true   # Enable Vault
+  ready: true
+  role: "your-app-role"
+  secrets:
+    - secretPath: "secret/data/production/your-app/db"
+      mountPath: "/vault/secrets/db"
+      template: |
+        {{- with secret "secret/data/production/your-app/db" -}}
+        DB_HOST={{ .Data.data.host }}
+        DB_PORT={{ .Data.data.port }}
+        {{- end }}
+```
+
+### 2. Update Deployment Template
+
+Add Vault annotations in your `deployment.yaml`:
+```yaml
+{{- if and .Values.vault.enabled .Values.vault.ready }}
+annotations:
+  vault.hashicorp.com/agent-inject: "true"
+  vault.hashicorp.com/role: {{ .Values.vault.role }}
+  vault.hashicorp.com/agent-inject-secret-db: "secret/data/production/your-app/db"
+  vault.hashicorp.com/agent-inject-template-db: |
+    {{- range .Values.vault.secrets -}}
+    {{- if eq .secretPath "secret/data/production/your-app/db" -}}
+    {{- .template | nindent 10 }}
+    {{- end -}}
+    {{- end }}
+{{- end }}
+```
+
+### 3. Configure Vault
+
+```bash
+# Create secrets in Vault
+vault kv put secret/production/your-app/db \
+  host="your-db-host" \
+  port="5432"
+
+# Create Vault policy
+vault policy write your-app-policy - <<EOF
+path "secret/data/production/your-app/*" {
+  capabilities = ["read"]
+}
+EOF
+
+# Create Kubernetes auth role
+vault write auth/kubernetes/role/your-app-role \
+  bound_service_account_names=your-app-sa \
+  bound_service_account_namespaces=production \
+  policies=your-app-policy \
+  ttl=24h
+```
+
+### 4. Deploy and Enable Vault
+
+```bash
+# Deploy without Vault first
+helm install your-app ./your-app-chart -f values-local.yaml
+
+# Verify it works
+kubectl get pods -n production
+
+# Then enable Vault
+helm upgrade your-app ./your-app-chart \
+  -f values-local.yaml \
+  -f values-vault-enabled.yaml
+
+# Verify Vault integration
+kubectl logs -n production deployment/your-app -c vault-agent
+```
 
 ---
 
 ## ✅ Deployment Complete - Final Verification
+
+> **Note**: Complete this after finishing Phase 7 (Vault integration). If you've only completed Phase 6, the web app will have 1/1 containers instead of 2/2.
 
 ### System Health Check
 
@@ -714,6 +985,10 @@ kubectl get applications -n argocd
 # Check all pods across namespaces
 kubectl get pods -A | grep -v "Running\|Completed"
 # Expected: Empty (all pods Running or Completed)
+
+# Verify web app has Vault sidecar (if Phase 7 complete)
+kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app
+# Expected: 2/2 Ready (with Vault) or 1/1 Ready (without Vault)
 
 # Check resource usage
 kubectl top nodes
