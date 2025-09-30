@@ -54,6 +54,33 @@ injector:
     repository: "hashicorp/vault-k8s"
     tag: "1.1.0"
   
+  # Default settings for injected Vault agents
+  agentDefaults:
+    cpuLimit: "200m"
+    cpuRequest: "100m"
+    memLimit: "256Mi"
+    memRequest: "128Mi"
+  
+  # Pod-level security context for Pod Security Standards compliance
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  
+  # Container-level security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 100
+    runAsGroup: 1000
+    capabilities:
+      drop:
+        - ALL
+  
   # Resource limits
   resources:
     requests:
