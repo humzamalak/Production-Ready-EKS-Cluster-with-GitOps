@@ -72,6 +72,33 @@ injector:
     repository: "hashicorp/vault-k8s"
     tag: "1.1.0"
   
+  # Pod-level security context for Pod Security Standards compliance
+  agentDefaults:
+    cpuLimit: "100m"
+    cpuRequest: "50m"
+    memLimit: "128Mi"
+    memRequest: "64Mi"
+  
+  # Security context for the injector pod
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  
+  # Security context for the injector container
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 100
+    runAsGroup: 1000
+    capabilities:
+      drop:
+        - ALL
+  
   # Reduced resource limits for local development
   resources:
     requests:
