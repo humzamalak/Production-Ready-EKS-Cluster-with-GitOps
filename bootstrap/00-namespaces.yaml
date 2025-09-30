@@ -1,54 +1,32 @@
-# Core namespaces with Pod Security Standards labels
+# Core infrastructure namespaces - Applied manually before ArgoCD exists
+# These namespaces are required for the cluster to function and must exist before GitOps takes over
+
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: production
+  name: argocd
   labels:
+    name: argocd
+    purpose: gitops
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/part-of: infrastructure
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: baseline
     pod-security.kubernetes.io/warn: baseline
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: monitoring
-  labels:
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/audit: baseline
-    pod-security.kubernetes.io/warn: baseline
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: logging
-  labels:
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/audit: baseline
-    pod-security.kubernetes.io/warn: baseline
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: staging
-  labels:
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/audit: baseline
-    pod-security.kubernetes.io/warn: baseline
+  annotations:
+    description: "ArgoCD GitOps controller - Infrastructure component"
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
   name: vault
   labels:
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/audit: baseline
-    pod-security.kubernetes.io/warn: baseline
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: argocd
-  labels:
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/audit: baseline
-    pod-security.kubernetes.io/warn: baseline
+    name: vault
+    purpose: secrets-management
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/part-of: infrastructure
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    description: "HashiCorp Vault - Infrastructure secrets management (isolated)"
