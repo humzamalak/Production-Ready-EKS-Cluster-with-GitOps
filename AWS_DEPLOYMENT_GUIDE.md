@@ -6,7 +6,7 @@ Complete production deployment guide for AWS EKS cluster with GitOps, using a **
 
 ## 🎯 Overview
 
-This deployment follows a **6-phase approach** with built-in verification at each step:
+This deployment follows a **7-phase approach** with built-in verification at each step:
 
 | Phase | Component | Purpose | Duration |
 |-------|-----------|---------|----------|
@@ -15,9 +15,10 @@ This deployment follows a **6-phase approach** with built-in verification at eac
 | **Phase 3** | Monitoring | Prometheus, Grafana | 5-10 min |
 | **Phase 4** | Vault Deployment | Vault server, agent injector | 5 min |
 | **Phase 5** | Vault Configuration | Initialize, policies, secrets | 10 min |
-| **Phase 6** | Applications | Web app with Vault integration | 10 min |
+| **Phase 6** | Web App Deployment | Deploy app WITHOUT secrets | 5 min |
+| **Phase 7** | Vault Integration | Add Vault secrets to web app | 10 min |
 
-**Total Time**: ~60 minutes
+**Total Time**: ~65 minutes
 
 ---
 
@@ -561,120 +562,263 @@ kubectl delete pod vault-test -n production
 
 ---
 
-## 🌐 Phase 6: Application Deployment
+## 🌐 Phase 6: Web Application Deployment (Without Secrets)
 
-### Step 6.1: Deploy Web Application (Phase 1 - Without Vault)
+> **Note**: This phase deploys the web app WITHOUT any secret dependencies. Vault integration is added in Phase 7.
+
+### Step 6.1: Verify Application Configuration
+
+```bash
+# Check the application is configured correctly
+kubectl get application k8s-web-app -n argocd -o yaml | grep -A 5 valueFiles
+# Expected: valueFiles pointing to values.yaml (production) or values-local.yaml
+```
+
+### Step 6.2: Deploy Web Application
 
 ```bash
 # The application should already be syncing from Phase 2
 # Check application status
 kubectl get applications -n argocd | grep k8s-web-app
 
-# Wait for app to sync (defaults to Vault disabled)
+# Wait for app to sync (using values without Vault secrets)
 kubectl wait --for=condition=Synced --timeout=600s \
   application/k8s-web-app -n argocd
 
 # Check pods
 kubectl get pods -n production
-# Expected: k8s-web-app pods Running (1 container per pod)
+# Expected: k8s-web-app pods Running (1/1 container per pod - NO vault-agent yet)
 ```
 
-### Step 6.2: Verify Application (Without Vault)
+### Step 6.3: Verify Application Health
 
 ```bash
 # Check pod logs
 kubectl logs -n production deployment/k8s-web-app --tail=20
 
+# Verify only 1 container per pod (no Vault sidecar yet)
+kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app \
+  -o jsonpath='{.items[0].spec.containers[*].name}'
+# Expected: k8s-web-app (only one container)
+
+# Check pod status
+kubectl describe pod -n production -l app.kubernetes.io/name=k8s-web-app | grep -A 10 "Containers:"
+# Expected: Only k8s-web-app container, State: Running
+```
+
+### Step 6.4: Test Application
+
+```bash
 # Port forward to application
 kubectl port-forward svc/k8s-web-app -n production 8080:80 &
+echo "Web App: http://localhost:8080"
 
-# Test application
+# Test application health
+sleep 3
 curl http://localhost:8080/health
 # Expected: {"status":"ok"}
 
+# Test application endpoint
 curl http://localhost:8080/
-# Expected: HTML response
+# Expected: HTML response or welcome message
 ```
 
-### Step 6.3: Enable Vault Integration (Phase 2)
+### Step 6.5: Verify No Secret Dependencies
 
 ```bash
-# Update application to use Vault
+# Check environment variables (should only have basic env vars)
+kubectl exec -n production deployment/k8s-web-app -- env | grep -E "NODE_ENV|APP_VERSION|PORT"
+# Expected: Basic env vars only
+
+# Verify NO secret-related env vars
+kubectl exec -n production deployment/k8s-web-app -- env | grep -E "DB_|JWT_|API_KEY|SMTP_|REDIS"
+# Expected: (empty - no secret env vars yet)
+```
+
+**✅ Phase 6 Complete Checklist:**
+- [ ] Application deployed and Running (1/1 containers)
+- [ ] Application accessible at http://localhost:8080
+- [ ] Health check returns {"status":"ok"}
+- [ ] No Vault sidecar container present
+- [ ] No secret environment variables configured
+- [ ] Application works without any secrets
+
+---
+
+## 🔐 Phase 7: Adding Vault Secrets to Web Application
+
+> **Prerequisites**: Phases 4, 5, and 6 must be complete. Vault must be initialized and unsealed.
+
+This phase demonstrates how to add Vault secret injection to an already-deployed application.
+
+### Step 7.1: Verify Vault is Ready
+
+```bash
+# Port forward to Vault (if not already running)
+kubectl port-forward svc/vault -n vault 8200:8200 &
+
+# Verify Vault status
+vault status
+# Expected: Initialized: true, Sealed: false
+
+# Verify web app secrets exist in Vault
+vault kv list secret/production/web-app/
+# Expected: api, db, external
+
+# Check a sample secret
+vault kv get secret/production/web-app/db
+# Expected: host, port, name, username, password fields
+```
+
+### Step 7.2: Update Application to Enable Vault
+
+Now we'll update the ArgoCD application to use Vault-enabled values:
+
+```bash
+# Update application to use production values + Vault-enabled values
 kubectl patch application k8s-web-app -n argocd --type merge -p '
 {
   "spec": {
     "source": {
       "helm": {
-        "valueFiles": ["../values.yaml", "../values-vault-enabled.yaml"]
+        "valueFiles": ["values.yaml", "values-vault-enabled.yaml"]
       }
     }
   }
 }'
 
-# Wait for sync
+# Verify the patch applied
+kubectl get application k8s-web-app -n argocd -o jsonpath='{.spec.source.helm.valueFiles}'
+# Expected: ["values.yaml","values-vault-enabled.yaml"]
+```
+
+### Step 7.3: Monitor the Deployment Update
+
+```bash
+# Watch application sync in ArgoCD
+kubectl get application k8s-web-app -n argocd -w
+# Wait until STATUS shows "Synced"
+# Press Ctrl+C when ready
+
+# Or wait programmatically
 kubectl wait --for=condition=Synced --timeout=300s \
   application/k8s-web-app -n argocd
 
-# Monitor pod restart (will have 2 containers now)
-kubectl get pods -n production -w
-# Wait for new pods with 2/2 Ready
+# Monitor pod rollout (pods will restart with 2 containers now)
+kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app -w
+# Wait for new pods showing 2/2 Ready (app + vault-agent)
 # Press Ctrl+C when ready
 ```
 
-### Step 6.4: Verify Vault Integration
+### Step 7.4: Verify Vault Sidecar Injection
 
 ```bash
-# Check pod has Vault agent sidecar
+# Check pod now has 2 containers
 kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app \
   -o jsonpath='{.items[0].spec.containers[*].name}'
 # Expected: k8s-web-app vault-agent
 
-# Check Vault agent logs
-kubectl logs -n production deployment/k8s-web-app -c vault-agent --tail=50
-# Expected: "renewal loop" or "template render" messages
+# Check Vault annotations on pod
+kubectl get pod -n production -l app.kubernetes.io/name=k8s-web-app \
+  -o jsonpath='{.items[0].metadata.annotations}' | grep vault
+# Expected: vault.hashicorp.com/agent-inject: "true", vault.hashicorp.com/role: "web-app-role"
 
-# Check if secrets are injected
-kubectl exec -n production deployment/k8s-web-app -- ls -la /vault/secrets/
-# Expected: db, api, external directories
-
-# Verify environment variables from Vault
-kubectl exec -n production deployment/k8s-web-app -- sh -c 'env | grep DB_HOST'
-# Expected: DB_HOST=your-production-db.amazonaws.com
+# Verify init containers ran
+kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app \
+  -o jsonpath='{.items[0].spec.initContainers[*].name}'
+# Expected: vault-wait vault-agent-init
 ```
 
-### Step 6.5: Test Application with Vault
+### Step 7.5: Verify Vault Agent Logs
 
 ```bash
-# Test application endpoints
-curl http://localhost:8080/health
-# Expected: {"status":"ok","vault":"connected"}
+# Check Vault agent init logs
+kubectl logs -n production -l app.kubernetes.io/name=k8s-web-app \
+  -c vault-agent-init --tail=30
+# Expected: "rendering" and "created" messages for secrets
 
-curl http://localhost:8080/api/info
-# Expected: Application info with Vault status
+# Check Vault agent sidecar logs
+kubectl logs -n production -l app.kubernetes.io/name=k8s-web-app \
+  -c vault-agent --tail=30 --follow
+# Expected: "renewal loop" and "template render" messages
+# Press Ctrl+C to stop following logs
 ```
 
-### Step 6.6: Verify HPA and Scaling
+### Step 7.6: Verify Secrets Are Injected
+
+```bash
+# List injected secret files
+kubectl exec -n production deployment/k8s-web-app -- ls -la /vault/secrets/
+# Expected: db, api, external files
+
+# Check database secrets
+kubectl exec -n production deployment/k8s-web-app -- cat /vault/secrets/db
+# Expected: DB_HOST=..., DB_PORT=5432, DB_NAME=..., etc.
+
+# Check API secrets
+kubectl exec -n production deployment/k8s-web-app -- cat /vault/secrets/api
+# Expected: JWT_SECRET=..., ENCRYPTION_KEY=..., API_KEY=...
+
+# Check external service secrets
+kubectl exec -n production deployment/k8s-web-app -- cat /vault/secrets/external
+# Expected: SMTP_HOST=..., REDIS_URL=..., etc.
+```
+
+### Step 7.7: Verify Environment Variables
+
+The deployment template is configured to read secrets from Vault-injected files. Verify:
+
+```bash
+# Check environment variables now include secrets from Vault
+kubectl exec -n production deployment/k8s-web-app -- env | grep -E "DB_|JWT_|API_KEY|SMTP_|REDIS" | sort
+# Expected: All secret environment variables populated from Vault
+
+# Compare with before (should see many more env vars now)
+kubectl exec -n production deployment/k8s-web-app -- env | wc -l
+# Expected: More environment variables than before
+```
+
+### Step 7.8: Test Application with Secrets
+
+```bash
+# Test application still responds
+curl http://localhost:8080/health
+# Expected: {"status":"ok"}
+
+# Test application functionality
+curl http://localhost:8080/
+# Expected: HTML response or welcome message
+
+# Check application logs for any secret-related errors
+kubectl logs -n production deployment/k8s-web-app -c k8s-web-app --tail=50
+# Expected: No errors, application should be using secrets
+```
+
+### Step 7.9: Verify HPA and Production Features
 
 ```bash
 # Check HorizontalPodAutoscaler
 kubectl get hpa -n production
+# Expected: HPA configured with min/max replicas
 
 # Check current metrics
 kubectl top pods -n production
 
-# Verify autoscaling works (optional load test)
-# kubectl run -i --tty load-generator --rm --image=busybox --restart=Never -- /bin/sh -c "while sleep 0.01; do wget -q -O- http://k8s-web-app.production; done"
+# Verify autoscaling is operational
+kubectl describe hpa k8s-web-app -n production
+# Expected: Current/Target metrics displayed
 ```
 
-**✅ Phase 6 Complete Checklist:**
-- [ ] Application deployed and Running
-- [ ] Application accessible (without Vault)
-- [ ] Vault integration enabled
+**✅ Phase 7 Complete Checklist:**
+- [ ] Application updated to use Vault secrets
 - [ ] Pods have 2/2 containers (app + vault-agent)
-- [ ] Vault agent logs show successful auth
-- [ ] Secrets injected at /vault/secrets/
-- [ ] Application can read Vault secrets
-- [ ] HPA configured and working
+- [ ] Vault agent init container completed successfully
+- [ ] Vault agent logs show successful authentication
+- [ ] Secrets injected at /vault/secrets/ (db, api, external)
+- [ ] Environment variables populated from Vault
+- [ ] Application functions correctly with secrets
+- [ ] No errors in application or Vault agent logs
+- [ ] HPA configured and monitoring metrics
 
 ---
 
@@ -784,6 +928,114 @@ kubectl patch hpa k8s-web-app -n production --patch '{"spec":{"maxReplicas":30}}
 ---
 
 ## 🚨 Troubleshooting
+
+### ArgoCD Application Sync Errors
+
+#### Secret Reference Errors (Invalid secretKeyRef.name)
+
+**Symptom**: ArgoCD shows sync error with multiple "Invalid value: "" for secretKeyRef.name"
+
+```
+Failed sync attempt: Deployment.apps "k8s-web-app" is invalid: 
+spec.template.spec.containers[0].env[3].valueFrom.secretKeyRef.name: 
+Invalid value: "": a lowercase RFC 1123 subdomain must consist of...
+```
+
+**Cause**: Helm template has empty secret names, usually due to:
+1. Missing or incorrect values file configuration
+2. Helm template bug in nested loops
+3. Secret references when secrets don't exist
+
+**Solution 1 - Verify Values Configuration**:
+```bash
+# Check current valueFiles being used
+kubectl get application k8s-web-app -n argocd -o jsonpath='{.spec.source.helm.valueFiles}'
+# For production WITHOUT Vault: should show ["values.yaml"]
+# For production WITH Vault: should show ["values.yaml","values-vault-enabled.yaml"]
+
+# Update if incorrect (production without Vault)
+kubectl patch application k8s-web-app -n argocd --type merge -p '
+{
+  "spec": {
+    "source": {
+      "helm": {
+        "valueFiles": ["values.yaml"]
+      }
+    }
+  }
+}'
+
+# Wait for sync
+kubectl wait --for=condition=Synced --timeout=300s application/k8s-web-app -n argocd
+```
+
+**Solution 2 - Debug the Helm Template**:
+```bash
+# View the rendered manifest
+kubectl get application k8s-web-app -n argocd -o yaml
+
+# Check helm values being used
+cd applications/web-app/k8s-web-app
+helm template ./helm -f values.yaml | grep -A 10 "secretKeyRef"
+
+# Verify values file has correct configuration
+cat values.yaml | grep -A 5 "vault:"
+# Should show: vault.enabled: false (if not using Vault yet)
+
+cat values.yaml | grep "secretRefs"
+# Should show: secretRefs: [] (empty array when not using Vault)
+```
+
+**Solution 3 - Force Refresh**:
+```bash
+# Hard refresh ArgoCD application
+kubectl delete application k8s-web-app -n argocd
+kubectl apply -f applications/web-app/k8s-web-app/application.yaml
+
+# Wait for sync
+kubectl wait --for=condition=Synced --timeout=300s application/k8s-web-app -n argocd
+```
+
+#### Application Stuck in "Progressing" State
+
+**Symptom**: Application shows "Progressing" for extended period
+
+**Solution**:
+```bash
+# Check application status
+kubectl get application k8s-web-app -n argocd -o jsonpath='{.status.sync.status}'
+
+# Check detailed sync status
+kubectl describe application k8s-web-app -n argocd | grep -A 20 "Status:"
+
+# Check if pods are running
+kubectl get pods -n production
+
+# View ArgoCD application controller logs
+kubectl logs -n argocd deployment/argocd-application-controller --tail=100 | grep k8s-web-app
+
+# Check pod events
+kubectl describe pod -n production -l app.kubernetes.io/name=k8s-web-app
+```
+
+#### "OutOfSync" Despite No Changes
+
+**Symptom**: Application shows "OutOfSync" even after sync
+
+**Solution**:
+```bash
+# Check diff
+argocd app diff k8s-web-app
+
+# Sync with replace
+argocd app sync k8s-web-app --replace
+
+# Or force sync via kubectl
+kubectl patch application k8s-web-app -n argocd --type merge -p '{"operation":{"sync":{"syncStrategy":{"hook":{"force":true}}}}}'
+
+# Verify sync completed
+kubectl get application k8s-web-app -n argocd
+```
 
 ### Phase 1 Issues: Infrastructure
 

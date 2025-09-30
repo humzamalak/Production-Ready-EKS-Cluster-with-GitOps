@@ -39,10 +39,10 @@ This repository follows GitOps principles to manage a production-ready EKS clust
 
 Choose your deployment platform:
 
-- **[AWS EKS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md)** - Complete production deployment on AWS (6 phases, ~60 min)
-- **[Minikube Deployment Guide](MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development environment (6 phases, ~40 min)
+- **[AWS EKS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md)** - Complete production deployment on AWS (7 phases, ~65 min)
+- **[Minikube Deployment Guide](MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development environment (7 phases, ~45 min)
 
-Both guides follow a **phase-based approach** to ensure reliable deployment:
+Both guides follow a **7-phase approach** to ensure reliable deployment:
 
 | Phase | Component | Purpose |
 |-------|-----------|---------|
@@ -51,14 +51,16 @@ Both guides follow a **phase-based approach** to ensure reliable deployment:
 | **Phase 3** | Monitoring | Prometheus and Grafana |
 | **Phase 4** | Vault Deployment | Vault server and agent injector |
 | **Phase 5** | Vault Configuration | **Critical**: Initialize, policies, secrets |
-| **Phase 6** | Applications | Progressive web app deployment |
+| **Phase 6** | Web App Deployment | Deploy application WITHOUT secrets |
+| **Phase 7** | Vault Integration | Add Vault secrets to running application |
 
 **Key Features:**
 - ✅ Built-in verification at each phase
-- ✅ Configuration steps before moving forward
+- ✅ Deploy applications first, add secrets later
 - ✅ Prevents Vault initialization issues
 - ✅ Zero-downtime Vault integration
-- ✅ Comprehensive troubleshooting
+- ✅ Clear separation of deployment concerns
+- ✅ Comprehensive troubleshooting with ArgoCD error solutions
 
 ### Prerequisites
 
