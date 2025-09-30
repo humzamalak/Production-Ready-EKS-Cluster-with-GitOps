@@ -16,13 +16,16 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: production-apps
-  source:
-    repoURL: https://helm.releases.hashicorp.com
-    chart: vault
-    targetRevision: 0.27.0
-    helm:
-      valueFiles:
-        - apps/vault/values.yaml
+  sources:
+    - repoURL: https://helm.releases.hashicorp.com
+      chart: vault
+      targetRevision: 0.27.0
+      helm:
+        valueFiles:
+          - $values/applications/security/vault/values.yaml
+    - repoURL: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
+      targetRevision: main
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: vault

@@ -35,45 +35,43 @@ This repository follows GitOps principles to manage a production-ready EKS clust
 
 ## 🚀 Quick Start
 
-### 🌊 Wave-Based Deployment (Recommended)
-
-We use a **wave-based deployment approach** to ensure proper dependency ordering and avoid common deployment issues:
-
-1. **Wave 1**: Bootstrap and Infrastructure
-2. **Wave 2**: Monitoring Stack
-3. **Wave 3**: Security Stack (Vault)
-4. **Wave 3.5**: Vault Initialization
-5. **Wave 5**: Web Applications
-
-**📖 [Complete Wave-Based Deployment Guide](WAVE_BASED_DEPLOYMENT_GUIDE.md)**
-
 ### 📖 Deployment Guides
 
-- **[Wave-Based Deployment Guide](WAVE_BASED_DEPLOYMENT_GUIDE.md)** - **RECOMMENDED**: Step-by-step wave deployment
-- **[AWS EKS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md)** - Complete production deployment on AWS
-- **[Minikube Deployment Guide](MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development environment
-- **[Local Development Optimization Guide](LOCAL_DEVELOPMENT_OPTIMIZATION.md)** - Memory optimization for local development
+Choose your deployment platform:
 
-Both guides cover:
-- **Infrastructure Setup**: Creating cluster and supporting resources
-- **GitOps Bootstrap**: Installing ArgoCD and core components  
-- **Monitoring Stack**: Deploying Prometheus and Grafana
-- **Security Stack**: Setting up Vault with agent injection
-- **Web Application**: Deploying production-ready Node.js app
-- **Verification**: Testing all components and access
+- **[AWS EKS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md)** - Complete production deployment on AWS (6 phases, ~60 min)
+- **[Minikube Deployment Guide](MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development environment (6 phases, ~40 min)
+
+Both guides follow a **phase-based approach** to ensure reliable deployment:
+
+| Phase | Component | Purpose |
+|-------|-----------|---------|
+| **Phase 1** | Infrastructure | Cluster setup and configuration |
+| **Phase 2** | Bootstrap | ArgoCD and GitOps foundation |
+| **Phase 3** | Monitoring | Prometheus and Grafana |
+| **Phase 4** | Vault Deployment | Vault server and agent injector |
+| **Phase 5** | Vault Configuration | **Critical**: Initialize, policies, secrets |
+| **Phase 6** | Applications | Progressive web app deployment |
+
+**Key Features:**
+- ✅ Built-in verification at each phase
+- ✅ Configuration steps before moving forward
+- ✅ Prevents Vault initialization issues
+- ✅ Zero-downtime Vault integration
+- ✅ Comprehensive troubleshooting
 
 ### Prerequisites
 
 #### For AWS EKS:
 - AWS CLI configured with appropriate permissions
 - Terraform >=1.5.0
-- kubectl v1.28+
+- kubectl v1.33+
 - Helm v3.12+
 
 #### For Minikube:
 - Docker Desktop
 - Minikube
-- kubectl v1.28+
+- kubectl v1.33+
 - Helm v3.12+
 
 ### Quick Start Commands

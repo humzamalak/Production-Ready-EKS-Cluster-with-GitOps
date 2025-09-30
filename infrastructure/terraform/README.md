@@ -58,9 +58,14 @@ See below for a minimal IAM policy for Terraform provisioning:
 
 ## Module Structure
 - `modules/vpc`: VPC, subnets, NAT, IGW, flow logs
-- `modules/eks`: EKS cluster and node groups
+- `modules/eks`: EKS cluster (v1.33) and node groups
 - `modules/iam`: IAM roles for EKS, GitHub Actions, IRSA
 - `modules/backup`: EBS volume snapshot automation
+
+## Kubernetes Version
+- **Default**: 1.33
+- **Supported**: 1.29+
+- Update via `kubernetes_version` variable in `terraform.tfvars`
 
 ## Best Practices
 - Use feature branches for changes

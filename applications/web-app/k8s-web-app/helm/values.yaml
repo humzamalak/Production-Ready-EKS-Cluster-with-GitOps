@@ -152,8 +152,9 @@ networkPolicy:
     - {}  # Allow all egress traffic
 
 # ServiceMonitor configuration
+# Temporarily disabled until Prometheus is deployed
 serviceMonitor:
-  enabled: true
+  enabled: false
   namespace: monitoring
   port: http
   path: /metrics

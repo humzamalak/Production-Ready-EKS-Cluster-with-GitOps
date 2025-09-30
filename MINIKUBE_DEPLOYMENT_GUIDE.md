@@ -1,55 +1,54 @@
-# Minikube Deployment Guide
+# Minikube Local Development Deployment Guide
 
-Complete step-by-step guide for deploying the Production-Ready EKS Cluster with GitOps, Vault, Prometheus, and Grafana on Minikube for local development.
+Complete local development deployment guide for Minikube with GitOps, using a **phase-based approach** optimized for local development with limited resources.
 
-> **⚠️ Important**: This guide has been updated to use a **wave-based deployment approach**. For the most reliable deployment experience, we recommend following the **[Wave-Based Deployment Guide](WAVE_BASED_DEPLOYMENT_GUIDE.md)** first, then using this guide for Minikube-specific setup.
+> **⚠️ Critical**: Follow each phase in order. **Do not skip verification steps**. Each phase must complete successfully before moving to the next.
 
 ## 🎯 Overview
 
-This guide will walk you through:
-1. **Local Infrastructure Setup**: Creating Minikube cluster with required addons
-2. **GitOps Bootstrap**: Installing ArgoCD and core cluster components
-3. **Monitoring Stack**: Deploying Prometheus and Grafana (Wave 2)
-4. **Security Stack**: Setting up Vault server and agent injector (Wave 3)
-5. **Vault Initialization**: Initializing Vault with policies and secrets (Wave 3.5)
-6. **Web Application**: Deploying with progressive Vault integration (Wave 5)
-7. **Verification**: Testing all components and access
+This deployment follows a **6-phase approach** optimized for local development:
+
+| Phase | Component | Purpose | Duration |
+|-------|-----------|---------|----------|
+| **Phase 1** | Local Infrastructure | Minikube cluster, addons | 5 min |
+| **Phase 2** | Bootstrap | ArgoCD, namespaces, policies | 5-10 min |
+| **Phase 3** | Monitoring | Prometheus, Grafana (optimized) | 5 min |
+| **Phase 4** | Vault Deployment | Vault server, agent injector | 5 min |
+| **Phase 5** | Vault Configuration | Initialize, policies, secrets | 10 min |
+| **Phase 6** | Applications | Web app with Vault integration | 10 min |
+
+**Total Time**: ~40 minutes
+
+---
 
 ## 📋 Prerequisites
+
+### System Requirements
+
+- **RAM**: 4GB minimum, 8GB recommended
+- **CPU**: 2 cores minimum, 4 cores recommended
+- **Storage**: 30GB free disk space
+- **OS**: macOS 10.15+, Ubuntu 18.04+, Windows 10/11 with WSL2
 
 ### Required Tools
 
 ```bash
-# Install Minikube
-# macOS
-brew install minikube
+# macOS installation
+brew install minikube kubectl helm
 
-# Linux
+# Linux installation
+# Minikube
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 sudo install minikube-linux-amd64 /usr/local/bin/minikube
 
-# Windows (using Chocolatey)
-choco install minikube
-
-# Install kubectl
-# macOS
-brew install kubectl
-
-# Linux
+# kubectl
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
-# Install Docker Desktop
-# Download from: https://www.docker.com/products/docker-desktop
-
-# Install Helm
-# macOS
-brew install helm
-
-# Linux
+# Helm
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-# Install Vault CLI (for secret management)
+# Vault CLI
 # macOS
 brew tap hashicorp/tap
 brew install hashicorp/tap/vault
@@ -58,785 +57,1019 @@ brew install hashicorp/tap/vault
 wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
 sudo apt update && sudo apt install vault
+
+# Verify installations
+minikube version
+kubectl version --client
+helm version
+vault version
 ```
 
-### System Requirements
+---
 
-- **macOS**: 10.15 or later
-- **Linux**: Ubuntu 18.04+ or equivalent
-- **Windows**: Windows 10/11 with WSL2
-- **RAM**: 4GB minimum, 8GB recommended
-- **CPU**: 2 cores minimum, 4 cores recommended
-- **Storage**: 30GB free disk space
-- **Docker Desktop**: Running and configured
+## 🚀 Phase 1: Local Infrastructure
 
-## 🏗️ Part 1: Local Infrastructure Setup
-
-### Step 1: Start Minikube
+### Step 1.1: Start Minikube
 
 ```bash
 # Start Minikube with optimized resources for local development
-minikube start --memory=4096 --cpus=2 --disk-size=30g --driver=docker
+minikube start \
+  --memory=4096 \
+  --cpus=2 \
+  --disk-size=30g \
+  --driver=docker \
+  --kubernetes-version=v1.33.0
 
-# Enable required addons
+# This takes 2-3 minutes on first run
+```
+
+### Step 1.2: Enable Required Addons
+
+```bash
+# Enable essential addons
 minikube addons enable ingress
 minikube addons enable metrics-server
 minikube addons enable storage-provisioner
 minikube addons enable default-storageclass
 
-# Verify cluster is running
-kubectl get nodes
-kubectl cluster-info
+# Verify addons
+minikube addons list | grep enabled
 ```
 
-**Expected Output:**
-```
-NAME       STATUS   ROLES           AGE   VERSION
-minikube   Ready    control-plane   1m    v1.28.3
-```
-
-### Step 2: Verify Minikube Setup
+### Step 1.3: Verify Cluster
 
 ```bash
-# Check Minikube status
+# Check cluster status
 minikube status
+# Expected: host, kubelet, apiserver all Running
 
-# Check available addons
-minikube addons list
+# Check nodes
+kubectl get nodes
+# Expected: 1 node in Ready state (Kubernetes v1.33.0)
 
-# Check storage classes
+# Check system pods
+kubectl get pods -n kube-system
+# Expected: All Running
+
+# Check storage class
 kubectl get storageclass
-
-# Check if metrics server is working
-kubectl top nodes
+# Expected: standard (default)
 ```
 
-### Step 3: Build and Load Application Image
+### Step 1.4: Clone Repository
 
 ```bash
-# Navigate to the web-app directory
+# Clone repository
+git clone https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps.git
+cd Production-Ready-EKS-Cluster-with-GitOps
+```
+
+### Step 1.5: Build and Load Application Image
+
+```bash
+# Navigate to example app
 cd examples/web-app
 
-# Build the Docker image
+# Build Docker image (use Minikube's Docker daemon)
+eval $(minikube docker-env)
 docker build -t k8s-web-app:latest .
 
-# Load image into Minikube (no need to push to registry)
-minikube image load k8s-web-app:latest
+# Verify image is built
+docker images | grep k8s-web-app
 
-# Verify image is loaded
-minikube image ls | grep k8s-web-app
-
-# Navigate back to repository root
+# Navigate back to root
 cd ../..
 ```
 
-## 🚀 Part 2: GitOps Bootstrap
+**✅ Phase 1 Complete Checklist:**
+- [ ] Minikube running
+- [ ] All addons enabled
+- [ ] Node in Ready state
+- [ ] Application image built and loaded
+- [ ] kubectl commands work
 
-### Step 1: Deploy Core Components
-
-```bash
-# Apply core namespaces first
-kubectl apply -f bootstrap/00-namespaces.yaml
-
-# Verify namespaces were created
-kubectl get namespaces
-
-# Apply security policies and configurations
-kubectl apply -f bootstrap/01-pod-security-standards.yaml
-kubectl apply -f bootstrap/02-network-policy.yaml
-kubectl apply -f bootstrap/03-helm-repos.yaml
-```
-
-### Step 2: Install ArgoCD
-
-```bash
-# Add ArgoCD Helm repository
-helm repo add argo https://argoproj.github.io/argo-helm
-helm repo update
-
-# Install ArgoCD with custom values
-helm upgrade --install argo-cd argo/argo-cd \
-  -n argocd --create-namespace \
-  -f bootstrap/helm-values/argo-cd-values.yaml
-
-# Wait for ArgoCD server to be ready
-kubectl wait --for=condition=available --timeout=300s deployment/argo-cd-argocd-server -n argocd
-
-# Verify ArgoCD installation
-kubectl get pods -n argocd
-kubectl get svc -n argocd
-```
-
-### Step 3: Access ArgoCD
-
-```bash
-# Get ArgoCD admin password
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
-
-# Port-forward ArgoCD UI
-kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 --address=127.0.0.1
-
-# Access ArgoCD at https://localhost:8080
-# Username: admin
-# Password: (from the command above)
-```
-
-## 📊 Part 3: Monitoring Stack Deployment
-
-### Step 1: Create ArgoCD Project
-
-```bash
-# Create the project used by applications
-kubectl apply -f clusters/production/production-apps-project.yaml
-
-# Verify project was created
-kubectl get appproject -n argocd
-```
-
-### Step 2: Deploy Root Application
-
-```bash
-# Deploy the root application (app-of-apps pattern)
-kubectl apply -f clusters/production/app-of-apps.yaml
-
-# Monitor application deployment
-kubectl get applications -n argocd
-watch kubectl get applications -n argocd
-```
-
-### Step 3: Monitor Deployment Progress
-
-Applications deploy in sync waves:
-- **Wave 1**: Production cluster bootstrap
-- **Wave 2**: Monitoring stack (Prometheus, Grafana)
-- **Wave 3**: Security stack (Vault)
-- **Wave 4**: Web application
-
-```bash
-# Check application sync status
-kubectl get applications -n argocd -o wide
-
-# Wait for monitoring applications to sync
-kubectl wait --for=condition=Synced --timeout=600s application/monitoring-stack -n argocd
-
-# Check monitoring pods
-kubectl get pods -n monitoring
-```
-
-### Step 4: Access Monitoring Stack
-
-```bash
-# Access Prometheus
-kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090
-# Access at http://localhost:9090
-
-# Access Grafana
-kubectl port-forward svc/grafana -n monitoring 3000:80
-# Access at http://localhost:3000
-# Username: admin
-# Password: Get with: kubectl get secret grafana-admin -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d
-
-# Access AlertManager
-kubectl port-forward svc/prometheus-kube-prometheus-stack-alertmanager -n monitoring 9093:9093
-# Access at http://localhost:9093
-```
-
-## 🔐 Part 4: Vault Security Stack (Wave 3)
-
-### Step 1: Deploy Vault
-
-```bash
-# Wait for Vault application to sync
-kubectl wait --for=condition=Synced --timeout=600s application/security-stack -n argocd
-
-# Check Vault pods
-kubectl get pods -n vault
-
-# Wait for Vault to be ready
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=vault -n vault --timeout=300s
-
-# Check Vault status (should show "Initialized: false" and "Sealed: true")
-kubectl port-forward svc/vault -n vault 8200:8200 &
-export VAULT_ADDR="http://localhost:8200"
-vault status
-```
-
-### Expected Outcome
-- ✅ Vault server running
-- ✅ Vault agent injector ready
-- ✅ RBAC configured
-- ✅ Vault is sealed and uninitialized
+**⚠️ STOP**: Do not proceed until all checks pass.
 
 ---
 
-## 🔧 Part 4.5: Vault Initialization (Wave 3.5)
+## 🔧 Phase 2: Bootstrap (GitOps Foundation)
 
-### Step 1: Deploy Vault Initialization
+### Step 2.1: Update Repository URL
 
 ```bash
-# Deploy Vault initialization job
-kubectl apply -f applications/security/vault/init-job.yaml
+# Update repo URL in all manifests (if using your fork)
+# find clusters/ applications/ -name "*.yaml" -type f -exec sed -i '' 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/YOUR-ORG/YOUR-REPO|g' {} \;
 
-# Monitor initialization job
-kubectl get jobs -n vault
-kubectl logs job/vault-init -n vault -f
+# For local development, you can keep the original repo URL
 ```
 
-### Step 2: Verify Vault Initialization
+### Step 2.2: Deploy Core Components
 
 ```bash
-# Verify Vault is initialized and unsealed
+# Apply in order (critical for dependencies)
+kubectl apply -f bootstrap/00-namespaces.yaml
+kubectl apply -f bootstrap/01-pod-security-standards.yaml
+kubectl apply -f bootstrap/02-network-policy.yaml
+kubectl apply -f bootstrap/03-helm-repos.yaml
+
+# Wait for namespaces to be created
+kubectl get namespaces
+# Expected: argocd, monitoring, vault, production
+```
+
+### Step 2.3: Install ArgoCD
+
+```bash
+# Add ArgoCD Helm repo
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+
+# Install ArgoCD with local-optimized values
+helm upgrade --install argo-cd argo/argo-cd \
+  --namespace argocd \
+  --create-namespace \
+  --values bootstrap/helm-values/argo-cd-values.yaml \
+  --set server.resources.requests.cpu=50m \
+  --set server.resources.requests.memory=128Mi \
+  --set controller.resources.requests.cpu=100m \
+  --set controller.resources.requests.memory=256Mi \
+  --wait --timeout=10m
+
+# Wait for ArgoCD to be ready
+kubectl wait --for=condition=available --timeout=600s \
+  deployment/argo-cd-argocd-server -n argocd
+```
+
+### Step 2.4: Access ArgoCD UI
+
+```bash
+# Get initial admin password
+export ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d)
+echo "ArgoCD Password: $ARGOCD_PASSWORD"
+
+# Port forward to access UI
+kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 > /dev/null 2>&1 &
+echo "ArgoCD UI: https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
+
+# Give it a moment to start
+sleep 3
+```
+
+### Step 2.5: Deploy Root Application
+
+```bash
+# Deploy the root app-of-apps
+kubectl apply -f clusters/production/app-of-apps.yaml
+
+# Wait for root app to sync
+kubectl wait --for=condition=Synced --timeout=300s \
+  application/production-cluster -n argocd
+```
+
+### Step 2.6: Verify Bootstrap
+
+```bash
+# Check ArgoCD applications
+kubectl get applications -n argocd
+# Expected: production-cluster, monitoring-stack, security-stack
+
+# Check all namespaces
+kubectl get namespaces | grep -E "argocd|monitoring|vault|production"
+
+# Check ArgoCD pods
+kubectl get pods -n argocd
+# Expected: All Running
+```
+
+**✅ Phase 2 Complete Checklist:**
+- [ ] All namespaces created
+- [ ] ArgoCD UI accessible
+- [ ] Root application synced
+- [ ] All ArgoCD pods Running
+- [ ] Applications discovered
+
+**⚠️ STOP**: Do not proceed until all checks pass.
+
+---
+
+## 📊 Phase 3: Monitoring Stack (Optimized)
+
+### Step 3.1: Apply Local Optimizations
+
+```bash
+# The monitoring stack will use local-optimized values automatically
+# Check the values in applications/monitoring/*/values-local.yaml
+```
+
+### Step 3.2: Wait for Monitoring Deployment
+
+```bash
+# Monitor deployment (Wave 2)
+echo "Waiting for monitoring stack to deploy..."
+kubectl wait --for=condition=Synced --timeout=600s \
+  application/monitoring-stack -n argocd
+
+# Watch pods come up
+kubectl get pods -n monitoring -w
+# Wait for all pods to be Running (this may take 3-5 minutes)
+# Press Ctrl+C when ready
+```
+
+### Step 3.3: Verify Monitoring Pods
+
+```bash
+# Check all monitoring pods
+kubectl get pods -n monitoring
+
+# Expected pods (with reduced resource usage):
+# - prometheus-kube-prometheus-stack-prometheus-0
+# - prometheus-kube-prometheus-stack-operator-*
+# - grafana-*
+
+# Wait for Prometheus to be ready
+kubectl wait --for=condition=ready --timeout=600s \
+  pod -l app.kubernetes.io/name=prometheus -n monitoring
+```
+
+### Step 3.4: Access Prometheus
+
+```bash
+# Port forward to Prometheus
+kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus \
+  -n monitoring 9090:9090 > /dev/null 2>&1 &
+echo "Prometheus UI: http://localhost:9090"
+
+# Test Prometheus
+sleep 3
+curl -s http://localhost:9090/-/healthy
+# Expected: Prometheus is Healthy
+```
+
+### Step 3.5: Access Grafana
+
+```bash
+# Get Grafana admin password
+export GRAFANA_PASSWORD=$(kubectl get secret grafana-admin -n monitoring \
+  -o jsonpath="{.data.admin-password}" | base64 -d)
+echo "Grafana Password: $GRAFANA_PASSWORD"
+
+# Port forward to Grafana
+kubectl port-forward svc/grafana -n monitoring 3000:80 > /dev/null 2>&1 &
+echo "Grafana UI: http://localhost:3000 (admin / $GRAFANA_PASSWORD)"
+```
+
+### Step 3.6: Verify Monitoring
+
+```bash
+# Check Prometheus is scraping metrics
+curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length'
+# Expected: > 0
+
+# Check Grafana datasource (via UI)
+# Navigate to Configuration → Data Sources → Prometheus should be green
+```
+
+**✅ Phase 3 Complete Checklist:**
+- [ ] All monitoring pods Running
+- [ ] Prometheus accessible and collecting metrics
+- [ ] Grafana accessible with dashboards
+- [ ] Resource usage within limits (check with: kubectl top pods -n monitoring)
+
+**⚠️ STOP**: Do not proceed until all checks pass.
+
+---
+
+## 🔒 Phase 4: Vault Deployment (Security Stack)
+
+### Step 4.1: Wait for Vault Deployment
+
+```bash
+# Monitor Vault deployment (Wave 3)
+kubectl wait --for=condition=Synced --timeout=600s \
+  application/security-stack -n argocd
+
+# Watch Vault pods
+kubectl get pods -n vault -w
+# Wait for vault-0 to be Running (may show 0/1 Ready - this is expected)
+# Press Ctrl+C when Running
+```
+
+### Step 4.2: Verify Vault Pods
+
+```bash
+# Check Vault StatefulSet
+kubectl get statefulsets -n vault
+# Expected: vault with 1 replica
+
+# Check Vault pods (will be sealed and uninitialized)
+kubectl get pods -n vault
+# Expected: 
+# - vault-0: Running but 0/1 Ready (sealed)
+# - vault-agent-injector-*: Running and 1/1 Ready
+```
+
+### Step 4.3: Port Forward to Vault
+
+```bash
+# Set up port forward
+kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
+
+# Export Vault address
+export VAULT_ADDR="http://localhost:8200"
+
+# Give it a moment
+sleep 3
+```
+
+### Step 4.4: Check Vault Status
+
+```bash
+# Check status (should show sealed and uninitialized)
 vault status
-# Should show "Initialized: true" and "Sealed: false"
+# Expected:
+# Initialized: false
+# Sealed: true
+# Error: Vault is sealed
+```
 
-# Check created secrets
+**✅ Phase 4 Complete Checklist:**
+- [ ] Vault pod Running (even if 0/1 Ready)
+- [ ] Vault agent injector Running (1/1 Ready)
+- [ ] Vault accessible via port-forward
+- [ ] vault status shows Initialized: false, Sealed: true
+
+**⚠️ STOP**: Do not proceed until Vault is deployed and accessible.
+
+---
+
+## 🔧 Phase 5: Vault Configuration (Critical Phase)
+
+> **⚠️ Important**: This phase initializes Vault with policies and secrets. Follow steps exactly.
+
+### Step 5.1: Initialize Vault
+
+```bash
+# Initialize Vault with single key for local development
+vault operator init -key-shares=1 -key-threshold=1 > vault-keys-local.txt
+
+# Extract root token and unseal key
+export VAULT_TOKEN=$(grep 'Initial Root Token:' vault-keys-local.txt | awk '{print $NF}')
+export VAULT_UNSEAL_KEY=$(grep 'Unseal Key 1:' vault-keys-local.txt | awk '{print $NF}')
+
+echo "Root Token: $VAULT_TOKEN"
+echo "Unseal Key: $VAULT_UNSEAL_KEY"
+
+# Save for later use
+echo "export VAULT_TOKEN=$VAULT_TOKEN" >> ~/.vault-local-env
+echo "export VAULT_UNSEAL_KEY=$VAULT_UNSEAL_KEY" >> ~/.vault-local-env
+```
+
+### Step 5.2: Unseal Vault
+
+```bash
+# Unseal Vault
+vault operator unseal $VAULT_UNSEAL_KEY
+
+# Verify unsealed status
+vault status
+# Expected: Sealed: false, Initialized: true
+```
+
+### Step 5.3: Enable Secrets Engine
+
+```bash
+# Enable KV v2 secrets engine
+vault secrets enable -path=secret kv-v2
+
+# Verify
+vault secrets list
+# Expected: secret/ with type kv
+```
+
+### Step 5.4: Enable Kubernetes Authentication
+
+```bash
+# Enable Kubernetes auth
+vault auth enable kubernetes
+
+# Get Kubernetes service account info
+KUBE_CA_CERT=$(kubectl get secret -n vault \
+  $(kubectl get sa vault -n vault -o jsonpath='{.secrets[0].name}') \
+  -o jsonpath='{.data.ca\.crt}' | base64 -d)
+
+KUBE_TOKEN=$(kubectl get secret -n vault \
+  $(kubectl get sa vault -n vault -o jsonpath='{.secrets[0].name}') \
+  -o jsonpath='{.data.token}' | base64 -d)
+
+# Configure Kubernetes auth
+vault write auth/kubernetes/config \
+  kubernetes_host="https://$(kubectl config view --raw -o jsonpath='{.clusters[0].cluster.server}' | sed 's|https://||')" \
+  kubernetes_ca_cert="$KUBE_CA_CERT" \
+  token_reviewer_jwt="$KUBE_TOKEN"
+
+# Verify
+vault auth list
+# Expected: kubernetes/ listed
+```
+
+### Step 5.5: Create Web App Policy
+
+```bash
+# Create policy for web app
+vault policy write k8s-web-app - <<EOF
+# Allow read access to web app secrets
+path "secret/data/production/web-app/*" {
+  capabilities = ["read"]
+}
+path "secret/metadata/production/web-app/*" {
+  capabilities = ["read", "list"]
+}
+# Allow authentication
+path "auth/kubernetes/login" {
+  capabilities = ["create", "update"]
+}
+# Allow token renewal
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+EOF
+
+# Verify policy
+vault policy list
+# Expected: k8s-web-app listed
+```
+
+### Step 5.6: Create Kubernetes Role
+
+```bash
+# Create role for k8s-web-app service account
+vault write auth/kubernetes/role/k8s-web-app \
+  bound_service_account_names=k8s-web-app \
+  bound_service_account_namespaces=production \
+  policies=k8s-web-app \
+  ttl=1h \
+  max_ttl=24h
+
+# Verify role
+vault read auth/kubernetes/role/k8s-web-app
+```
+
+### Step 5.7: Create Application Secrets (Local Development)
+
+```bash
+# Create database secrets (local development values)
+vault kv put secret/production/web-app/db \
+  host="localhost" \
+  port="5432" \
+  name="k8s_web_app_dev" \
+  username="dev_user" \
+  password="dev_password_123"
+
+# Create API secrets
+vault kv put secret/production/web-app/api \
+  jwt_secret="dev-jwt-secret-$(openssl rand -hex 16)" \
+  encryption_key="dev-encryption-key-$(openssl rand -hex 16)" \
+  api_key="dev-api-key-$(openssl rand -hex 8)"
+
+# Create external services secrets
+vault kv put secret/production/web-app/external \
+  smtp_host="localhost" \
+  smtp_port="1025" \
+  smtp_username="dev-smtp" \
+  smtp_password="dev-smtp-pass" \
+  redis_url="redis://localhost:6379"
+```
+
+### Step 5.8: Verify Secrets
+
+```bash
+# List secrets
 vault kv list secret/production/web-app/
-# Should show: db, api, external
+# Expected: db, api, external
+
+# Test read secret
+vault kv get -format=json secret/production/web-app/db | jq '.data.data'
+# Expected: JSON with all fields
 ```
 
-### Expected Outcome
-- ✅ Vault initialized and unsealed
-- ✅ Kubernetes auth enabled
-- ✅ Web-app role and policy created
-- ✅ Sample secrets populated
-
-## 🌐 Part 5: Web Application Deployment (Wave 5)
-
-### Phase 1: Deploy Without Vault Integration
+### Step 5.9: Test Vault Integration
 
 ```bash
-# Wait for web application to sync
-kubectl wait --for=condition=Synced --timeout=600s application/k8s-web-app -n argocd
+# Create test pod with Vault service account
+kubectl run vault-test \
+  --image=alpine \
+  --restart=Never \
+  --serviceaccount=vault \
+  -n vault \
+  -- sleep 3600
 
-# Check web application pods
-kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app
+# Wait for pod
+kubectl wait --for=condition=ready pod/vault-test -n vault --timeout=60s
 
-# Check application logs (should show app running with K8s secrets)
-kubectl logs -n production deployment/k8s-web-app
+# Test connectivity
+kubectl exec vault-test -n vault -- wget -q -O- http://vault:8200/v1/sys/health
 
-# Test application access
-kubectl port-forward svc/k8s-web-app -n production 8080:80
-# Access http://localhost:8080
+# Cleanup
+kubectl delete pod vault-test -n vault
 ```
 
-### Expected Outcome
-- ✅ Web application running
-- ✅ Using Kubernetes secrets (not Vault)
-- ✅ All health checks passing
+**✅ Phase 5 Complete Checklist:**
+- [ ] Vault initialized (vault-keys-local.txt saved)
+- [ ] Vault unsealed (Sealed: false)
+- [ ] KV v2 secrets engine enabled
+- [ ] Kubernetes auth enabled and configured
+- [ ] k8s-web-app policy created
+- [ ] k8s-web-app role created
+- [ ] All application secrets created
+- [ ] Vault accessible from within cluster
 
-### Phase 2: Enable Vault Integration
+**⚠️ STOP**: Keep vault-keys-local.txt safe. You'll need it to unseal Vault after Minikube restarts.
+
+---
+
+## 🌐 Phase 6: Application Deployment
+
+### Step 6.1: Deploy Web Application (Phase 1 - Without Vault)
 
 ```bash
-# Update web app to use Vault
+# The application should already be syncing from Phase 2
+# Check application status
+kubectl get applications -n argocd | grep k8s-web-app
+
+# Wait for app to sync (defaults to Vault disabled)
+kubectl wait --for=condition=Synced --timeout=600s \
+  application/k8s-web-app -n argocd
+
+# Check pods
+kubectl get pods -n production
+# Expected: k8s-web-app pods Running (1 container per pod)
+```
+
+### Step 6.2: Verify Application (Without Vault)
+
+```bash
+# Check pod logs
+kubectl logs -n production deployment/k8s-web-app --tail=20
+
+# Port forward to application
+kubectl port-forward svc/k8s-web-app -n production 8081:80 > /dev/null 2>&1 &
+echo "Web App: http://localhost:8081"
+
+# Test application
+sleep 3
+curl -s http://localhost:8081/health
+# Expected: {"status":"ok"}
+```
+
+### Step 6.3: Enable Vault Integration (Phase 2)
+
+```bash
+# Update application to use local Vault-enabled values
 kubectl patch application k8s-web-app -n argocd --type merge -p '
 {
   "spec": {
     "source": {
       "helm": {
-        "valueFiles": ["values.yaml", "values-vault-enabled.yaml"]
+        "valueFiles": ["../values-local.yaml", "../values-vault-enabled.yaml"]
       }
     }
   }
 }'
 
-# Wait for sync and verify
-kubectl get pods -n production
-kubectl logs -n production deployment/k8s-web-app
-# Should show Vault integration working
+# Wait for sync
+kubectl wait --for=condition=Synced --timeout=300s \
+  application/k8s-web-app -n argocd
 
-# Verify Vault secrets are injected
-kubectl exec -n production deployment/k8s-web-app -- env | grep DB_
-# Should show database environment variables from Vault
+# Monitor pod restart (will have 2 containers now)
+kubectl get pods -n production -w
+# Wait for new pods with 2/2 Ready
+# Press Ctrl+C when ready
+```
+
+### Step 6.4: Verify Vault Integration
+
+```bash
+# Check pod has Vault agent sidecar
+kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app \
+  -o jsonpath='{.items[0].spec.containers[*].name}'
+# Expected: k8s-web-app vault-agent
 
 # Check Vault agent logs
-kubectl logs -n production deployment/k8s-web-app -c vault-agent
+kubectl logs -n production deployment/k8s-web-app -c vault-agent --tail=30
+# Expected: "renewal loop" or "template render" messages
+
+# Check if secrets are injected
+kubectl exec -n production deployment/k8s-web-app -- ls -la /vault/secrets/
+# Expected: db/, api/, external/ directories
+
+# Verify environment variables from Vault
+kubectl exec -n production deployment/k8s-web-app -- sh -c 'cat /vault/secrets/db/db-connection.env'
+# Expected: DB_HOST=localhost, DB_PORT=5432, etc.
 ```
 
-### Expected Outcome
-- ✅ Web application using Vault secrets
-- ✅ Vault agent injection working
-- ✅ Zero-downtime migration
-
-## ✅ Part 6: Verification and Testing
-
-### Step 1: Comprehensive Health Check
+### Step 6.5: Test Application with Vault
 
 ```bash
-# Check all pods across all namespaces
-kubectl get pods -A
+# Test application endpoints
+curl -s http://localhost:8081/health
+# Expected: {"status":"ok"}
 
-# Check ArgoCD applications status
+curl -s http://localhost:8081/
+# Expected: HTML response
+```
+
+### Step 6.6: Access Application via Minikube
+
+```bash
+# Get Minikube IP
+minikube service k8s-web-app -n production --url
+# This will open your browser or give you the URL
+
+# Or use ingress (if configured)
+minikube tunnel
+# Keep this running in a separate terminal
+```
+
+**✅ Phase 6 Complete Checklist:**
+- [ ] Application deployed and Running
+- [ ] Application accessible without Vault
+- [ ] Vault integration enabled
+- [ ] Pods have 2/2 containers (app + vault-agent)
+- [ ] Vault agent logs show successful auth
+- [ ] Secrets injected at /vault/secrets/
+- [ ] Application can read Vault secrets
+
+---
+
+## ✅ Deployment Complete - Final Verification
+
+### System Health Check
+
+```bash
+# Check all applications
 kubectl get applications -n argocd
+# Expected: All "Synced" and "Healthy"
 
-# Check monitoring stack
-kubectl get pods -n monitoring
+# Check all pods across namespaces
+kubectl get pods -A | grep -v "Running\|Completed"
+# Expected: Empty (all pods Running or Completed)
 
-# Check Vault
-kubectl get pods -n vault
+# Check resource usage
+kubectl top nodes
+kubectl top pods -A
 
-# Check web application
-kubectl get pods -n production
+# Verify local resource limits are respected
 ```
 
-### Step 2: Test Application Endpoints
+### Access All Services
 
 ```bash
-# Test web application health
-curl -s http://localhost:8080/health | jq
+# Stop any existing port-forwards
+pkill -f "kubectl port-forward"
 
-# Test web application readiness
-curl -s http://localhost:8080/ready | jq
+# Start all port-forwards
+echo "Starting port forwards..."
 
-# Test web application info
-curl -s http://localhost:8080/api/info | jq
+# ArgoCD
+kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 > /dev/null 2>&1 &
+echo "✅ ArgoCD: https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
+
+# Prometheus
+kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090 > /dev/null 2>&1 &
+echo "✅ Prometheus: http://localhost:9090"
+
+# Grafana
+kubectl port-forward svc/grafana -n monitoring 3000:80 > /dev/null 2>&1 &
+echo "✅ Grafana: http://localhost:3000 (admin / $GRAFANA_PASSWORD)"
+
+# Vault
+kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
+echo "✅ Vault: http://localhost:8200"
+
+# Web Application
+kubectl port-forward svc/k8s-web-app -n production 8081:80 > /dev/null 2>&1 &
+echo "✅ Web App: http://localhost:8081"
+
+sleep 3
+echo ""
+echo "All services are accessible!"
 ```
 
-### Step 3: Verify Monitoring
+### Test End-to-End
 
 ```bash
-# Check Prometheus targets
-curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.health == "up")'
+echo "Testing complete deployment..."
 
-# Check Grafana datasources
-curl -s -u admin:$(kubectl get secret grafana-admin -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d) \
-  http://localhost:3000/api/datasources
+# 1. Check Vault
+vault status > /dev/null 2>&1 && echo "✅ Vault: OK" || echo "❌ Vault: FAIL"
+
+# 2. Check Prometheus
+curl -s http://localhost:9090/-/healthy > /dev/null && echo "✅ Prometheus: OK" || echo "❌ Prometheus: FAIL"
+
+# 3. Check Grafana
+curl -s -k http://localhost:3000/api/health | grep -q "ok" && echo "✅ Grafana: OK" || echo "❌ Grafana: FAIL"
+
+# 4. Check application
+curl -s http://localhost:8081/health | grep -q "ok" && echo "✅ Application: OK" || echo "❌ Application: FAIL"
+
+echo ""
+echo "Deployment verification complete!"
 ```
 
-### Step 4: Verify Vault Integration
+---
+
+## 🔧 Daily Operations
+
+### Starting Your Environment
 
 ```bash
-# Check Vault status
-vault status
+# Start Minikube
+minikube start
 
-# List available secrets
-vault kv list secret/production/web-app/
+# Wait for cluster to be ready
+kubectl wait --for=condition=Ready nodes --all --timeout=300s
 
-# Test secret retrieval
-vault kv get secret/production/web-app/db
+# Unseal Vault (required after restart)
+source ~/.vault-local-env
+kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
+sleep 3
+vault operator unseal $VAULT_UNSEAL_KEY
+
+# Start port forwards
+./start-portforwards.sh  # Create this script with the port-forward commands above
 ```
 
-## 🔧 Configuration and Customization
-
-### Update Repository URLs
-
-If you've forked the repository, update the URLs:
+### Stopping Your Environment
 
 ```bash
-# Update repository URL in all application manifests
-sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/your-org/your-repo|g' \
-  clusters/production/app-of-apps.yaml \
-  applications/monitoring/app-of-apps.yaml \
-  applications/security/app-of-apps.yaml \
-  applications/web-app/k8s-web-app/application.yaml
+# Stop port forwards
+pkill -f "kubectl port-forward"
+
+# Stop Minikube
+minikube stop
 ```
 
-### Customize Resource Limits for Local Development
-
-For local development with limited resources, use the optimized values files:
+### Updating Application
 
 ```bash
-# Use optimized values for web application
-helm upgrade --install k8s-web-app applications/web-app/k8s-web-app/helm \
-  -n production \
-  -f applications/web-app/k8s-web-app/values-local.yaml
+# Rebuild image
+cd examples/web-app
+eval $(minikube docker-env)
+docker build -t k8s-web-app:latest .
 
-# Use optimized values for Vault
-helm upgrade --install vault applications/security/vault/helm \
-  -n vault \
-  -f applications/security/vault/values-local.yaml
+# Restart deployment
+kubectl rollout restart deployment k8s-web-app -n production
 
-# Use optimized values for Prometheus
-helm upgrade --install prometheus applications/monitoring/prometheus/helm \
-  -n monitoring \
-  -f applications/monitoring/prometheus/values-local.yaml
-
-# Use optimized values for Grafana
-helm upgrade --install grafana applications/monitoring/grafana/helm \
-  -n monitoring \
-  -f applications/monitoring/grafana/values-local.yaml
+# Watch rollout
+kubectl rollout status deployment k8s-web-app -n production
 ```
 
-The local values files include:
-- **Reduced memory requirements**: 64Mi-512Mi instead of 128Mi-1Gi
-- **Reduced CPU requirements**: 25m-250m instead of 50m-1000m
-- **Single replicas**: Disabled HA and autoscaling for local development
-- **Simplified configurations**: Disabled ingress, network policies, and complex features
-- **Reduced storage**: 1Gi-5Gi instead of 5Gi-20Gi
-
-### Configure Local Storage
-
-For persistent storage in Minikube:
+### Updating Secrets
 
 ```bash
-# Check available storage classes
-kubectl get storageclass
+# Update Vault secret
+vault kv patch secret/production/web-app/db password="new-password"
 
-# Create a persistent volume for development
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: local-pv
-spec:
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage
-  hostPath:
-    path: /data
-EOF
+# Application will automatically get new secret (may take up to 60s)
+# Or force restart
+kubectl rollout restart deployment k8s-web-app -n production
 ```
+
+---
 
 ## 🚨 Troubleshooting
 
-### Common Issues
+### Minikube Not Starting
 
-#### 1. Minikube Start Issues
 ```bash
-# Check Minikube status
+# Check status
 minikube status
-
-# Check Docker status
-docker ps
-
-# Restart Minikube
-minikube stop
-minikube start --memory=4096 --cpus=2 --driver=docker
 
 # Check logs
 minikube logs
+
+# Try deleting and recreating
+minikube delete
+minikube start --memory=4096 --cpus=2 --disk-size=30g --driver=docker
 ```
 
-#### 2. Namespace Not Found Errors
+### Out of Resources
+
 ```bash
-# Error: namespaces "argocd" not found
-# Solution: Ensure namespaces are created first
+# Check resource usage
+kubectl top nodes
+kubectl top pods -A
 
-# Check if namespaces exist
-kubectl get namespaces
+# Reduce monitoring resources
+helm upgrade prometheus -n monitoring \
+  --set prometheus.prometheusSpec.resources.requests.memory=256Mi \
+  --set prometheus.prometheusSpec.resources.requests.cpu=100m
 
-# If argocd namespace is missing, apply namespaces first
-kubectl apply -f bootstrap/00-namespaces.yaml
-
-# Verify all required namespaces exist
-kubectl get namespaces | grep -E "(argocd|vault|monitoring|production)"
-
-# Then proceed with other bootstrap components
-kubectl apply -f bootstrap/01-pod-security-standards.yaml
-kubectl apply -f bootstrap/02-network-policy.yaml
-kubectl apply -f bootstrap/03-helm-repos.yaml
+# Or stop monitoring temporarily
+kubectl scale statefulset prometheus-kube-prometheus-stack-prometheus -n monitoring --replicas=0
 ```
 
-#### 3. Pod Startup Issues
+### Vault Sealed After Restart
+
 ```bash
-# Check pod status
-kubectl describe pod <pod-name> -n <namespace>
+# This is normal behavior
+# Load your keys
+source ~/.vault-local-env
 
-# Check pod logs
-kubectl logs <pod-name> -n <namespace> --previous
+# Port forward
+kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
 
-# Check events
-kubectl get events -n <namespace> --sort-by=.metadata.creationTimestamp
+# Unseal
+vault operator unseal $VAULT_UNSEAL_KEY
+
+# Verify
+vault status
 ```
 
-#### 4. Image Pull Issues
-```bash
-# Check if image exists in Minikube
-minikube image ls | grep k8s-web-app
+### Application Can't Read Secrets
 
-# Rebuild and reload image
-cd examples/web-app
-docker build -t k8s-web-app:latest .
-minikube image load k8s-web-app:latest
-```
-
-#### 5. Port Forward Issues
-```bash
-# Check if service exists
-kubectl get svc -n <namespace>
-
-# Check if pods are running
-kubectl get pods -n <namespace>
-
-# Try different port
-kubectl port-forward svc/<service-name> 8081:80 -n <namespace>
-```
-
-#### 6. ArgoCD Applications Not Syncing
-```bash
-# Check application status
-kubectl describe application <app-name> -n argocd
-
-# Force sync
-kubectl patch application <app-name> -n argocd --type merge -p '{"operation":{"sync":{"syncStrategy":{"hook":{"force":true}}}}}'
-
-# Check ArgoCD logs
-kubectl logs -n argocd deployment/argocd-application-controller
-```
-
-#### 7. Vault Integration Issues
 ```bash
 # Check Vault agent logs
-kubectl logs -n production -l app.kubernetes.io/name=k8s-web-app -c vault-agent
+kubectl logs -n production deployment/k8s-web-app -c vault-agent --tail=50
 
-# Verify Vault connectivity
-kubectl exec -n vault vault-0 -- vault status
+# Check if secrets exist in pod
+kubectl exec -n production deployment/k8s-web-app -- ls -R /vault/secrets/
 
-# Check service account
-kubectl get sa k8s-web-app-vault-sa -n production
+# Restart deployment
+kubectl rollout restart deployment k8s-web-app -n production
 ```
 
-#### 8. ArgoCD Finalizer Warnings
+### Pods Stuck in Pending
+
 ```bash
-# Warning: metadata.finalizers: "resources-finalizer.argocd.argoproj.io": prefer a domain-qualified finalizer name
+# Check pod events
+kubectl describe pod -n <namespace> <pod-name>
 
-# This is a warning, not an error. The application will still work correctly.
-# The warning occurs because Kubernetes prefers more specific finalizer names to avoid conflicts.
-# This is a cosmetic warning from Kubernetes - ArgoCD applications work perfectly fine with this finalizer.
+# Check node resources
+kubectl describe node minikube
 
-# The warning is safe to ignore. Your GitOps deployment will function correctly.
-# To verify the application is working:
-kubectl get applications -n argocd
-kubectl describe application production-cluster -n argocd
-
-# Note: This warning is common with ArgoCD and doesn't affect functionality.
+# May need to increase Minikube resources
+minikube stop
+minikube delete
+minikube start --memory=6144 --cpus=3 --disk-size=40g
 ```
 
-#### 9. YAML Syntax Errors in Helm Templates
-```bash
-# Error: Failed to unmarshal "deployment.yaml": yaml: line X: did not find expected node content
-
-# This error indicates malformed YAML in Helm templates.
-# Common causes:
-# 1. Duplicate YAML keys (like duplicate 'annotations:' sections)
-# 2. Incorrect indentation in Helm template loops
-# 3. Malformed Helm template syntax
-
-# To debug:
-kubectl get applications -n argocd
-kubectl describe application <app-name> -n argocd
-
-# Check ArgoCD logs for more details:
-kubectl logs -n argocd deployment/argocd-repo-server
-
-# Fix by correcting the YAML syntax in the problematic template file.
-# The deployment.yaml template has been fixed to resolve this issue.
-
-#### 10. Helm Template Configuration Issues
-```bash
-# Issue: Hardcoded values in Helm templates instead of using values.yaml
-# This can cause configuration drift and inconsistent deployments
-
-# Common problems:
-# 1. HPA behavior values hardcoded in template instead of using .Values.autoscaling.behavior
-# 2. Duplicate annotations sections causing YAML parsing errors
-# 3. Incorrect conditional logic in Helm templates
-
-# To debug Helm template issues:
-helm template <release-name> <chart-path> --values <values-file>
-
-# To validate Helm templates:
-helm lint <chart-path>
-
-# Check rendered output:
-helm template k8s-web-app applications/web-app/k8s-web-app/helm \
-  --values applications/web-app/k8s-web-app/values.yaml
-
-# The HPA template has been fixed to use values from values.yaml instead of hardcoded values.
-```
-
-### Debug Commands
-
-```bash
-# Get detailed pod information
-kubectl describe pod <pod-name> -n <namespace>
-
-# Execute into pod for debugging
-kubectl exec -it <pod-name> -n <namespace> -- /bin/sh
-
-# Check resource usage
-kubectl top pods -n <namespace>
-kubectl top nodes
-
-# Check persistent volumes
-kubectl get pv,pvc -A
-
-# Check Minikube addons
-minikube addons list
-```
-
-## 📊 Performance Optimization
-
-### Memory Optimization for Local Development
-
-This deployment has been optimized for local development with the following memory reductions:
-
-**Minikube Cluster:**
-- Memory: 8GB → 4GB (50% reduction)
-- CPU: 4 cores → 2 cores (50% reduction)
-- Disk: 50GB → 30GB (40% reduction)
-
-**Application Resources:**
-- Web App: 1Gi → 256Mi memory (75% reduction)
-- Vault: 1Gi → 256Mi memory (75% reduction)
-- Prometheus: 1Gi → 512Mi memory (50% reduction)
-- Grafana: 512Mi → 256Mi memory (50% reduction)
-
-**Total Estimated Memory Usage:**
-- **Before optimization**: ~6-8GB
-- **After optimization**: ~2-3GB
-- **Savings**: ~60-70% reduction
-
-### Minikube Optimization
-
-```bash
-# Start with more resources (if you have them available)
-minikube start --memory=8192 --cpus=4 --disk-size=50g
-
-# Use Docker driver for better performance
-minikube start --driver=docker --memory=4096 --cpus=2
-
-# Enable GPU support if available
-minikube start --memory=4096 --cpus=2 --gpus=1
-
-# Use HyperKit driver on macOS for better performance
-minikube start --driver=hyperkit --memory=4096 --cpus=2
-```
-
-### Application Optimization
-
-```bash
-# Increase replica count for better availability
-helm upgrade k8s-web-app applications/web-app/k8s-web-app/helm \
-  -n production \
-  --set replicaCount=3
-
-# Adjust resource limits based on usage
-helm upgrade k8s-web-app applications/web-app/k8s-web-app/helm \
-  -n production \
-  --set resources.requests.cpu=200m \
-  --set resources.requests.memory=256Mi
-```
-
-## 🔄 Updates and Rollbacks
-
-### Application Updates
-
-#### Via ArgoCD:
-```bash
-# Update image tag in values file
-vim applications/web-app/k8s-web-app/values.yaml
-
-# Force sync in ArgoCD
-kubectl patch application web-app-stack -n argocd --type merge -p '{"operation":{"sync":{"syncStrategy":{"hook":{"force":true}}}}}'
-```
-
-#### Via Helm:
-```bash
-# Update with new values
-helm upgrade k8s-web-app applications/web-app/k8s-web-app/helm \
-  -n production \
-  --set image.tag=v1.1.0
-```
-
-### Rollbacks
-
-```bash
-# Rollback using ArgoCD
-kubectl patch application web-app-stack -n argocd --type merge -p '{"operation":{"sync":{"revision":"<previous-revision>"}}}'
-
-# Rollback using kubectl
-kubectl rollout undo deployment/k8s-web-app -n production
-
-# Check rollout history
-kubectl rollout history deployment/k8s-web-app -n production
-```
+---
 
 ## 🧹 Cleanup
 
-### Remove Applications
+### Full Cleanup
 
 ```bash
-# Delete ArgoCD applications
-kubectl delete applications --all -n argocd
+# Delete Minikube cluster (removes everything)
+minikube delete
 
-# Delete namespaces
-kubectl delete namespace monitoring
-kubectl delete namespace vault
-kubectl delete namespace production
-kubectl delete namespace argocd
+# Remove local files
+rm -f vault-keys-local.txt
+rm -f ~/.vault-local-env
 ```
 
-### Stop Minikube
+### Partial Cleanup (Keep Minikube)
+
+```bash
+# Delete applications
+kubectl delete -f clusters/production/app-of-apps.yaml
+
+# Delete ArgoCD
+helm uninstall argo-cd -n argocd
+
+# Delete namespaces
+kubectl delete namespace argocd monitoring vault production
+```
+
+---
+
+## 📚 Local Development Tips & Optimization
+
+### Resource Optimization Details
+
+The Minikube deployment uses optimized values files to reduce resource usage by 60-70% compared to production:
+
+#### Minikube Cluster Requirements
+
+| Resource | Production | Local Development | Reduction |
+|----------|------------|-------------------|-----------|
+| Memory | 8GB | 4GB | 50% |
+| CPU | 4 cores | 2 cores | 50% |
+| Disk | 50GB | 30GB | 40% |
+
+#### Application Resource Reductions
+
+| Application | Production | Local | Reduction |
+|-------------|-----------|-------|-----------|
+| Web App | 1Gi / 1000m CPU | 256Mi / 250m CPU | 75% / 75% |
+| Vault | 1Gi / 1000m CPU | 256Mi / 200m CPU | 75% / 80% |
+| Prometheus | 1Gi / 500m CPU | 512Mi / 250m CPU | 50% / 50% |
+| Grafana | 512Mi / 250m CPU | 256Mi / 100m CPU | 50% / 60% |
+
+#### Features Disabled for Local Development
+
+- ❌ **High Availability**: Single replicas instead of multiple
+- ❌ **Autoscaling**: HPA disabled for all applications
+- ❌ **Ingress**: Use port-forward instead
+- ❌ **Complex Network Policies**: Simplified for local use
+- ❌ **TLS for Vault**: HTTP only (not for production!)
+- ❌ **Extended Retention**: Prometheus 7d vs 15d
+
+#### Local Values Files Used
+
+The deployment automatically uses these optimized files:
+- `applications/web-app/k8s-web-app/values-local.yaml`
+- `applications/security/vault/values-local.yaml`
+- `applications/monitoring/prometheus/values-local.yaml`
+- `applications/monitoring/grafana/values-local.yaml`
+
+### Fast Iteration Workflow
+
+```bash
+# 1. Make code changes in examples/web-app/
+
+# 2. Use Minikube's Docker daemon
+eval $(minikube docker-env)
+
+# 3. Rebuild image
+cd examples/web-app
+docker build -t k8s-web-app:latest .
+
+# 4. Restart deployment
+kubectl rollout restart deployment k8s-web-app -n production
+
+# 5. Watch logs
+kubectl logs -f deployment/k8s-web-app -n production
+
+# 6. Test changes
+curl http://localhost:8081
+```
+
+### Advanced Customization
+
+You can further optimize based on your system:
+
+```bash
+# Even lower resources (2GB RAM)
+minikube start --memory=2048 --cpus=2
+
+# Then scale down Prometheus
+kubectl scale statefulset prometheus-kube-prometheus-stack-prometheus \
+  -n monitoring --replicas=0
+
+# Or disable monitoring temporarily
+kubectl delete application monitoring-stack -n argocd
+```
+
+### Switching to Production Values
+
+To test with production-like settings:
 
 ```bash
 # Stop Minikube
 minikube stop
 
-# Delete Minikube cluster
-minikube delete
+# Start with more resources
+minikube start --memory=8192 --cpus=4 --disk-size=50g
 
-# Clean up Docker images
-docker system prune -a
+# Update application to use production values
+kubectl patch application k8s-web-app -n argocd --type merge -p '
+{
+  "spec": {
+    "source": {
+      "helm": {
+        "valueFiles": ["../values.yaml"]
+      }
+    }
+  }
+}'
 ```
 
-## 📚 Development Workflow
+### ⚠️ Important Limitations
 
-### Local Development
+**Local development optimizations should NEVER be used in production:**
 
-```bash
-# Start development environment
-minikube start --memory=4096 --cpus=2
+| Limitation | Impact |
+|------------|--------|
+| Single replicas | No high availability or fault tolerance |
+| No autoscaling | Can't handle load spikes |
+| HTTP Vault | Secrets transmitted unencrypted |
+| Reduced monitoring | Fewer metrics and shorter retention |
+| Simplified security | Network policies and security contexts reduced |
 
-# Deploy applications
-kubectl apply -f clusters/production/app-of-apps.yaml
-
-# Make changes to code
-cd examples/web-app
-# Edit server.js or other files
-
-# Rebuild and reload image
-docker build -t k8s-web-app:latest .
-minikube image load k8s-web-app:latest
-
-# Restart deployment
-kubectl rollout restart deployment/k8s-web-app -n production
-```
-
-### Testing Changes
-
-```bash
-# Test locally
-kubectl port-forward svc/k8s-web-app-service -n production 8080:80
-curl http://localhost:8080/health
-
-# Check logs
-kubectl logs -l app.kubernetes.io/name=k8s-web-app -n production -f
-```
-
-## 🎯 Next Steps
-
-After successful deployment:
-
-1. **Set up CI/CD**: Configure GitHub Actions for automated builds
-2. **Add Testing**: Implement unit and integration tests
-3. **Add Observability**: Implement distributed tracing
-4. **Security Scanning**: Add container vulnerability scanning
-5. **Load Testing**: Perform load testing to validate auto-scaling
-6. **Documentation**: Update team documentation with access procedures
-
-## 🆘 Support
-
-For issues and questions:
-1. Check the troubleshooting section above
-2. Review the [TROUBLESHOOTING.md](TROUBLESHOOTING.md) file
-3. Open an issue in the repository
-4. Consult Minikube documentation: https://minikube.sigs.k8s.io/docs/
+**Memory Usage Comparison:**
+- **Production**: ~6-8GB total memory
+- **Local**: ~2-3GB total memory
+- **Savings**: 60-70% reduction
 
 ---
 
-**🎉 Congratulations!** You now have a complete local development environment with GitOps, monitoring, security, and a sample application deployed and running!
+## 📖 Related Documentation
 
-**Happy Local Development! 🚀**
+- [AWS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md) - Production AWS deployment
+- [Project Structure](docs/PROJECT_STRUCTURE.md) - Repository organization
+- [Vault Setup Guide](docs/VAULT_SETUP_GUIDE.md) - Detailed Vault configuration
+- [Security Best Practices](docs/security-best-practices.md) - Security guidelines
+- [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions

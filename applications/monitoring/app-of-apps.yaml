@@ -19,6 +19,9 @@ spec:
     repoURL: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
     targetRevision: main
     path: applications/monitoring
+    directory:
+      recurse: true
+      include: '*/application.yaml'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
