@@ -64,20 +64,16 @@ clusters/
 ```
 applications/
 ├── monitoring/                   # Monitoring stack
-│   ├── app-of-apps.yaml         # Monitoring applications
 │   ├── grafana/
 │   │   └── application.yaml     # Grafana deployment
 │   └── prometheus/
 │       └── application.yaml     # Prometheus deployment
 ├── security/                    # Security components
-│   ├── app-of-apps.yaml         # Security applications
 │   └── vault/                   # Vault deployment
 │       ├── application.yaml     # Vault application
 │       ├── values.yaml          # Production Vault config
 │       └── values-dev.yaml      # Development Vault config
 └── web-app/                     # Web application
-    ├── app-of-apps.yaml         # Web app applications
-    ├── namespace.yaml           # Web app namespace
     ├── setup-vault-secrets.sh   # Vault configuration script
     ├── VAULT_INTEGRATION.md     # Vault integration guide
     ├── README.md               # Web app documentation
@@ -223,15 +219,13 @@ Applications are managed through:
 
 ### **App-of-Apps Pattern**
 
-The repository uses the app-of-apps pattern for hierarchical application management:
+The repository uses a single root App-of-Apps to discover child applications directly:
 
 ```
 Root App (clusters/production/app-of-apps.yaml)
-├── Monitoring Stack (applications/monitoring/app-of-apps.yaml)
-│   ├── Prometheus (applications/monitoring/prometheus/application.yaml)
-│   └── Grafana (applications/monitoring/grafana/application.yaml)
-├── Security Stack (applications/security/app-of-apps.yaml)
-│   └── Vault (applications/security/vault/application.yaml)
+├── Prometheus (applications/monitoring/prometheus/application.yaml)
+├── Grafana (applications/monitoring/grafana/application.yaml)
+├── Vault (applications/security/vault/application.yaml)
 └── K8s Web App (applications/web-app/k8s-web-app/application.yaml)
 ```
 
@@ -278,7 +272,7 @@ spec:
 ```
 
 ### **3. Update App-of-Apps**
-Add the new application to the appropriate app-of-apps.yaml file.
+Add the new application under the root `clusters/production/app-of-apps.yaml` include path so it is discovered.
 
 ### **4. Commit and Deploy**
 ```bash
@@ -332,7 +326,7 @@ argocd app sync <app-name>
 - ❌ `bootstrap/vault-setup-script.sh` - Redundant with web app specific script
 - ❌ `applications/web-app/vault-config.yaml` - Redundant with script approach
 - ❌ `docs/gitops-structure.md` - Merged into PROJECT_STRUCTURE.md
-- ❌ `applications/web-app/app-of-apps.yaml` - Redundant layer for single application
+- ❌ `applications/*/app-of-apps.yaml` - Redundant after consolidating to a single root App-of-Apps
 - ❌ `applications/web-app/k8s-web-app/helm/values.yaml` - Redundant with production values file
 - ❌ `WAVE_BASED_DEPLOYMENT_GUIDE.md` - Merged into AWS and Minikube deployment guides
 - ❌ `LOCAL_DEVELOPMENT_OPTIMIZATION.md` - Merged into Minikube deployment guide
@@ -348,7 +342,7 @@ argocd app sync <app-name>
 
 ### **Adding New Applications**
 1. Create domain directory under `applications/`
-2. Add `app-of-apps.yaml` for application discovery
+2. Ensure the root `clusters/production/app-of-apps.yaml` discovers your new application's `application.yaml`
 3. Create Helm chart or Kubernetes manifests
 4. Add ArgoCD `application.yaml` files
 5. Update documentation
