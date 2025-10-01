@@ -117,7 +117,7 @@ server:
 
 # Vault Agent Injector
 injector:
-  enabled: true
+  enabled: false
   image:
     repository: "hashicorp/vault-k8s"
     tag: "1.1.0"
@@ -145,6 +145,8 @@ injector:
     runAsNonRoot: true
     runAsUser: 100
     runAsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
     capabilities:
       drop:
         - ALL
