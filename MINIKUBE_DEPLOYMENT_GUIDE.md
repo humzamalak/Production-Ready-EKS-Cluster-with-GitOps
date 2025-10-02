@@ -8,17 +8,21 @@ Complete local development deployment guide for Minikube with GitOps, using a **
 
 This deployment follows a **7-phase approach** optimized for local development:
 
-| Phase | Component | Purpose | Duration |
-|-------|-----------|---------|----------|
-| **Phase 1** | Local Infrastructure | Minikube cluster, addons | 5 min |
-| **Phase 2** | Bootstrap | ArgoCD, namespaces, policies | 5-10 min |
-| **Phase 3** | Monitoring | Prometheus, Grafana (optimized) | 5 min |
-| **Phase 4** | Vault Deployment | Vault server, agent injector | 5 min |
-| **Phase 5** | Vault Configuration | Initialize, policies, secrets | 10 min |
-| **Phase 6** | Web App Deployment | Deploy app WITHOUT secrets | 5 min |
-| **Phase 7** | Vault Integration | Add Vault secrets to web app | 10 min |
+| Phase | Component | Purpose | Duration | Optional |
+|-------|-----------|---------|----------|----------|
+| **Phase 1** | Local Infrastructure | Minikube cluster, addons | 5 min | Required |
+| **Phase 2** | Bootstrap | ArgoCD, namespaces, policies | 5-10 min | Required |
+| **Phase 3** | Monitoring | Prometheus, Grafana (optimized) | 5 min | Required |
+| **Phase 4** | Vault Deployment | Vault server, agent injector | 5 min | ⚠️ **Optional** |
+| **Phase 5** | Vault Configuration | Initialize, policies, secrets | 10 min | ⚠️ **Optional** |
+| **Phase 6** | Web App Deployment | Deploy app WITHOUT secrets | 5 min | Required |
+| **Phase 7** | Vault Integration | Add Vault secrets to web app | 10 min | ⚠️ **Optional** |
 
-**Total Time**: ~45 minutes
+**Total Time**: 
+- **Without Vault**: ~25 minutes (Phases 1-3, 6)
+- **With Vault**: ~45 minutes (All phases)
+
+> **💡 Note:** Phases 4-5-7 (Vault) are optional. You can deploy Prometheus, Grafana, and your web app without Vault, then add Vault later when you need secret management. See [Adding Vault Later](#adding-vault-later-optional) section.
 
 ---
 
@@ -341,7 +345,11 @@ curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length'
 
 ---
 
-## 🔒 Phase 4: Vault Deployment (Security Stack)
+## 🔒 Phase 4: Vault Deployment (Security Stack) - ⚠️ OPTIONAL
+
+> **💡 Skip This Phase If:** You want to deploy just monitoring and web app first. You can add Vault later - see [Adding Vault Later](#adding-vault-later-optional).
+
+> **✅ Complete This Phase If:** You want full secret management with Vault agent injection.
 
 ### Step 4.1: Wait for Vault Deployment
 
@@ -404,7 +412,9 @@ vault status
 
 ---
 
-## 🔧 Phase 5: Vault Configuration (Critical Phase)
+## 🔧 Phase 5: Vault Configuration (Critical Phase) - ⚠️ OPTIONAL
+
+> **⚠️ Prerequisites**: Phase 4 must be complete. Skip if you skipped Phase 4.
 
 > **⚠️ Important**: This phase initializes Vault with policies and secrets. Follow steps exactly.
 
@@ -675,9 +685,11 @@ kubectl exec -n production deployment/k8s-web-app -- env | grep -E "DB_|JWT_|API
 
 ---
 
-## 🔐 Phase 7: Adding Vault Secrets to Web Application
+## 🔐 Phase 7: Adding Vault Secrets to Web Application - ⚠️ OPTIONAL
 
-> **Prerequisites**: Phases 4, 5, and 6 must be complete. Vault must be initialized and unsealed.
+> **⚠️ Prerequisites**: Phases 4, 5, and 6 must be complete. Vault must be initialized and unsealed.
+
+> **💡 Skip This Phase If:** You skipped Phases 4-5. Your web app will work fine without Vault secrets.
 
 This phase demonstrates how to add Vault secret injection to an already-deployed application.
 
@@ -1030,6 +1042,20 @@ sleep 3
 echo ""
 echo "All services are accessible!"
 ```
+
+### 📖 Comprehensive Access Guide
+
+For detailed guides on using Prometheus, Grafana, and Vault, see:
+
+**[Application Access Guide](APPLICATION_ACCESS_GUIDE.md)**
+
+This comprehensive guide includes:
+- ✅ **Prometheus**: Query language (PromQL), targets, alerts, API usage, useful queries
+- ✅ **Grafana**: Dashboard creation, data sources, alerting, community dashboards, Explore mode
+- ✅ **Vault**: Secret management, policies, Kubernetes auth, audit logs, versioning
+- ✅ **ArgoCD**: Application management, CLI usage, sync operations
+- ✅ **Troubleshooting**: Common access issues and solutions
+- ✅ **Credential Management**: Save and load your credentials securely
 
 ### Test End-to-End
 
@@ -1438,10 +1464,99 @@ kubectl patch application k8s-web-app -n argocd --type merge -p '
 
 ---
 
+## 🔐 Adding Vault Later (Optional)
+
+If you skipped Phases 4-5-7 and want to add Vault secret management later, follow the comprehensive guide in the AWS deployment documentation:
+
+**See:** [AWS Deployment Guide - Adding Vault Later](AWS_DEPLOYMENT_GUIDE.md#adding-vault-later-optional)
+
+The steps are identical for Minikube, with these minor differences:
+
+### Quick Steps for Minikube
+
+1. **Deploy Vault:**
+   ```bash
+   # Check if security-stack exists
+   kubectl get application security-stack -n argocd
+   
+   # If not, apply AppProject first
+   kubectl apply -f clusters/production/production-apps-project.yaml
+   
+   # Force sync
+   kubectl patch application security-stack -n argocd \
+     --type merge -p '{"operation":{"sync":{}}}'
+   ```
+
+2. **Configure Vault:**
+   ```bash
+   # Port forward
+   kubectl port-forward svc/vault -n vault 8200:8200 &
+   export VAULT_ADDR="http://localhost:8200"
+   
+   # Initialize (save output!)
+   vault operator init -key-shares=1 -key-threshold=1 > vault-keys-local.txt
+   
+   # Extract credentials
+   export VAULT_TOKEN=$(grep 'Initial Root Token:' vault-keys-local.txt | awk '{print $NF}')
+   export VAULT_UNSEAL_KEY=$(grep 'Unseal Key 1:' vault-keys-local.txt | awk '{print $NF}')
+   
+   # Unseal
+   vault operator unseal $VAULT_UNSEAL_KEY
+   
+   # Save for later use
+   echo "export VAULT_TOKEN=$VAULT_TOKEN" >> ~/.vault-local-env
+   echo "export VAULT_UNSEAL_KEY=$VAULT_UNSEAL_KEY" >> ~/.vault-local-env
+   ```
+
+3. **Follow Phase 5 steps** to enable secrets engine, Kubernetes auth, policies, and create secrets
+
+4. **Enable Vault in web app:**
+   ```bash
+   kubectl patch application k8s-web-app -n argocd --type merge -p '
+   {
+     "spec": {
+       "source": {
+         "helm": {
+           "valueFiles": ["values-local.yaml", "values-vault-enabled.yaml"]
+         }
+       }
+     }
+   }'
+   ```
+
+5. **Verify integration:**
+   ```bash
+   kubectl get pods -n production
+   # Should see 2/2 Ready (app + vault-agent)
+   
+   kubectl exec -n production deployment/k8s-web-app -- ls /vault/secrets/
+   # Should see: api, db, external
+   ```
+
+### Minikube-Specific Notes
+
+**Vault After Minikube Restart:**
+```bash
+# Vault will be sealed after Minikube restarts
+# Reload credentials
+source ~/.vault-local-env
+
+# Port forward
+kubectl port-forward svc/vault -n vault 8200:8200 &
+
+# Unseal
+vault operator unseal $VAULT_UNSEAL_KEY
+```
+
+**For detailed instructions, see the AWS Deployment Guide section: [Adding Vault Later](AWS_DEPLOYMENT_GUIDE.md#adding-vault-later-optional)**
+
+---
+
 ## 📖 Related Documentation
 
+- **[Application Access Guide](APPLICATION_ACCESS_GUIDE.md)** - Comprehensive Prometheus, Grafana, and Vault usage guide
 - [AWS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md) - Production AWS deployment
+- [AWS Guide: Adding Vault Later](AWS_DEPLOYMENT_GUIDE.md#adding-vault-later-optional) - Complete Vault addition steps
 - [Project Structure](docs/PROJECT_STRUCTURE.md) - Repository organization
 - [Vault Setup Guide](docs/VAULT_SETUP_GUIDE.md) - Detailed Vault configuration
 - [Security Best Practices](docs/security-best-practices.md) - Security guidelines
-- [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
