@@ -28,8 +28,8 @@ Production Cluster (app-of-apps.yaml)
 ├── Monitoring Stack (applications/monitoring/)
 │   ├── Prometheus
 │   └── Grafana
-└── Security Stack (applications/security/)
-    └── Vault
+└── Security Stack (applications/security/) [optional; currently excluded]
+    └── Vault (enable later when ready)
 ```
 
 ### Namespaces
@@ -37,7 +37,7 @@ Production Cluster (app-of-apps.yaml)
 The production environment uses the following namespaces:
 
 - **`monitoring`**: Monitoring stack (Prometheus, Grafana, AlertManager)
-- **`vault`**: HashiCorp Vault secrets management
+- **`vault`**: HashiCorp Vault secrets management (optional; currently disabled)
 - **`argocd`**: ArgoCD components
 
 ## 🚀 Deployment
@@ -109,8 +109,8 @@ sourceRepos:
 # Namespace restrictions
 destinations:
   - namespace: monitoring
-  - namespace: vault
   - namespace: argocd
+  # vault namespace can be re-added when enabling Vault
 ```
 
 ### Pod Security Standards

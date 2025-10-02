@@ -15,9 +15,9 @@ This repository follows GitOps principles to manage a production-ready EKS clust
 │   │   ├── 📄 app-of-apps.yaml     # Monitoring stack bootstrap
 │   │   ├── 📁 prometheus/          # Prometheus monitoring
 │   │   └── 📁 grafana/             # Grafana dashboards
-│   ├── 📁 security/                # Security applications
-│   │   ├── 📄 app-of-apps.yaml     # Security stack bootstrap
-│   │   └── 📁 vault/               # HashiCorp Vault
+│   ├── 📁 security/                # Security applications (optional)
+│   │   ├── 📄 app-of-apps.yaml     # Security stack bootstrap (optional)
+│   │   └── 📁 vault/               # HashiCorp Vault (optional; currently disabled by default)
 │   └── 📁 web-app/                 # Web application deployments
 │       ├── 📄 namespace.yaml       # Production namespace
 │       └── 📁 k8s-web-app/         # Node.js web application
@@ -54,12 +54,12 @@ Both guides follow a **7-phase approach** to ensure reliable deployment:
 | **Phase 1** | Infrastructure | Cluster setup and configuration | Required |
 | **Phase 2** | Bootstrap | ArgoCD and GitOps foundation | Required |
 | **Phase 3** | Monitoring | Prometheus and Grafana | Required |
-| **Phase 4** | Vault Deployment | Vault server and agent injector | ⚠️ **Optional** |
-| **Phase 5** | Vault Configuration | **Critical**: Initialize, policies, secrets | ⚠️ **Optional** |
+| **Phase 4** | Vault Deployment | Vault server and agent injector | ⚠️ **Optional (disabled by default)** |
+| **Phase 5** | Vault Configuration | **Critical**: Initialize, policies, secrets | ⚠️ **Optional (disabled by default)** |
 | **Phase 6** | Web App Deployment | Deploy application WITHOUT secrets | Required |
 | **Phase 7** | Vault Integration | Add Vault secrets to running application | ⚠️ **Optional** |
 
-> **💡 Note:** Vault (Phases 4-5-7) is optional. You can deploy monitoring and applications first, then add Vault later when needed.
+> **💡 Note:** Vault (Phases 4-5-7) is optional and currently disabled by default in this repo. Deploy monitoring and applications first; add Vault later when ready.
 
 **Key Features:**
 - ✅ Built-in verification at each phase
@@ -107,7 +107,7 @@ open MINIKUBE_DEPLOYMENT_GUIDE.md
 
 ## 📚 Documentation
 
-- **[Application Access Guide](APPLICATION_ACCESS_GUIDE.md)** - Comprehensive guide for Prometheus, Grafana, Vault, and ArgoCD
+- **[Application Access Guide](APPLICATION_ACCESS_GUIDE.md)** - Comprehensive guide for Prometheus, Grafana, ArgoCD, and optional Vault
 - **[Project Structure Guide](docs/PROJECT_STRUCTURE.md)** - Comprehensive overview of the repository structure
 - **[Vault Setup Guide](docs/VAULT_SETUP_GUIDE.md)** - Detailed Vault configuration and troubleshooting
 - **[Security Best Practices](docs/security-best-practices.md)** - Security guidelines and recommendations
@@ -134,8 +134,8 @@ kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitori
 kubectl port-forward svc/grafana -n monitoring 3000:80 &
 # Access: http://localhost:3000 (admin / password from secret)
 
-# Vault
-kubectl port-forward svc/vault -n vault 8200:8200 &
+# Vault (optional; only if enabled)
+# kubectl port-forward svc/vault -n vault 8200:8200 &
 # Access: http://localhost:8200
 ```
 
@@ -179,8 +179,8 @@ This guide covers:
 - **Grafana**: Dashboards and visualization  
 - **AlertManager**: Alert routing and notification
 
-### Security Stack
-- **HashiCorp Vault**: Secrets management with agent injection
+### Security Stack (optional)
+- **HashiCorp Vault**: Secrets management with agent injection (currently disabled by default)
 - **Pod Security Standards**: Restricted security contexts
 - **Network Policies**: Traffic isolation between components
 
@@ -195,7 +195,7 @@ This guide covers:
 - **Pod Security Standards**: Restricted mode enforced
 - **Network Policies**: Traffic isolation between components
 - **RBAC**: Role-based access control
-- **Vault Agent Injection**: Secure secret management without Kubernetes Secrets
+- **Vault Agent Injection**: Secure secret management without Kubernetes Secrets (when Vault is enabled)
 - **TLS Encryption**: All communications encrypted
 
 ## 🏷️ GitOps Principles

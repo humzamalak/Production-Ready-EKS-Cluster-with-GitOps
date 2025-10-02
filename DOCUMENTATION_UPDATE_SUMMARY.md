@@ -46,18 +46,16 @@ This document summarizes all documentation updates made to reflect the new confi
 - Added infrastructure security section
 - Added GitOps security guidelines
 
-### 4. **docs/VAULT_SETUP_GUIDE.md**
+### 4. **Vault status across docs**
 **Changes Made:**
-- Updated tool version requirements
-- Enhanced secret creation examples with environment variable support
-- Improved security practices in secret management
-- Updated examples to use proper environment variable patterns
+- Marked Vault as optional and currently disabled by default across docs
+- Kept full deployment steps in `docs/VAULT_SETUP_GUIDE.md` for later enablement
+- Updated references to exclude Vault from default flows
 
 **Key Updates:**
-- Updated kubectl and Helm version requirements
-- Enhanced secret creation with environment variables
-- Improved security practices for production deployments
-- Added proper environment variable patterns
+- README: Phases 4-5-7 optional (disabled by default), access section gated
+- clusters/production/README: Security stack noted optional/excluded for now
+- docs/PROJECT_STRUCTURE: Vault marked optional with add-back notes
 
 ### 5. **AWS_DEPLOYMENT_GUIDE.md**
 **Changes Made:**
@@ -94,6 +92,7 @@ This document summarizes all documentation updates made to reflect the new confi
 - Enhanced documentation update guidelines
 - Added YAML linting standards
 - Updated file references
+- Clarified optional status of Vault where referenced
 
 ## 🆕 New Documentation Files
 
