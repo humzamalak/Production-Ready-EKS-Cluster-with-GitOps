@@ -83,40 +83,8 @@ env:
   APP_VERSION: "1.0.0"
   PORT: "3000"
 
-# Secret references for environment variables
-secretRefs:
-  - name: web-app-db-secret
-    keys:
-      - key: DB_HOST
-        envVar: DB_HOST
-      - key: DB_PORT
-        envVar: DB_PORT
-      - key: DB_NAME
-        envVar: DB_NAME
-      - key: DB_USERNAME
-        envVar: DB_USERNAME
-      - key: DB_PASSWORD
-        envVar: DB_PASSWORD
-  - name: web-app-api-secret
-    keys:
-      - key: JWT_SECRET
-        envVar: JWT_SECRET
-      - key: ENCRYPTION_KEY
-        envVar: ENCRYPTION_KEY
-      - key: API_KEY
-        envVar: API_KEY
-  - name: web-app-external-secret
-    keys:
-      - key: SMTP_HOST
-        envVar: SMTP_HOST
-      - key: SMTP_PORT
-        envVar: SMTP_PORT
-      - key: SMTP_USERNAME
-        envVar: SMTP_USERNAME
-      - key: SMTP_PASSWORD
-        envVar: SMTP_PASSWORD
-      - key: REDIS_URL
-        envVar: REDIS_URL
+# Secret references for environment variables (legacy - disabled)
+secretRefs: []
 
 # Health check configuration
 healthCheck:
