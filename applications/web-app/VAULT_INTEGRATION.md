@@ -301,6 +301,112 @@ If migrating from Kubernetes secrets to Vault:
 4. **Verify secret injection** is working
 5. **Remove old Kubernetes secrets**
 
+## Re-implement Secrets with Vault (Step-by-Step)
+
+Follow these steps to migrate from Kubernetes Secrets to Vault for the web app:
+
+1) Prerequisites
+
+- Vault and the injector are deployed and initialized in the cluster
+- `production` namespace exists and Argo CD is managing the web app
+
+2) Prepare Secrets in Vault
+
+```bash
+# Database
+vault kv put secret/production/web-app/db \
+  host="<db-host>" \
+  port="5432" \
+  name="<db-name>" \
+  username="<db-user>" \
+  password="<db-password>"
+
+# API
+vault kv put secret/production/web-app/api \
+  jwt_secret="<jwt>" \
+  encryption_key="<enc-key>" \
+  api_key="<api-key>"
+
+# External services
+vault kv put secret/production/web-app/external \
+  smtp_host="<smtp-host>" \
+  smtp_port="587" \
+  smtp_username="<smtp-user>" \
+  smtp_password="<smtp-pass>" \
+  redis_url="<redis-url>"
+```
+
+3) Enable Vault Integration in Helm
+
+- Ensure the chart values disable legacy K8s secrets:
+
+```yaml
+# applications/web-app/k8s-web-app/helm/values.yaml
+secretRefs: []
+```
+
+- Enable Vault by layering vault values (either via a separate values file or direct overrides). Example using an additional file `values-vault-enabled.yaml`:
+
+```yaml
+vault:
+  enabled: true
+  ready: true
+  role: "web-app-role"
+  secrets:
+    - secretPath: "secret/data/production/web-app/db"
+      template: |
+        {{- with secret "secret/data/production/web-app/db" -}}
+        DB_HOST={{ .Data.data.host }}
+        DB_PORT={{ .Data.data.port }}
+        DB_NAME={{ .Data.data.name }}
+        DB_USERNAME={{ .Data.data.username }}
+        DB_PASSWORD={{ .Data.data.password }}
+        {{- end }}
+    - secretPath: "secret/data/production/web-app/api"
+      template: |
+        {{- with secret "secret/data/production/web-app/api" -}}
+        JWT_SECRET={{ .Data.data.jwt_secret }}
+        ENCRYPTION_KEY={{ .Data.data.encryption_key }}
+        API_KEY={{ .Data.data.api_key }}
+        {{- end }}
+    - secretPath: "secret/data/production/web-app/external"
+      template: |
+        {{- with secret "secret/data/production/web-app/external" -}}
+        SMTP_HOST={{ .Data.data.smtp_host }}
+        SMTP_PORT={{ .Data.data.smtp_port }}
+        SMTP_USERNAME={{ .Data.data.smtp_username }}
+        SMTP_PASSWORD={{ .Data.data.smtp_password }}
+        REDIS_URL={{ .Data.data.redis_url }}
+        {{- end }}
+```
+
+4) Update Argo CD Application to use Vault Values
+
+```bash
+kubectl patch application k8s-web-app -n argocd --type merge -p '
+{
+  "spec": {
+    "source": {
+      "helm": {
+        "valueFiles": ["values.yaml", "values-vault-enabled.yaml"]
+      }
+    }
+  }
+}'
+```
+
+5) Validate and Roll Out
+
+```bash
+kubectl -n production rollout status deploy/k8s-web-app
+kubectl -n production get secrets | grep vault-secret
+kubectl -n production exec deploy/k8s-web-app -- env | grep -E "^(DB_|JWT_|API_|SMTP_|REDIS_)"
+```
+
+6) Clean Up Legacy Secrets (Optional)
+
+After validation, remove any old Kubernetes secrets that are no longer needed.
+
 ## 🔄 Progressive Integration Approach
 
 The web application supports a **progressive Vault integration** to avoid YAML parsing errors and ensure reliable GitOps deployment:
