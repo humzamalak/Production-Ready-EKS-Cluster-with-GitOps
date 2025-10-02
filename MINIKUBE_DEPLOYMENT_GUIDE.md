@@ -643,21 +643,19 @@ kubectl describe pod -n production -l app.kubernetes.io/name=k8s-web-app | grep 
 # Expected: Only k8s-web-app container, State: Running
 ```
 
-### Step 6.4: Test Application
+### Step 6.4: Access the Web Application
 
 ```bash
-# Port forward to application
+# Option A: Ingress (if you enabled the ingress addon and set hosts)
+kubectl get ingress -n production
+# Add a hosts entry or use minikube tunnel + DNS
+
+# Option B: Port-forward (default)
 kubectl port-forward svc/k8s-web-app -n production 8081:80 > /dev/null 2>&1 &
 echo "Web App: http://localhost:8081"
-
-# Test application health
 sleep 3
 curl -s http://localhost:8081/health
-# Expected: {"status":"ok"}
-
-# Test application endpoint
 curl -s http://localhost:8081/
-# Expected: HTML response or welcome message
 ```
 
 ### Step 6.5: Verify No Secret Dependencies
