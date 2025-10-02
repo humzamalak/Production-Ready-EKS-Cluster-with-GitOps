@@ -1,50 +1,66 @@
-# ArgoCD Custom Values for Production (EKS GitOps)
-# Reference: https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
-# This file customises the Helm chart for a secure, HA, production-grade deployment
+# ArgoCD Helm Chart Values
+# Production-ready configuration for ArgoCD deployment
 
-# High Availability and Security
+global:
+  domain: argocd.example.com
+  image:
+    tag: "v2.8.4"  # Pin to stable version
+
+# ArgoCD Server Configuration
 server:
-  replicas: 2 # Number of ArgoCD server pods
-  resources:
-    requests:
-      cpu: 250m      # Minimum CPU requested per pod
-      memory: 512Mi  # Minimum memory requested per pod
-    limits:
-      cpu: 500m      # Maximum CPU allowed per pod
-      memory: 1Gi    # Maximum memory allowed per pod
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
+  replicas: 2
   service:
-    type: ClusterIP
-    ports:
-      http: 80
-      https: 443
+    type: LoadBalancer
   ingress:
-    enabled: false # Set to true and configure below for external access
-    annotations: {}
-    hosts: []
-    tls: []
-  extraArgs:
-    - --insecure=false
-  serviceAccount:
-    create: true
-    name: argocd-server
-  rbac:
-    create: true
-    policy: |
-      p, role:admin, applications, *, */*, allow
-      p, role:readonly, applications, get, */*, allow
-      p, role:readonly, projects, get, */*, allow
-      p, role:readonly, clusters, get, */*, allow
-      p, role:readonly, repositories, get, */*, allow
-      p, role:readonly, certificates, get, */*, allow
-      p, role:readonly, accounts, get, */*, allow
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/rate-limit: "100"
+      nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    hosts:
+      - argocd.example.com
+    tls:
+      - secretName: argocd-tls
+        hosts:
+          - argocd.example.com
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  config:
+    # Disable insecure mode in production
+    server.insecure: false
+    # Enable RBAC
+    rbacConfig:
+      policy.default: role:readonly
+      policy.csv: |
+        p, role:admin, applications, *, */*, allow
+        p, role:admin, clusters, *, *, allow
+        p, role:admin, repositories, *, *, allow
+        g, argocd-admins, role:admin
+    # Configure repository credentials
+    repositories:
+      - type: git
+        url: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
+        name: production-repo
+    # Configure OIDC (optional - for production)
+    oidc.config: |
+      name: OIDC
+      issuer: https://your-oidc-provider.com
+      clientId: argocd
+      clientSecret: $oidc.clientSecret
+      requestedScopes: ["openid", "profile", "email", "groups"]
+      requestedIDTokenClaims: {"groups": {"essential": true}}
 
+# ArgoCD Controller Configuration
 controller:
-  replicas: 2 # Number of ArgoCD controller pods
+  replicas: 2
   resources:
     requests:
       cpu: 250m
@@ -52,9 +68,14 @@ controller:
     limits:
       cpu: 500m
       memory: 1Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
 
+# ArgoCD Repository Server Configuration
 repoServer:
-  replicas: 2 # Number of ArgoCD repo server pods
+  replicas: 2
   resources:
     requests:
       cpu: 250m
@@ -62,18 +83,15 @@ repoServer:
     limits:
       cpu: 500m
       memory: 1Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
 
+# ArgoCD ApplicationSet Controller
 applicationSet:
-  replicas: 2 # Number of ArgoCD ApplicationSet pods
-  resources:
-    requests:
-      cpu: 250m
-      memory: 512Mi
-    limits:
-      cpu: 500m
-      memory: 1Gi
-
-redis:
+  enabled: true
+  replicas: 2
   resources:
     requests:
       cpu: 100m
@@ -82,64 +100,70 @@ redis:
       cpu: 200m
       memory: 256Mi
 
-# RBAC
-rbac:
-  policy.default: 'role:readonly' # Default role for users
-  policy.csv: |
-    g, admin, role:admin
-    g, devops, role:admin
-    g, platform, role:admin
-    g, developer, role:readonly
-  # Custom RBAC policies
-  # Example: Only admin can create applications, developers are readonly
-  policy: |
-    p, role:admin, applications, *, */*, allow
-    p, role:readonly, applications, get, */*, allow
-    p, role:readonly, projects, get, */*, allow
-    p, role:readonly, clusters, get, */*, allow
-    p, role:readonly, repositories, get, */*, allow
-    p, role:readonly, certificates, get, */*, allow
-    p, role:readonly, accounts, get, */*, allow
+# Disable components not needed for basic setup
+dex:
+  enabled: false
 
-# TLS/Ingress (example, customise as needed)
-ingress:
-  enabled: true # Enable ingress for ArgoCD UI
+notifications:
+  enabled: false
+
+# Redis Configuration
+redis:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# Security Configuration
+configs:
+  secret:
+    # In production, set these via external secret management
+    argocdServerAdminPassword: "$2a$10$rRyBsGSHK6.uc8fntPwFyO4LQnV7sY8dZ8b4Z8b4Z8b4Z8b4Z8b4Z8
+    argocdServerAdminPasswordMtime: "2024-01-01T00:00:00Z"
+
+# Service Account Configuration
+serviceAccount:
+  create: true
   annotations:
-    kubernetes.io/ingress.class: nginx
-    # Add authentication or IP allowlist annotations for production
-  hosts:
-    - host: argocd.example.com # Hostname for ArgoCD UI
-      paths:
-        - /
-  tls:
-    - hosts:
-        - argocd.example.com
-      secretName: argocd-tls # Name of the Kubernetes TLS secret
+    # Add IRSA annotations for AWS if needed
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT-ID:role/argocd-role"
 
-# Additional security best practices
-securityContext:
-  runAsNonRoot: true # Run containers as non-root user
+# Network Policies
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+
+# Pod Security Standards
+podSecurityContext:
+  runAsNonRoot: true
   runAsUser: 999
   fsGroup: 999
 
-# Admin user and authentication
-admin:
-  enabled: true # Enable the admin user (disable after SSO is configured)
-  # For production, store the password in a Kubernetes secret and reference it here
-  # password: "" # Do NOT hardcode in production
-  # passwordSecret:
-  #   name: argocd-initial-admin-secret
-  #   key: password
-  # To disable admin user after SSO is configured, set enabled: false
+# Container Security Context
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 999
 
-# SSO/OIDC (example placeholder, configure as needed)
-sso:
-  enabled: false # Enable SSO (set to true and configure below)
-  # provider: oidc
-  # oidc:
-  #   clientID: ""
-  #   clientSecret: ""
-  #   issuer: ""
-  #   redirectURI: ""
-
-# Add more configuration as needed for your environment
+# Prometheus Monitoring
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true

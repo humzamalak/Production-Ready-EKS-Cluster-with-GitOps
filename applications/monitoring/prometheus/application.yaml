@@ -59,12 +59,12 @@ spec:
               - secretName: prometheus-tls
                 hosts:
                   - prometheus.your-domain.com
-        
+
         # Grafana configuration (embedded but will be exposed separately)
         grafana:
           enabled: false  # Disable embedded Grafana as we deploy it separately
           # Note: Standalone Grafana is deployed via applications/monitoring/grafana/application.yaml
-        
+
         # AlertManager configuration
         alertmanager:
           enabled: true
@@ -129,7 +129,7 @@ spec:
               - secretName: alertmanager-tls
                 hosts:
                   - alertmanager.your-domain.com
-        
+
         # Node Exporter
         nodeExporter:
           enabled: true
@@ -140,7 +140,7 @@ spec:
             limits:
               cpu: 100m
               memory: 256Mi
-        
+
         # Kube State Metrics
         kubeStateMetrics:
           enabled: true
@@ -151,7 +151,7 @@ spec:
             limits:
               cpu: 100m
               memory: 256Mi
-        
+
         # Default ServiceMonitor and PrometheusRule discovery
         defaultRules:
           create: true
@@ -181,7 +181,7 @@ spec:
             nodeExporterRecording: true
             prometheus: true
             prometheusOperator: true
-        
+
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -198,3 +198,4 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
+

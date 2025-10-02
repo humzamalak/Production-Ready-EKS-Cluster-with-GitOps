@@ -152,7 +152,7 @@ vault:
           num_retries = 5
         }
       }
-      
+
       auto_auth {
         method "kubernetes" {
           mount_path = "auth/kubernetes"
@@ -160,24 +160,24 @@ vault:
             role = "k8s-web-app"
           }
         }
-        
+
         sink "file" {
           config = {
             path = "/vault/secrets/.vault-token"
           }
         }
       }
-      
+
       template {
         source      = "/vault/secrets/db/db-connection.tpl"
         destination = "/vault/secrets/db/db-connection.env"
       }
-      
+
       template {
         source      = "/vault/secrets/api/api-secrets.tpl"
         destination = "/vault/secrets/api/api-secrets.env"
       }
-      
+
       template {
         source      = "/vault/secrets/external/external-services.tpl"
         destination = "/vault/secrets/external/external-services.env"
@@ -274,3 +274,4 @@ serviceMonitor:
   scrapeTimeout: 10s
   path: /metrics
   port: http
+

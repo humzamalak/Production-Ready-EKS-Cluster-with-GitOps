@@ -15,7 +15,7 @@ metadata:
 data:
   vault-agent.hcl: |
     {{- .Values.vault.agent.config | nindent 4 }}
-  
+
   # Database connection template
   db-connection.tpl: |
     {{- range .Values.vault.secrets -}}
@@ -23,7 +23,7 @@ data:
     {{- .template | nindent 4 }}
     {{- end -}}
     {{- end }}
-  
+
   # API secrets template
   api-secrets.tpl: |
     {{- range .Values.vault.secrets -}}
@@ -31,7 +31,7 @@ data:
     {{- .template | nindent 4 }}
     {{- end -}}
     {{- end }}
-  
+
   # External services template
   external-services.tpl: |
     {{- range .Values.vault.secrets -}}
@@ -117,3 +117,4 @@ subjects:
   name: {{ include "k8s-web-app.fullname" . }}-vault-sa
   namespace: {{ .Release.Namespace }}
 {{- end }}
+

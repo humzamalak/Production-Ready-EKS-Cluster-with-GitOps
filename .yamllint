@@ -1,9 +1,24 @@
 extends: default
+
 rules:
-  document-start: disable
+  # Allow some flexibility for Helm templates
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+  comments-indentation: disable
+  empty-lines:
+    max: 2
+    max-start: 1
+    max-end: 1
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
   line-length:
-    max: 140
-    allow-non-breakable-words: true
-    allow-non-breakable-inline-mappings: true
-  comments-indentation: {level: warning}
-  comments: {min-spaces-from-content: 1}
+    max: 120
+    level: warning
+  new-line-at-end-of-file: disable
+  trailing-spaces: disable

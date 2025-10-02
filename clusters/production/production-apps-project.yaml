@@ -40,3 +40,4 @@ spec:
         - p, proj:production-apps:readonly, applications, get, production/*, allow
       groups:
         - developer
+

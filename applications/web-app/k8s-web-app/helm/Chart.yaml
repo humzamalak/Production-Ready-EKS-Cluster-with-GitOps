@@ -10,9 +10,11 @@ keywords:
   - nodejs
   - express
   - kubernetes
-home: https://github.com/your-org/production-ready-eks-cluster-with-gitops
+home: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
 sources:
-  - https://github.com/your-org/production-ready-eks-cluster-with-gitops
+  - https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
 maintainers:
-  - name: Your Name
-    email: your.email@example.com
+  - name: DevOps Team
+    email: devops@example.com
+icon: https://raw.githubusercontent.com/kubernetes/kubernetes/master/logo/logo.png
+

@@ -23,3 +23,4 @@ data:
     - url: https://charts.helm.sh/stable
       name: stable
     # Add your custom or internal Helm repo URLs here
+

@@ -118,13 +118,7 @@ defaultRules:
     prometheusOperator: true
 
 # Ingress configuration (disabled for local development)
-prometheus:
-  ingress:
-    enabled: false
-
-alertmanager:
-  ingress:
-    enabled: false
+# Note: prometheus and alertmanager sections already defined above
 
 # Prometheus Operator with reduced resources
 prometheusOperator:
@@ -135,3 +129,4 @@ prometheusOperator:
     limits:
       cpu: 100m
       memory: 256Mi
+

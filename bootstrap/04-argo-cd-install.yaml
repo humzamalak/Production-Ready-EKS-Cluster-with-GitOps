@@ -1,33 +1,67 @@
-# ArgoCD Installation Manifest for EKS GitOps Bootstrap
-# Reference: https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
-# This manifest is intended for initial ArgoCD installation via kubectl or GitOps
+# ArgoCD Installation using Helm Chart
+# This manifest installs ArgoCD using the official Helm chart for better production practices
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
   name: argocd
+  labels:
+    name: argocd
 ---
-# Install ArgoCD core components (use Helm for production, this is a minimal YAML for bootstrapping)
-apiVersion: apps/v1
-kind: Deployment
+# ArgoCD Helm Repository
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: argocd-server
+  name: argocd-repo
   namespace: argocd
+data:
+  repositories.yaml: |
+    - name: argo
+      url: https://argoproj.github.io/argo-helm
+      type: helm
+---
+# ArgoCD Application for Self-Management
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/part-of: gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
-  replicas: 2 # High availability
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-server
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: argocd-server
-    spec:
-      containers:
-        - name: argocd-server
-          image: argoproj/argocd:v2.6.0 # Pin to a stable version compatible with K8s 1.31
-          command: ["argocd-server"]
-          args: ["--insecure", "--port", "8080"]
+  project: default
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-cd
+    targetRevision: 5.51.6
+    helm:
+      valueFiles:
+        - values.yaml
+      values: |
+        global:
+          domain: argocd.example.com
+        server:
+          replicas: 2
+          service:
+            type: LoadBalancer
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+              nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+              cert-manager.io/cluster-issuer: "letsencrypt-prod"
+            hosts:
+              - argocd.example.com
+            tls:
+              - secretName: argocd-tls
+                hosts:
+                  - argocd.example.com
           resources:
             requests:
               cpu: 250m
@@ -35,26 +69,46 @@ spec:
             limits:
               cpu: 500m
               memory: 1Gi
-          ports:
-            - containerPort: 8080
-          env:
-            - name: ARGOCD_API_SERVER_INSECURE
-              value: "true"
-        # Add more containers for other ArgoCD components as needed
----
-# Service for ArgoCD Server
-apiVersion: v1
-kind: Service
-metadata:
-  name: argocd-server
-  namespace: argocd
-spec:
-  selector:
-    app.kubernetes.io/name: argocd-server
-  ports:
-    - name: http
-      port: 80
-      targetPort: 8080
-      protocol: TCP
-  type: ClusterIP
-# For full production, use Helm chart with values.yaml (see values.yaml for custom config)
+        controller:
+          replicas: 2
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+        repoServer:
+          replicas: 2
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+        dex:
+          enabled: false
+        notifications:
+          enabled: false
+        applicationSet:
+          enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 3
+

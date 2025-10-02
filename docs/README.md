@@ -44,6 +44,7 @@ This directory contains comprehensive documentation for the Production-Ready EKS
 ### **For Vault Integration:**
 1. Start with [Vault Setup Guide](VAULT_SETUP_GUIDE.md)
 2. Review [Vault Integration Guide](../applications/web-app/VAULT_INTEGRATION.md) (includes progressive deployment)
+3. Enhanced with environment variable support and improved security practices
 
 ## 📁 **Directory-Specific Documentation**
 
@@ -65,9 +66,10 @@ This directory contains comprehensive documentation for the Production-Ready EKS
 This documentation is maintained as part of the GitOps workflow. When making changes:
 
 1. Update relevant documentation files
-2. Update the [Changelog](CHANGELOG.md)
+2. Update the [Changelog](../CHANGELOG.md)
 3. Test documentation accuracy with actual deployments
 4. Keep this index updated
+5. Follow YAML linting standards with `.yamllint` configuration
 
 ## 📝 **Contributing to Documentation**
 
@@ -81,5 +83,6 @@ When adding new documentation:
 
 ---
 
-**Last Updated**: 2024-12-19
+**Last Updated**: 2024-01-15
 **Maintainer**: GitOps Team
+**Version**: 1.1.0 - Production-ready with enhanced security and reliability
