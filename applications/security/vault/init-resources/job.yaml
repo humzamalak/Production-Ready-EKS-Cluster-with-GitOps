@@ -42,14 +42,14 @@ spec:
         - -c
         - |
           set -e
-          
+
           # Wait for Vault to be ready
           echo "Waiting for Vault to be ready..."
           until vault status; do
             echo "Vault not ready, waiting..."
             sleep 5
           done
-          
+
           # Check if Vault is already initialized
           if vault status | grep -q "Initialized.*true"; then
             echo "Vault is already initialized"
@@ -60,37 +60,37 @@ spec:
               -key-shares=3 \
               -key-threshold=2 \
               -format=json > /tmp/vault-init.json
-            
+
             # Extract unseal keys and root token
             UNSEAL_KEY_1=$(cat /tmp/vault-init.json | jq -r '.unseal_keys_b64[0]')
             UNSEAL_KEY_2=$(cat /tmp/vault-init.json | jq -r '.unseal_keys_b64[1]')
             UNSEAL_KEY_3=$(cat /tmp/vault-init.json | jq -r '.unseal_keys_b64[2]')
             ROOT_TOKEN=$(cat /tmp/vault-init.json | jq -r '.root_token')
-            
+
             echo "Vault initialized successfully!"
             echo "Root token: $ROOT_TOKEN"
             echo "Unseal keys: $UNSEAL_KEY_1, $UNSEAL_KEY_2, $UNSEAL_KEY_3"
-            
+
             # Unseal Vault
             echo "Unsealing Vault..."
             vault operator unseal $UNSEAL_KEY_1
             vault operator unseal $UNSEAL_KEY_2
             vault operator unseal $UNSEAL_KEY_3
-            
+
             # Set root token for subsequent operations
             export VAULT_TOKEN=$ROOT_TOKEN
           fi
-          
+
           # Configure Kubernetes authentication
           echo "Configuring Kubernetes authentication..."
           vault auth enable kubernetes || echo "Kubernetes auth already enabled"
-          
+
           # Configure Kubernetes auth method
           vault write auth/kubernetes/config \
             token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
             kubernetes_host="https://kubernetes.default.svc.cluster.local:443" \
             kubernetes_ca_cert="$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt)" || echo "Kubernetes auth config already set"
-          
+
           # Create web-app role
           echo "Creating web-app role..."
           vault write auth/kubernetes/role/web-app-role \
@@ -98,7 +98,7 @@ spec:
             bound_service_account_namespaces=production \
             policies=web-app-policy \
             ttl=24h || echo "Web-app role already exists"
-          
+
           # Create web-app policy
           echo "Creating web-app policy..."
           vault policy write web-app-policy - <<EOF
@@ -106,38 +106,56 @@ spec:
           path "secret/data/production/web-app/*" {
             capabilities = ["read"]
           }
-          
+
           # Allow listing secrets
           path "secret/metadata/production/web-app/*" {
             capabilities = ["list", "read"]
           }
           EOF
-          
+
           # Create sample secrets for web-app
           echo "Creating sample secrets..."
+
+          # Database secrets - Use environment variables or external secret management
+          # In production, these values should come from external secret management
+          # or be set via environment variables in the job
+          DB_HOST="${DB_HOST:-postgres.example.com}"
+          DB_PORT="${DB_PORT:-5432}"
+          DB_NAME="${DB_NAME:-webapp_production}"
+          DB_USERNAME="${DB_USERNAME:-webapp_user}"
+          DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -base64 32)}"
           
-          # Database secrets
           vault kv put secret/production/web-app/db \
-            host="postgres.example.com" \
-            port="5432" \
-            name="webapp_production" \
-            username="webapp_user" \
-            password="$(openssl rand -base64 32)"
+            host="$DB_HOST" \
+            port="$DB_PORT" \
+            name="$DB_NAME" \
+            username="$DB_USERNAME" \
+            password="$DB_PASSWORD"
           
-          # API secrets
+          # API secrets - Generate random values for demo
+          JWT_SECRET="${JWT_SECRET:-$(openssl rand -base64 32)}"
+          ENCRYPTION_KEY="${ENCRYPTION_KEY:-$(openssl rand -base64 32)}"
+          API_KEY="${API_KEY:-$(openssl rand -base64 32)}"
+          
           vault kv put secret/production/web-app/api \
-            jwt_secret="$(openssl rand -base64 32)" \
-            encryption_key="$(openssl rand -base64 32)" \
-            api_key="$(openssl rand -base64 32)"
+            jwt_secret="$JWT_SECRET" \
+            encryption_key="$ENCRYPTION_KEY" \
+            api_key="$API_KEY"
           
-          # External services secrets
+          # External services secrets - Use environment variables
+          SMTP_HOST="${SMTP_HOST:-smtp.example.com}"
+          SMTP_PORT="${SMTP_PORT:-587}"
+          SMTP_USERNAME="${SMTP_USERNAME:-noreply@example.com}"
+          SMTP_PASSWORD="${SMTP_PASSWORD:-$(openssl rand -base64 32)}"
+          REDIS_URL="${REDIS_URL:-redis://redis.example.com:6379}"
+          
           vault kv put secret/production/web-app/external \
-            smtp_host="smtp.example.com" \
-            smtp_port="587" \
-            smtp_username="noreply@example.com" \
-            smtp_password="$(openssl rand -base64 32)" \
-            redis_url="redis://redis.example.com:6379"
-          
+            smtp_host="$SMTP_HOST" \
+            smtp_port="$SMTP_PORT" \
+            smtp_username="$SMTP_USERNAME" \
+            smtp_password="$SMTP_PASSWORD" \
+            redis_url="$REDIS_URL"
+
           echo "Vault initialization completed successfully!"
           echo "Web-app can now be deployed with Vault integration enabled."
         env:
@@ -203,3 +221,4 @@ subjects:
 - kind: ServiceAccount
   name: vault-init-sa
   namespace: vault
+

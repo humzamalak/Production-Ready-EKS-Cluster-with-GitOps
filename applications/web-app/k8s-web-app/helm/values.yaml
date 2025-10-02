@@ -28,7 +28,7 @@ securityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
-    - ALL
+      - ALL
   readOnlyRootFilesystem: true
 
 service:
@@ -110,12 +110,12 @@ networkPolicy:
   enabled: true
   ingress:
     - from:
-        - namespaceSelector:
-            matchLabels:
-              name: ingress-nginx
-      ports:
-        - protocol: TCP
-          port: 3000
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+    ports:
+      - protocol: TCP
+        port: 3000
   egress:
     - {}  # Allow all egress traffic
 
@@ -145,7 +145,7 @@ vault:
           num_retries = 5
         }
       }
-      
+
       auto_auth {
         method "kubernetes" {
           mount_path = "auth/kubernetes"
@@ -153,7 +153,7 @@ vault:
             role = "web-app-role"
           }
         }
-        
+
         sink "file" {
           config = {
             path = "/vault/secrets/.vault-token"
@@ -161,3 +161,4 @@ vault:
         }
       }
   secrets: []  # Empty array when vault is disabled
+

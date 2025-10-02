@@ -27,9 +27,12 @@ This repository follows GitOps principles to manage a production-ready EKS clust
 │   ├── 📄 00-namespaces.yaml       # Core namespaces with PSS labels
 │   ├── 📄 01-pod-security-standards.yaml # Security standards
 │   ├── 📄 02-network-policy.yaml   # Network policies
-│   ├── 📄 05-argo-cd-install.yaml  # Argo CD installation
-│   ├── 📄 20-etcd-backup.yaml      # etcd backup cronjob
-│   └── 📁 helm-values/             # Helm values (not applied via kubectl)
+│   ├── 📄 03-helm-repos.yaml       # Helm repository configurations
+│   ├── 📄 04-argo-cd-install.yaml  # ArgoCD installation (Helm-based)
+│   ├── 📄 05-vault-policies.yaml   # Vault policies and authentication
+│   ├── 📄 06-etcd-backup.yaml      # etcd backup cronjob
+│   └── 📁 helm-values/             # Helm values for bootstrap components
+│       └── 📄 argo-cd-values.yaml  # Production ArgoCD configuration
 ├── 📁 infrastructure/              # Infrastructure as Code (Terraform)
 ├── 📁 examples/                    # Example applications and scripts
 └── 📁 docs/                        # Documentation
@@ -70,15 +73,15 @@ Both guides follow a **7-phase approach** to ensure reliable deployment:
 
 #### For AWS EKS:
 - AWS CLI configured with appropriate permissions
-- Terraform >=1.5.0
-- kubectl v1.33+
-- Helm v3.12+
+- Terraform >=1.4.0
+- kubectl v1.31+
+- Helm v3.18+
 
 #### For Minikube:
 - Docker Desktop
 - Minikube
-- kubectl v1.33+
-- Helm v3.12+
+- kubectl v1.31+
+- Helm v3.18+
 
 ### Quick Start Commands
 
@@ -109,8 +112,9 @@ open MINIKUBE_DEPLOYMENT_GUIDE.md
 - **[Vault Setup Guide](docs/VAULT_SETUP_GUIDE.md)** - Detailed Vault configuration and troubleshooting
 - **[Security Best Practices](docs/security-best-practices.md)** - Security guidelines and recommendations
 - **[Disaster Recovery Runbook](docs/disaster-recovery-runbook.md)** - Backup and recovery procedures
-- **[GitOps Structure](docs/gitops-structure.md)** - GitOps architecture and patterns
-- **[Changelog](docs/CHANGELOG.md)** - Version history and changes
+- **[Changelog](CHANGELOG.md)** - Version history and changes
+- **[Pull Request Summary](PULL_REQUEST_SUMMARY.md)** - Recent fixes and improvements
+- **[Documentation Update Summary](DOCUMENTATION_UPDATE_SUMMARY.md)** - Documentation changes and updates
 
 ## 🔧 Application Access
 
@@ -181,9 +185,10 @@ This guide covers:
 - **Network Policies**: Traffic isolation between components
 
 ### Web Application
-- **Node.js Application**: Production-ready with health checks
+- **Node.js Application**: Production-ready with health checks and security contexts
 - **Auto-scaling**: Horizontal Pod Autoscaler configuration
-- **Vault Integration**: Optional and disabled by default. Enable later by setting `vault.enabled=true` and `vault.ready=true` in `applications/web-app/k8s-web-app/helm/values.yaml` after Vault is initialized and policies are configured.
+- **Vault Integration**: Enhanced with environment variable support and improved security practices
+- **Security**: Pod Security Standards, network policies, and proper RBAC configurations
 
 ## 🔒 Security Features
 
@@ -202,14 +207,17 @@ This repository follows GitOps best practices:
 - ✅ **Automated**: Continuous reconciliation with desired state
 - ✅ **Observable**: Full audit trail of all changes
 - ✅ **Secure**: Immutable infrastructure with proper access controls
+- ✅ **Production-Ready**: Enhanced security, reliability, and maintainability
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make changes following GitOps principles
-4. Test in a development environment
-5. Submit a pull request
+4. Follow YAML linting standards (`.yamllint` configuration)
+5. Test in a development environment
+6. Update documentation as needed
+7. Submit a pull request
 
 ## 📄 License
 

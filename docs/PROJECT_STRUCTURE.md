@@ -28,11 +28,11 @@ bootstrap/
 ├── 01-pod-security-standards.yaml # Pod Security Standards
 ├── 02-network-policy.yaml         # Default network policies
 ├── 03-helm-repos.yaml            # Helm repository configurations
-├── 04-argo-cd-install.yaml       # ArgoCD installation
+├── 04-argo-cd-install.yaml       # ArgoCD installation (Helm-based)
 ├── 05-vault-policies.yaml        # Vault policies and authentication
 ├── 06-etcd-backup.yaml           # etcd backup configuration
 ├── helm-values/                  # Helm values for bootstrap components
-│   └── argo-cd-values.yaml
+│   └── argo-cd-values.yaml       # Production ArgoCD configuration
 └── README.md                     # Bootstrap documentation
 ```
 
@@ -148,7 +148,8 @@ infrastructure/
 docs/
 ├── CHANGELOG.md               # Version history and changes
 ├── VAULT_SETUP_GUIDE.md      # Comprehensive Vault setup guide
-├── gitops-structure.md       # GitOps architecture documentation
+├── PROJECT_STRUCTURE.md      # Repository structure and GitOps patterns
+├── PRODUCTION_BEST_PRACTICES.md # Production deployment guidelines
 ├── security-best-practices.md # Security guidelines
 └── disaster-recovery-runbook.md # Disaster recovery procedures
 ```

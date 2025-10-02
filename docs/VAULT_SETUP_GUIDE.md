@@ -27,8 +27,8 @@ This setup provides:
 
 ### Required Tools
 
-- **kubectl** (v1.25+) - Kubernetes CLI
-- **Helm** (v3.x) - Package manager
+- **kubectl** (v1.31+) - Kubernetes CLI
+- **Helm** (v3.18+) - Package manager
 - **Vault CLI** (v1.16+) - HashiCorp Vault CLI
 - **openssl** - For generating random secrets
 
@@ -187,32 +187,49 @@ vault write auth/kubernetes/role/k8s-web-app \
 
 ### 1. Create Sample Secrets
 
-**Database Secrets**:
+**Database Secrets** (using environment variables for security):
 ```bash
+# Set environment variables for production values
+export DB_HOST="${DB_HOST:-your-production-db.amazonaws.com}"
+export DB_PORT="${DB_PORT:-5432}"
+export DB_NAME="${DB_NAME:-k8s_web_app_prod}"
+export DB_USERNAME="${DB_USERNAME:-k8s_web_app_user}"
+export DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -base64 32)}"
+
 vault kv put secret/production/web-app/db \
-  host="your-production-db.amazonaws.com" \
-  port="5432" \
-  name="k8s_web_app_prod" \
-  username="k8s_web_app_user" \
-  password="$(openssl rand -base64 32)"
+  host="$DB_HOST" \
+  port="$DB_PORT" \
+  name="$DB_NAME" \
+  username="$DB_USERNAME" \
+  password="$DB_PASSWORD"
 ```
 
-**API Secrets**:
+**API Secrets** (generate random values for demo):
 ```bash
+export JWT_SECRET="${JWT_SECRET:-$(openssl rand -base64 64)}"
+export ENCRYPTION_KEY="${ENCRYPTION_KEY:-$(openssl rand -base64 32)}"
+export API_KEY="${API_KEY:-$(openssl rand -base64 32)}"
+
 vault kv put secret/production/web-app/api \
-  jwt_secret="$(openssl rand -base64 64)" \
-  encryption_key="$(openssl rand -base64 32)" \
-  api_key="$(openssl rand -base64 32)"
+  jwt_secret="$JWT_SECRET" \
+  encryption_key="$ENCRYPTION_KEY" \
+  api_key="$API_KEY"
 ```
 
-**External Services Secrets**:
+**External Services Secrets** (using environment variables):
 ```bash
+export SMTP_HOST="${SMTP_HOST:-smtp.your-provider.com}"
+export SMTP_PORT="${SMTP_PORT:-587}"
+export SMTP_USERNAME="${SMTP_USERNAME:-your-smtp-username}"
+export SMTP_PASSWORD="${SMTP_PASSWORD:-your-smtp-password}"
+export REDIS_URL="${REDIS_URL:-redis://your-redis-host:6379}"
+
 vault kv put secret/production/web-app/external \
-  smtp_host="smtp.your-provider.com" \
-  smtp_port="587" \
-  smtp_username="your-smtp-username" \
-  smtp_password="your-smtp-password" \
-  redis_url="redis://your-redis-host:6379"
+  smtp_host="$SMTP_HOST" \
+  smtp_port="$SMTP_PORT" \
+  smtp_username="$SMTP_USERNAME" \
+  smtp_password="$SMTP_PASSWORD" \
+  redis_url="$REDIS_URL"
 ```
 
 ### 2. Verify Secrets

@@ -34,3 +34,4 @@ spec:
     {{- toYaml .Values.autoscaling.behavior | nindent 4 }}
   {{- end }}
 {{- end }}
+

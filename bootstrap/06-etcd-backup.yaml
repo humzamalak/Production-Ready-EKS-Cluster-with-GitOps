@@ -36,3 +36,4 @@ spec:
             - name: etcd-certs
               hostPath:
                 path: /etc/kubernetes/pki/etcd
+

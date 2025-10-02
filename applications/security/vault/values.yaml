@@ -1,6 +1,6 @@
 # Vault Helm Chart Values Configuration
 # Production-ready configuration with HA, Raft storage, and security best practices
-# 
+#
 # IMPORTANT: Before deploying to production, update the following:
 # 1. Replace 'your-domain.com' with your actual domain
 # 2. Replace 'ACCOUNT_ID' with your AWS account ID
@@ -19,7 +19,7 @@ server:
   image:
     repository: "hashicorp/vault"
     tag: "1.16.1"
-  
+
   # High availability configuration with Raft storage
   ha:
     enabled: true
@@ -29,7 +29,7 @@ server:
       setNodeId: true
       config: |
         ui = true
-        
+
         listener "tcp" {
           address = "[::]:8200"
           cluster_address = "[::]:8201"
@@ -37,25 +37,25 @@ server:
           tls_cert_file = "/vault/tls/tls.crt"
           tls_key_file = "/vault/tls/tls.key"
         }
-        
+
         storage "raft" {
           path = "/vault/data"
         }
-        
+
         service_registration "kubernetes" {}
-        
+
         # Enable audit logging
         audit_device "file" {
           path = "/vault/audit/audit.log"
         }
-  
+
   # Security context
   securityContext:
     runAsNonRoot: true
     runAsUser: 100
     runAsGroup: 1000
     fsGroup: 1000
-  
+
   # Resource limits
   resources:
     requests:
@@ -64,14 +64,14 @@ server:
     limits:
       memory: "1Gi"
       cpu: "1000m"
-  
+
   # Service configuration
   service:
     enabled: true
     type: ClusterIP
     port: 8200
     targetPort: 8200
-  
+
   # Ingress configuration
   ingress:
     enabled: true
@@ -89,22 +89,22 @@ server:
       - secretName: vault-tls
         hosts:
           - vault.your-domain.com
-  
+
   # TLS configuration
   extraEnvironmentVars:
     VAULT_CACERT: /vault/tls/ca.crt
     VAULT_CAPATH: /vault/tls
-  
+
   # Volume mounts for TLS certificates
   extraVolumes:
     - type: secret
       name: vault-tls
-  
+
   extraVolumeMounts:
     - name: vault-tls
       mountPath: /vault/tls
       readOnly: true
-  
+
   # Service account
   serviceAccount:
     create: true
@@ -121,14 +121,14 @@ injector:
   image:
     repository: "hashicorp/vault-k8s"
     tag: "1.1.0"
-  
+
   # Default settings for injected Vault agents
   agentDefaults:
     cpuLimit: "200m"
     cpuRequest: "100m"
     memLimit: "256Mi"
     memRequest: "128Mi"
-  
+
   # Pod-level security context for Pod Security Standards compliance
   podSecurityContext:
     runAsNonRoot: true
@@ -137,7 +137,7 @@ injector:
     fsGroup: 1000
     seccompProfile:
       type: RuntimeDefault
-  
+
   # Container-level security context
   securityContext:
     allowPrivilegeEscalation: false
@@ -150,7 +150,7 @@ injector:
     capabilities:
       drop:
         - ALL
-  
+
   # Resource limits
   resources:
     requests:
@@ -159,7 +159,7 @@ injector:
     limits:
       memory: "256Mi"
       cpu: "200m"
-  
+
   # Service account
   serviceAccount:
     create: true
@@ -173,7 +173,7 @@ ui:
   serviceType: ClusterIP
   serviceNodePort: null
   externalPort: 8200
-  
+
   # Resource limits
   resources:
     requests:
@@ -189,7 +189,7 @@ csi:
   image:
     repository: "hashicorp/vault-csi-provider"
     tag: "1.4.0"
-  
+
   # Resource limits
   resources:
     requests:
@@ -198,7 +198,7 @@ csi:
     limits:
       memory: "256Mi"
       cpu: "200m"
-  
+
   # Service account
   serviceAccount:
     create: true
@@ -220,7 +220,7 @@ prometheus:
       - sourceLabels: [__name__]
         regex: 'vault_audit_.*'
         action: drop
-  
+
   # Resource limits
   resources:
     requests:
@@ -271,3 +271,4 @@ autoscaling:
   maxReplicas: 5
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
+

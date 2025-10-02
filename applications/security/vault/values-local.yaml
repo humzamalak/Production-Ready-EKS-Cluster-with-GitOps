@@ -13,7 +13,7 @@ server:
   image:
     repository: "hashicorp/vault"
     tag: "1.16.1"
-  
+
   # Single instance configuration for local development
   ha:
     enabled: false  # Disable HA for local development
@@ -22,14 +22,14 @@ server:
       enabled: false  # Use in-memory storage for local development
       setNodeId: false
       config: ""
-  
+
   # Security context
   securityContext:
     runAsNonRoot: true
     runAsUser: 100
     runAsGroup: 1000
     fsGroup: 1000
-  
+
   # Reduced resource limits for local development
   resources:
     requests:
@@ -38,27 +38,27 @@ server:
     limits:
       memory: "256Mi"
       cpu: "200m"
-  
+
   # Service configuration
   service:
     enabled: true
     type: ClusterIP
     port: 8200
     targetPort: 8200
-  
+
   # Ingress configuration (disabled for local development)
   ingress:
     enabled: false
-  
+
   # Environment variables
   extraEnvironmentVars:
     VAULT_DEV_ROOT_TOKEN_ID: "root"
     VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
-  
+
   # Volume mounts (simplified for local development)
   extraVolumes: []
   extraVolumeMounts: []
-  
+
   # Service account
   serviceAccount:
     create: true
@@ -71,14 +71,14 @@ injector:
   image:
     repository: "hashicorp/vault-k8s"
     tag: "1.1.0"
-  
+
   # Pod-level security context for Pod Security Standards compliance
   agentDefaults:
     cpuLimit: "100m"
     cpuRequest: "50m"
     memLimit: "128Mi"
     memRequest: "64Mi"
-  
+
   # Security context for the injector pod
   podSecurityContext:
     runAsNonRoot: true
@@ -87,7 +87,7 @@ injector:
     fsGroup: 1000
     seccompProfile:
       type: RuntimeDefault
-  
+
   # Security context for the injector container
   securityContext:
     allowPrivilegeEscalation: false
@@ -100,7 +100,7 @@ injector:
     capabilities:
       drop:
         - ALL
-  
+
   # Reduced resource limits for local development
   resources:
     requests:
@@ -109,7 +109,7 @@ injector:
     limits:
       memory: "128Mi"
       cpu: "100m"
-  
+
   # Service account
   serviceAccount:
     create: true
@@ -122,7 +122,7 @@ ui:
   serviceType: ClusterIP
   serviceNodePort: null
   externalPort: 8200
-  
+
   # Reduced resource limits for local development
   resources:
     requests:
@@ -155,3 +155,4 @@ podDisruptionBudget:
 # Autoscaling (disabled for local development)
 autoscaling:
   enabled: false
+
