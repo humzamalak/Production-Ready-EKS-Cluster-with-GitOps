@@ -21,6 +21,8 @@ This repository follows GitOps principles to manage a production-ready EKS clust
 │   └── 📁 web-app/                 # Web application deployments
 │       ├── 📄 namespace.yaml       # Production namespace
 │       └── 📁 k8s-web-app/         # Node.js web application
+│           └── 📁 helm/            # Helm chart
+│               └── 📄 values.yaml  # Single consolidated values (Vault optional)
 ├── 📁 bootstrap/                   # Bootstrap manifests
 │   ├── 📄 00-namespaces.yaml       # Core namespaces with PSS labels
 │   ├── 📄 01-pod-security-standards.yaml # Security standards
@@ -143,7 +145,7 @@ After `k8s-web-app` is Synced and Healthy in Argo CD, you can access it via:
 ```bash
 kubectl get ingress k8s-web-app -n production
 ```
-2) Point your DNS `A`/`CNAME` record to the address and update `helm/values.yaml` host if needed (`ingress.hosts[0].host`).
+2) Point your DNS `A`/`CNAME` record to the address and update `applications/web-app/k8s-web-app/helm/values.yaml` host if needed (`ingress.hosts[0].host`).
 3) Browse to: https://<your-host>
 
 #### Option B: Port-forward (Quick test)
@@ -181,7 +183,7 @@ This guide covers:
 ### Web Application
 - **Node.js Application**: Production-ready with health checks
 - **Auto-scaling**: Horizontal Pod Autoscaler configuration
-- **Vault Integration**: Automatic secret injection
+- **Vault Integration**: Optional and disabled by default. Enable later by setting `vault.enabled=true` and `vault.ready=true` in `applications/web-app/k8s-web-app/helm/values.yaml` after Vault is initialized and policies are configured.
 
 ## 🔒 Security Features
 
