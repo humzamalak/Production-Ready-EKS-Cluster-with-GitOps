@@ -49,7 +49,7 @@ server:
 
 # Vault Agent Injector
 injector:
-  enabled: true
+  enabled: false
   image:
     repository: "hashicorp/vault-k8s"
     tag: "1.1.0"

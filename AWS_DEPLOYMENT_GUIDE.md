@@ -8,17 +8,21 @@ Complete production deployment guide for AWS EKS cluster with GitOps, using a **
 
 This deployment follows a **7-phase approach** with built-in verification at each step:
 
-| Phase | Component | Purpose | Duration |
-|-------|-----------|---------|----------|
-| **Phase 1** | AWS Infrastructure | EKS cluster, VPC, IAM | 15-20 min |
-| **Phase 2** | Bootstrap | ArgoCD, namespaces, policies | 5-10 min |
-| **Phase 3** | Monitoring | Prometheus, Grafana | 5-10 min |
-| **Phase 4** | Vault Deployment | Vault server, agent injector | 5 min |
-| **Phase 5** | Vault Configuration | Initialize, policies, secrets | 10 min |
-| **Phase 6** | Web App Deployment | Deploy app WITHOUT secrets | 5 min |
-| **Phase 7** | Vault Integration | Add Vault secrets to web app | 10 min |
+| Phase | Component | Purpose | Duration | Optional |
+|-------|-----------|---------|----------|----------|
+| **Phase 1** | AWS Infrastructure | EKS cluster, VPC, IAM | 15-20 min | Required |
+| **Phase 2** | Bootstrap | ArgoCD, namespaces, policies | 5-10 min | Required |
+| **Phase 3** | Monitoring | Prometheus, Grafana | 5-10 min | Required |
+| **Phase 4** | Vault Deployment | Vault server, agent injector | 5 min | ⚠️ **Optional** |
+| **Phase 5** | Vault Configuration | Initialize, policies, secrets | 10 min | ⚠️ **Optional** |
+| **Phase 6** | Web App Deployment | Deploy app WITHOUT secrets | 5 min | Required |
+| **Phase 7** | Vault Integration | Add Vault secrets to web app | 10 min | ⚠️ **Optional** |
 
-**Total Time**: ~65 minutes
+**Total Time**: 
+- **Without Vault**: ~40 minutes (Phases 1-3, 6)
+- **With Vault**: ~65 minutes (All phases)
+
+> **💡 Note:** Phases 4-5-7 (Vault) are optional. You can deploy Prometheus, Grafana, and your web app without Vault, then add Vault later when you need secret management. See [Adding Vault Later](#adding-vault-later-optional) section.
 
 ---
 
@@ -338,7 +342,11 @@ curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length'
 
 ---
 
-## 🔒 Phase 4: Vault Deployment (Security Stack)
+## 🔒 Phase 4: Vault Deployment (Security Stack) - ⚠️ OPTIONAL
+
+> **💡 Skip This Phase If:** You want to deploy just monitoring and web app first. You can add Vault later - see [Adding Vault Later](#adding-vault-later-optional).
+
+> **✅ Complete This Phase If:** You want full secret management with Vault agent injection.
 
 ### Step 4.1: Wait for Vault Deployment
 
@@ -398,7 +406,9 @@ vault status
 
 ---
 
-## 🔧 Phase 5: Vault Configuration (Critical Phase)
+## 🔧 Phase 5: Vault Configuration (Critical Phase) - ⚠️ OPTIONAL
+
+> **⚠️ Prerequisites**: Phase 4 must be complete. Skip if you skipped Phase 4.
 
 > **⚠️ Important**: This phase initializes Vault with policies and secrets. Follow steps exactly.
 
@@ -645,9 +655,11 @@ kubectl exec -n production deployment/k8s-web-app -- env | grep -E "DB_|JWT_|API
 
 ---
 
-## 🔐 Phase 7: Adding Vault Secrets to Web Application
+## 🔐 Phase 7: Adding Vault Secrets to Web Application - ⚠️ OPTIONAL
 
-> **Prerequisites**: Phases 4, 5, and 6 must be complete. Vault must be initialized and unsealed.
+> **⚠️ Prerequisites**: Phases 4, 5, and 6 must be complete. Vault must be initialized and unsealed.
+
+> **💡 Skip This Phase If:** You skipped Phases 4-5. Your web app will work fine without Vault secrets.
 
 This phase demonstrates how to add Vault secret injection to an already-deployed application.
 
@@ -865,6 +877,19 @@ echo "Vault: http://localhost:8200"
 kubectl port-forward svc/k8s-web-app -n production 8081:80 &
 echo "Web App: http://localhost:8081"
 ```
+
+### 📖 Comprehensive Access Guide
+
+For detailed guides on using Prometheus, Grafana, and Vault, see:
+
+**[Application Access Guide](APPLICATION_ACCESS_GUIDE.md)**
+
+This comprehensive guide includes:
+- ✅ **Prometheus**: Query language (PromQL), targets, alerts, API usage
+- ✅ **Grafana**: Dashboard creation, data sources, alerting, community dashboards
+- ✅ **Vault**: Secret management, policies, Kubernetes auth, audit logs
+- ✅ **ArgoCD**: Application management, CLI usage, sync operations
+- ✅ **Troubleshooting**: Common access issues and solutions
 
 ### Test End-to-End
 
@@ -1167,6 +1192,263 @@ kubectl delete application security-stack -n argocd
 
 ---
 
+## 🔐 Adding Vault Later (Optional)
+
+If you skipped Phases 4-5-7 and want to add Vault secret management later, follow these steps:
+
+### Prerequisites
+
+Your current deployment should have:
+- ✅ Infrastructure (Phase 1)
+- ✅ ArgoCD (Phase 2)
+- ✅ Monitoring (Phase 3)
+- ✅ Web App running without secrets (Phase 6)
+
+### Step 1: Check Current Deployment
+
+```bash
+# Verify what's running
+kubectl get applications -n argocd
+
+# Should see:
+# - production-cluster
+# - monitoring-stack (or prometheus + grafana)
+# - k8s-web-app
+
+# Should NOT see:
+# - security-stack
+# - vault
+
+# Verify web app is working
+kubectl get pods -n production
+curl http://localhost:8081/health
+```
+
+### Step 2: Deploy Vault (Complete Phase 4)
+
+The security-stack should already be discovered by your root application. If you deleted it earlier:
+
+```bash
+# Check if security-stack exists
+kubectl get application security-stack -n argocd
+
+# If it doesn't exist, it should auto-appear from the root app
+# If not, the root app may have been modified. Check:
+kubectl get application production-cluster -n argocd -o yaml | grep include
+```
+
+**If security-stack is present but not syncing:**
+
+```bash
+# Create the AppProject if it doesn't exist
+kubectl apply -f clusters/production/production-apps-project.yaml
+
+# Force sync security-stack
+kubectl patch application security-stack -n argocd \
+  --type merge -p '{"operation":{"sync":{}}}'
+
+# Wait for Vault to deploy
+kubectl wait --for=condition=Synced --timeout=600s \
+  application/security-stack -n argocd
+
+# Verify Vault pod is running
+kubectl get pods -n vault
+# Expected: vault-0 (Running, 0/1 Ready - sealed and uninitialized)
+```
+
+### Step 3: Configure Vault (Complete Phase 5)
+
+Follow Phase 5 instructions exactly:
+
+1. **Port forward to Vault:**
+   ```bash
+   kubectl port-forward svc/vault -n vault 8200:8200 &
+   export VAULT_ADDR="http://localhost:8200"
+   ```
+
+2. **Initialize Vault:**
+   ```bash
+   vault operator init -key-shares=1 -key-threshold=1 > vault-keys.txt
+   export VAULT_TOKEN=$(grep 'Initial Root Token:' vault-keys.txt | awk '{print $NF}')
+   export VAULT_UNSEAL_KEY=$(grep 'Unseal Key 1:' vault-keys.txt | awk '{print $NF}')
+   ```
+
+3. **Unseal Vault:**
+   ```bash
+   vault operator unseal $VAULT_UNSEAL_KEY
+   vault status  # Should show Sealed: false
+   ```
+
+4. **Enable secrets engine:**
+   ```bash
+   vault secrets enable -path=secret kv-v2
+   ```
+
+5. **Enable Kubernetes auth:**
+   ```bash
+   vault auth enable kubernetes
+   vault write auth/kubernetes/config \
+     kubernetes_host="https://kubernetes.default.svc.cluster.local"
+   ```
+
+6. **Create web app policy:**
+   ```bash
+   vault policy write k8s-web-app - <<EOF
+   path "secret/data/production/web-app/*" {
+     capabilities = ["read"]
+   }
+   path "secret/metadata/production/web-app/*" {
+     capabilities = ["read", "list"]
+   }
+   path "auth/kubernetes/login" {
+     capabilities = ["create", "update"]
+   }
+   path "auth/token/renew-self" {
+     capabilities = ["update"]
+   }
+   EOF
+   ```
+
+7. **Create Kubernetes role:**
+   ```bash
+   vault write auth/kubernetes/role/k8s-web-app \
+     bound_service_account_names=k8s-web-app \
+     bound_service_account_namespaces=production \
+     policies=k8s-web-app \
+     ttl=1h \
+     max_ttl=24h
+   ```
+
+8. **Create application secrets:**
+   ```bash
+   vault kv put secret/production/web-app/db \
+     host="your-db-host" \
+     port="5432" \
+     name="mydb" \
+     username="dbuser" \
+     password="$(openssl rand -base64 32)"
+
+   vault kv put secret/production/web-app/api \
+     jwt_secret="$(openssl rand -base64 64)" \
+     encryption_key="$(openssl rand -base64 32)" \
+     api_key="$(openssl rand -base64 32)"
+   ```
+
+### Step 4: Enable Vault in Web App (Complete Phase 7)
+
+Now integrate Vault with your running web application:
+
+```bash
+# Update web app to use Vault-enabled values
+kubectl patch application k8s-web-app -n argocd --type merge -p '
+{
+  "spec": {
+    "source": {
+      "helm": {
+        "valueFiles": ["values.yaml", "values-vault-enabled.yaml"]
+      }
+    }
+  }
+}'
+
+# Wait for rollout
+kubectl wait --for=condition=Synced --timeout=300s \
+  application/k8s-web-app -n argocd
+
+# Monitor pod rollout (will restart with 2 containers)
+kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app -w
+# Wait for 2/2 Ready (app + vault-agent)
+```
+
+### Step 5: Verify Vault Integration
+
+```bash
+# Check pod has 2 containers now
+kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app \
+  -o jsonpath='{.items[0].spec.containers[*].name}'
+# Expected: k8s-web-app vault-agent
+
+# Check secrets are injected
+kubectl exec -n production deployment/k8s-web-app -- ls -la /vault/secrets/
+# Expected: db, api, external files
+
+# View a secret
+kubectl exec -n production deployment/k8s-web-app -- cat /vault/secrets/db
+# Expected: DB_HOST=..., DB_PORT=..., etc.
+
+# Test application still works
+curl http://localhost:8081/health
+# Expected: {"status":"ok"}
+```
+
+### Troubleshooting Vault Addition
+
+**Issue: security-stack not appearing**
+
+```bash
+# Check root app configuration
+kubectl get application production-cluster -n argocd -o yaml | grep -A 5 "directory:"
+
+# Should include: */app-of-apps.yaml
+# If not, the pattern may have been changed
+
+# Force refresh
+kubectl patch application production-cluster -n argocd \
+  --type merge -p '{"operation":{"sync":{}}}'
+```
+
+**Issue: Vault sync fails with project error**
+
+```bash
+# Apply the AppProject
+kubectl apply -f clusters/production/production-apps-project.yaml
+
+# Verify it exists
+kubectl get appproject production-apps -n argocd
+```
+
+**Issue: Web app won't restart with Vault sidecar**
+
+```bash
+# Check Vault agent logs
+kubectl logs -n production -l app.kubernetes.io/name=k8s-web-app \
+  -c vault-agent-init --tail=50
+
+# Common issues:
+# - Vault not unsealed: vault operator unseal $VAULT_UNSEAL_KEY
+# - Role doesn't exist: verify with vault read auth/kubernetes/role/k8s-web-app
+# - Secrets don't exist: verify with vault kv list secret/production/web-app/
+```
+
+### Rollback (Remove Vault)
+
+If you need to remove Vault after adding it:
+
+```bash
+# 1. Remove Vault from web app
+kubectl patch application k8s-web-app -n argocd --type merge -p '
+{
+  "spec": {
+    "source": {
+      "helm": {
+        "valueFiles": ["values.yaml"]
+      }
+    }
+  }
+}'
+
+# 2. Wait for pods to restart (back to 1/1 containers)
+kubectl get pods -n production -w
+
+# 3. Delete Vault application
+kubectl delete application security-stack -n argocd
+
+# 4. Delete Vault namespace
+kubectl delete namespace vault
+```
+
+---
+
 ## 📚 Next Steps
 
 1. **Configure SSL/TLS**: Set up cert-manager for automatic certificate management
@@ -1180,8 +1462,8 @@ kubectl delete application security-stack -n argocd
 
 ## 📖 Related Documentation
 
+- **[Application Access Guide](APPLICATION_ACCESS_GUIDE.md)** - Comprehensive Prometheus, Grafana, and Vault usage guide
 - [Minikube Deployment Guide](MINIKUBE_DEPLOYMENT_GUIDE.md) - Local development deployment
 - [Project Structure](docs/PROJECT_STRUCTURE.md) - Repository organization
 - [Vault Setup Guide](docs/VAULT_SETUP_GUIDE.md) - Detailed Vault configuration
 - [Security Best Practices](docs/security-best-practices.md) - Security guidelines
-- [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions

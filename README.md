@@ -44,15 +44,17 @@ Choose your deployment platform:
 
 Both guides follow a **7-phase approach** to ensure reliable deployment:
 
-| Phase | Component | Purpose |
-|-------|-----------|---------|
-| **Phase 1** | Infrastructure | Cluster setup and configuration |
-| **Phase 2** | Bootstrap | ArgoCD and GitOps foundation |
-| **Phase 3** | Monitoring | Prometheus and Grafana |
-| **Phase 4** | Vault Deployment | Vault server and agent injector |
-| **Phase 5** | Vault Configuration | **Critical**: Initialize, policies, secrets |
-| **Phase 6** | Web App Deployment | Deploy application WITHOUT secrets |
-| **Phase 7** | Vault Integration | Add Vault secrets to running application |
+| Phase | Component | Purpose | Optional |
+|-------|-----------|---------|----------|
+| **Phase 1** | Infrastructure | Cluster setup and configuration | Required |
+| **Phase 2** | Bootstrap | ArgoCD and GitOps foundation | Required |
+| **Phase 3** | Monitoring | Prometheus and Grafana | Required |
+| **Phase 4** | Vault Deployment | Vault server and agent injector | ⚠️ **Optional** |
+| **Phase 5** | Vault Configuration | **Critical**: Initialize, policies, secrets | ⚠️ **Optional** |
+| **Phase 6** | Web App Deployment | Deploy application WITHOUT secrets | Required |
+| **Phase 7** | Vault Integration | Add Vault secrets to running application | ⚠️ **Optional** |
+
+> **💡 Note:** Vault (Phases 4-5-7) is optional. You can deploy monitoring and applications first, then add Vault later when needed.
 
 **Key Features:**
 - ✅ Built-in verification at each phase
@@ -100,6 +102,7 @@ open MINIKUBE_DEPLOYMENT_GUIDE.md
 
 ## 📚 Documentation
 
+- **[Application Access Guide](APPLICATION_ACCESS_GUIDE.md)** - Comprehensive guide for Prometheus, Grafana, Vault, and ArgoCD
 - **[Project Structure Guide](docs/PROJECT_STRUCTURE.md)** - Comprehensive overview of the repository structure
 - **[Vault Setup Guide](docs/VAULT_SETUP_GUIDE.md)** - Detailed Vault configuration and troubleshooting
 - **[Security Best Practices](docs/security-best-practices.md)** - Security guidelines and recommendations
@@ -111,29 +114,37 @@ open MINIKUBE_DEPLOYMENT_GUIDE.md
 
 After deployment, access your applications:
 
-#### ArgoCD UI
+#### Quick Access
 ```bash
-kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443
+# ArgoCD UI
+kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 &
 # Access: https://localhost:8080 (admin / password from secret)
-```
 
-#### Prometheus
-```bash
-kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090
+# Prometheus
+kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090 &
 # Access: http://localhost:9090
-```
 
-#### Grafana
-```bash
-kubectl port-forward svc/grafana -n monitoring 3000:80
+# Grafana
+kubectl port-forward svc/grafana -n monitoring 3000:80 &
 # Access: http://localhost:3000 (admin / password from secret)
+
+# Vault
+kubectl port-forward svc/vault -n vault 8200:8200 &
+# Access: http://localhost:8200
 ```
 
-#### Vault
-```bash
-kubectl port-forward svc/vault -n vault 8200:8200
-# Access: http://localhost:8200 (root / root)
-```
+### 📖 Comprehensive Access Guide
+
+For detailed usage guides including PromQL queries, Grafana dashboards, Vault secret management, and more:
+
+**→ [Application Access Guide](APPLICATION_ACCESS_GUIDE.md)**
+
+This guide covers:
+- **Prometheus**: PromQL queries, targets, alerts, metrics API
+- **Grafana**: Dashboard creation, data sources, importing community dashboards
+- **Vault**: Secret CRUD operations, policies, Kubernetes auth, audit logs
+- **ArgoCD**: Application management, CLI operations, sync strategies
+- **Troubleshooting**: Common access and connectivity issues
 
 ## 📋 Applications Managed
 
