@@ -68,11 +68,11 @@ applications/
 │   │   └── application.yaml     # Grafana deployment
 │   └── prometheus/
 │       └── application.yaml     # Prometheus deployment
-├── security/                    # Security components
-│   └── vault/                   # Vault deployment
-│       ├── application.yaml     # Vault application
-│       ├── values.yaml          # Production Vault config
-│       └── values-dev.yaml      # Development Vault config
+├── security/                    # Security components (optional)
+│   └── vault/                   # Vault deployment (optional; currently disabled by default)
+│       ├── application.yaml     # Vault application (add back when enabling)
+│       ├── values.yaml          # Production Vault config (add back when enabling)
+│       └── values-dev.yaml      # Development Vault config (add back when enabling)
 └── web-app/                     # Web application
     ├── setup-vault-secrets.sh   # Vault configuration script
     ├── VAULT_INTEGRATION.md     # Vault integration guide
@@ -226,7 +226,7 @@ The repository uses a single root App-of-Apps to discover child applications dir
 Root App (clusters/production/app-of-apps.yaml)
 ├── Prometheus (applications/monitoring/prometheus/application.yaml)
 ├── Grafana (applications/monitoring/grafana/application.yaml)
-├── Vault (applications/security/vault/application.yaml)
+├── Vault (applications/security/vault/application.yaml) [optional; enable later]
 └── K8s Web App (applications/web-app/k8s-web-app/application.yaml)
 ```
 
