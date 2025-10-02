@@ -606,9 +606,9 @@ kubectl delete pod vault-test -n vault
 ### Step 6.1: Verify Application Configuration
 
 ```bash
-# Check the application is configured to use values-local.yaml
+# Check the application is configured to use the single consolidated values
 kubectl get application k8s-web-app -n argocd -o yaml | grep -A 5 valueFiles
-# Expected: valueFiles: [values-local.yaml]
+# Expected: valueFiles: [values.yaml]
 ```
 
 ### Step 6.2: Deploy Web Application
@@ -713,40 +713,28 @@ vault kv get secret/production/web-app/db
 # Expected: host, port, name, username, password fields
 ```
 
-### Step 7.2: Understand the Values Files
-
-Before making changes, let's understand the configuration files:
+### Step 7.2: Understand the Values File
 
 ```bash
-# View current config (no secrets)
-cat applications/web-app/k8s-web-app/values-local.yaml | grep -A 5 "vault:"
-# Shows: vault.enabled: false
-
-# View Vault-enabled config
-cat applications/web-app/k8s-web-app/values-vault-enabled.yaml | grep -A 20 "vault:"
-# Shows: vault.enabled: true, vault.ready: true, vault secrets configuration
+# View current config (Vault disabled by default)
+grep -A 10 "^vault:" applications/web-app/k8s-web-app/helm/values.yaml
+## Shows: vault.enabled: false, vault.ready: false
 ```
 
 ### Step 7.3: Update Application to Enable Vault
 
-Now we'll update the ArgoCD application to use both values files:
+Now we'll enable Vault within the single values file:
 
 ```bash
-# Update application to merge values-local.yaml + values-vault-enabled.yaml
-kubectl patch application k8s-web-app -n argocd --type merge -p '
-{
-  "spec": {
-    "source": {
-      "helm": {
-        "valueFiles": ["values-local.yaml", "values-vault-enabled.yaml"]
-      }
-    }
-  }
-}'
+# Edit the values file and set vault.enabled=true and vault.ready=true
+vi applications/web-app/k8s-web-app/helm/values.yaml
 
-# Verify the patch applied
+# Force a sync
+kubectl patch application k8s-web-app -n argocd --type merge -p '{"operation":{"sync":{}}}'
+
+# Verify the values file reference
 kubectl get application k8s-web-app -n argocd -o jsonpath='{.spec.source.helm.valueFiles}'
-# Expected: ["values-local.yaml","values-vault-enabled.yaml"]
+# Expected: ["values.yaml"]
 ```
 
 ### Step 7.4: Monitor the Deployment Update
