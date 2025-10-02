@@ -4,7 +4,7 @@
 replicaCount: 3
 
 image:
-  repository: windwalker101/k8s-web-app
+  repository: windrunner101/k8s-web-app
   pullPolicy: IfNotPresent
   tag: "latest"
 
