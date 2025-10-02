@@ -16,17 +16,19 @@ metadata:
   annotations:
     description: "ArgoCD GitOps controller - Infrastructure component"
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: vault
-  labels:
-    name: vault
-    purpose: secrets-management
-    app.kubernetes.io/name: vault
-    app.kubernetes.io/part-of: infrastructure
-    pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/warn: restricted
-  annotations:
-    description: "HashiCorp Vault - Infrastructure secrets management (isolated)"
+## Vault namespace temporarily disabled. Re-enable when adding Vault back.
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: vault
+#   labels:
+#     name: vault
+#     purpose: secrets-management
+#     app.kubernetes.io/name: vault
+#     app.kubernetes.io/part-of: infrastructure
+#     pod-security.kubernetes.io/enforce: privileged
+#     pod-security.kubernetes.io/enforce-version: latest
+#     pod-security.kubernetes.io/audit: restricted
+#     pod-security.kubernetes.io/warn: restricted
+#   annotations:
+#     description: "HashiCorp Vault - Infrastructure secrets management (isolated)"

@@ -25,7 +25,7 @@ spec:
     path: applications
     directory:
       recurse: true
-      include: '{*/app-of-apps.yaml,web-app/k8s-web-app/application.yaml,monitoring/*/application.yaml,security/*/application.yaml}'
+      include: '{*/app-of-apps.yaml,web-app/k8s-web-app/application.yaml,monitoring/*/application.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
