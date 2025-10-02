@@ -133,6 +133,26 @@ kubectl port-forward svc/vault -n vault 8200:8200 &
 # Access: http://localhost:8200
 ```
 
+### 🌐 Access the Web App
+
+After `k8s-web-app` is Synced and Healthy in Argo CD, you can access it via:
+
+#### Option A: Ingress (Production)
+
+1) Get the Ingress address
+```bash
+kubectl get ingress k8s-web-app -n production
+```
+2) Point your DNS `A`/`CNAME` record to the address and update `helm/values.yaml` host if needed (`ingress.hosts[0].host`).
+3) Browse to: https://<your-host>
+
+#### Option B: Port-forward (Quick test)
+```bash
+kubectl port-forward svc/k8s-web-app -n production 8081:80 &
+echo "Web App: http://localhost:8081"
+curl -s http://localhost:8081/health
+```
+
 ### 📖 Comprehensive Access Guide
 
 For detailed usage guides including PromQL queries, Grafana dashboards, Vault secret management, and more:
