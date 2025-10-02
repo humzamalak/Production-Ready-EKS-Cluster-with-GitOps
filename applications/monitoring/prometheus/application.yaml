@@ -41,8 +41,24 @@ spec:
                 memory: 1Gi
             serviceMonitorSelectorNilUsesHelmValues: false
             ruleSelectorNilUsesHelmValues: false
-            retention: 15d
-            retentionSize: 10GB
+            retention: "15d"
+            retentionSize: "10GiB"
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              cert-manager.io/cluster-issuer: "letsencrypt-prod"
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+            hosts:
+              - host: prometheus.your-domain.com
+                paths:
+                  - path: /
+                    pathType: Prefix
+            tls:
+              - secretName: prometheus-tls
+                hosts:
+                  - prometheus.your-domain.com
         
         # Grafana configuration (embedded but will be exposed separately)
         grafana:
@@ -97,6 +113,22 @@ spec:
               - name: 'warning-alerts'
                 webhook_configs:
                   - url: 'http://warning-webhook:9093/warning'
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              cert-manager.io/cluster-issuer: "letsencrypt-prod"
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+            hosts:
+              - host: alertmanager.your-domain.com
+                paths:
+                  - path: /
+                    pathType: Prefix
+            tls:
+              - secretName: alertmanager-tls
+                hosts:
+                  - alertmanager.your-domain.com
         
         # Node Exporter
         nodeExporter:
@@ -150,43 +182,6 @@ spec:
             prometheus: true
             prometheusOperator: true
         
-        # Ingress configuration for Prometheus
-        prometheus:
-          ingress:
-            enabled: true
-            ingressClassName: nginx
-            annotations:
-              cert-manager.io/cluster-issuer: "letsencrypt-prod"
-              nginx.ingress.kubernetes.io/ssl-redirect: "true"
-              nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-            hosts:
-              - host: prometheus.your-domain.com
-                paths:
-                  - path: /
-                    pathType: Prefix
-            tls:
-              - secretName: prometheus-tls
-                hosts:
-                  - prometheus.your-domain.com
-        
-        # Ingress configuration for AlertManager
-        alertmanager:
-          ingress:
-            enabled: true
-            ingressClassName: nginx
-            annotations:
-              cert-manager.io/cluster-issuer: "letsencrypt-prod"
-              nginx.ingress.kubernetes.io/ssl-redirect: "true"
-              nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-            hosts:
-              - host: alertmanager.your-domain.com
-                paths:
-                  - path: /
-                    pathType: Prefix
-            tls:
-              - secretName: alertmanager-tls
-                hosts:
-                  - alertmanager.your-domain.com
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
