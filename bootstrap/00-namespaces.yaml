@@ -15,7 +15,7 @@ metadata:
     pod-security.kubernetes.io/warn: baseline
   annotations:
     description: "ArgoCD GitOps controller - Infrastructure component"
----
+
 ## Vault namespace temporarily disabled. Re-enable when adding Vault back.
 # apiVersion: v1
 # kind: Namespace

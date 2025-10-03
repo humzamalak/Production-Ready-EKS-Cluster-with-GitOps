@@ -1,4 +1,7 @@
-# Vault Policies and Authentication Configuration
+# Vault Policies and Authentication Configuration (Optional)
+# NOTE: Vault is currently disabled by default in this repo. Apply this file ONLY
+# after enabling Vault and creating the `vault` namespace. Otherwise, these
+# resources will fail due to missing namespace/components.
 # This file contains the Vault policies and authentication setup for the External Secrets Operator
 
 ---
@@ -456,25 +459,25 @@ spec:
             - /bin/sh
             - -c
             - |
-          # Wait for Vault to be ready
-          until vault status; do
-            echo "Waiting for Vault to be ready..."
-            sleep 5
-          done
+              # Wait for Vault to be ready
+              until vault status; do
+                echo "Waiting for Vault to be ready..."
+                sleep 5
+              done
 
-          # Check if Vault is already unsealed
-          if vault status | grep -q "Sealed.*false"; then
-            echo "Vault is already unsealed"
-            exit 0
-          fi
+              # Check if Vault is already unsealed
+              if vault status | grep -q "Sealed.*false"; then
+                echo "Vault is already unsealed"
+                exit 0
+              fi
 
-          # Unseal Vault (in production, use separate unseal keys)
-          echo "Unsealing Vault..."
-          # Note: In production, these keys should be stored securely and not in the job
-          # This is for demonstration purposes only
-          vault operator unseal $VAULT_UNSEAL_KEY_1
-          vault operator unseal $VAULT_UNSEAL_KEY_2
-          vault operator unseal $VAULT_UNSEAL_KEY_3
+              # Unseal Vault (in production, use separate unseal keys)
+              echo "Unsealing Vault..."
+              # Note: In production, these keys should be stored securely and not in the job
+              # This is for demonstration purposes only
+              vault operator unseal $VAULT_UNSEAL_KEY_1
+              vault operator unseal $VAULT_UNSEAL_KEY_2
+              vault operator unseal $VAULT_UNSEAL_KEY_3
           env:
             - name: VAULT_ADDR
               value: "http://vault.vault.svc.cluster.local:8200"
