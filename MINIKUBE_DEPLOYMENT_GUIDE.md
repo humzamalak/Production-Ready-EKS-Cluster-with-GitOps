@@ -209,9 +209,12 @@ kubectl wait --for=condition=available --timeout=600s \
 
 ```bash
 # Create monitoring secrets (required for Grafana and other components)
+# The script will create all necessary secrets and display credentials
 ./scripts/create-monitoring-secrets.sh
 
 # Alternative: Create secrets manually if script fails
+# This is a fallback method - the script above is preferred
+echo "Creating secrets manually (fallback method)..."
 kubectl create secret generic grafana-admin \
   --namespace=monitoring \
   --from-literal=admin-user=admin \

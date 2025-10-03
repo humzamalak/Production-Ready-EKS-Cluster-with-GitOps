@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Deployment Guides**: Updated with secret creation steps
 - **Troubleshooting**: Added comprehensive troubleshooting guide
 - **README**: Added troubleshooting section and updated links
+- **Code Comments**: Added comprehensive comments to all configuration files
+- **Script Documentation**: Enhanced secret management script with detailed documentation
+- **Configuration Files**: Added detailed comments explaining all settings and options
 
 ## [1.1.0] - 2024-01-15
 

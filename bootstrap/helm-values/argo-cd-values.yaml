@@ -1,173 +1,291 @@
-# ArgoCD Helm Chart Values
-# Production-ready configuration for ArgoCD deployment
+# =============================================================================
+# ArgoCD Helm Chart Values - Production-Ready Configuration
+# =============================================================================
+#
+# This file contains the Helm values for deploying ArgoCD in a production-ready
+# Kubernetes cluster. It includes comprehensive security, monitoring, and
+# operational configurations suitable for both development and production use.
+#
+# Key Features:
+#   - High availability with multiple replicas
+#   - Security hardening with PodSecurity standards
+#   - TLS termination and SSL redirect
+#   - Resource limits and requests
+#   - Prometheus monitoring integration
+#   - Network policies for security
+#   - Redis authentication for session management
+#
+# Environment Variables:
+#   - Replace 'argocd.example.com' with your actual domain
+#   - Update certificate issuer if using different cert-manager setup
+#   - Modify resource limits based on your cluster capacity
+#
+# Author: Production-Ready EKS Cluster with GitOps
+# Version: 1.2.0
+# Last Updated: 2024-10-03
+# =============================================================================
 
+# Global configuration settings
 global:
+  # Domain name for ArgoCD server - MUST be updated for production
+  # This is used for ingress configuration and OIDC redirects
   domain: argocd.example.com
+  
+  # ArgoCD image configuration
   image:
-    tag: "v2.8.4"  # Pin to stable version
+    # Pin to stable version for production reliability
+    # Check https://github.com/argoproj/argo-cd/releases for latest stable
+    tag: "v2.8.4"
 
+# =============================================================================
 # ArgoCD Server Configuration
+# =============================================================================
 server:
+  # High availability configuration
+  # Run multiple replicas for fault tolerance and load distribution
   replicas: 2
+  
+  # Service configuration
   service:
+    # Use LoadBalancer for external access (production)
+    # For minikube, this will create a NodePort service
     type: LoadBalancer
+  
+  # Ingress configuration for external access
   ingress:
     enabled: true
-    ingressClassName: nginx
+    ingressClassName: nginx  # Requires nginx-ingress-controller
+    
+    # Security and performance annotations
     annotations:
+      # Force HTTPS redirect for security
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
       nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      
+      # TLS certificate management via cert-manager
       cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      
+      # Rate limiting to prevent abuse
       nginx.ingress.kubernetes.io/rate-limit: "100"
       nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    
+    # Host configuration - MUST be updated for production
     hosts:
       - argocd.example.com
+    
+    # TLS configuration
     tls:
       - secretName: argocd-tls
         hosts:
           - argocd.example.com
+  
+  # Resource allocation for ArgoCD server
+  # Adjust based on your cluster capacity and expected load
   resources:
     requests:
-      cpu: 250m
-      memory: 512Mi
+      cpu: 250m      # Minimum CPU for basic operation
+      memory: 512Mi  # Minimum memory for basic operation
     limits:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 500m      # Maximum CPU to prevent resource exhaustion
+      memory: 1Gi    # Maximum memory to prevent OOM kills
+  # ArgoCD server configuration
   config:
-    # Disable insecure mode in production
-    server.insecure: false
-    # Enable RBAC
+    # Security configuration
+    server.insecure: false  # Disable insecure mode in production
+    
+    # Role-Based Access Control (RBAC) configuration
     rbacConfig:
+      # Default role for users without explicit permissions
       policy.default: role:readonly
+      
+      # Custom RBAC policies for fine-grained access control
       policy.csv: |
+        # Admin role permissions - full access to all resources
         p, role:admin, applications, *, */*, allow
         p, role:admin, clusters, *, *, allow
         p, role:admin, repositories, *, *, allow
+        
+        # Group mapping - assign admin role to argocd-admins group
         g, argocd-admins, role:admin
-    # Configure repository credentials
+    
+    # Git repository configuration
+    # Pre-configure the main GitOps repository for automatic access
     repositories:
       - type: git
         url: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
         name: production-repo
-    # Configure OIDC (optional - for production)
+    
+    # OIDC configuration for SSO (optional - for production environments)
+    # Uncomment and configure for production SSO integration
     oidc.config: |
       name: OIDC
-      issuer: https://your-oidc-provider.com
-      clientId: argocd
-      clientSecret: $oidc.clientSecret
+      issuer: https://your-oidc-provider.com  # Replace with your OIDC provider
+      clientId: argocd                       # OIDC client ID
+      clientSecret: $oidc.clientSecret       # Reference to secret containing client secret
       requestedScopes: ["openid", "profile", "email", "groups"]
       requestedIDTokenClaims: {"groups": {"essential": true}}
 
+# =============================================================================
 # ArgoCD Controller Configuration
+# =============================================================================
 controller:
+  # High availability configuration
   replicas: 2
+  
+  # Resource allocation for application controller
   resources:
     requests:
-      cpu: 250m
-      memory: 512Mi
+      cpu: 250m      # Minimum CPU for basic operation
+      memory: 512Mi  # Minimum memory for basic operation
     limits:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 500m      # Maximum CPU to prevent resource exhaustion
+      memory: 1Gi    # Maximum memory to prevent OOM kills
+  
+  # Prometheus metrics configuration
   metrics:
     enabled: true
     serviceMonitor:
-      enabled: true
+      enabled: true  # Creates ServiceMonitor for Prometheus scraping
 
+# =============================================================================
 # ArgoCD Repository Server Configuration
+# =============================================================================
 repoServer:
+  # High availability configuration
   replicas: 2
+  
+  # Resource allocation for repository server
   resources:
     requests:
-      cpu: 250m
-      memory: 512Mi
+      cpu: 250m      # Minimum CPU for Git operations and Helm rendering
+      memory: 512Mi  # Minimum memory for repository caching
     limits:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 500m      # Maximum CPU for large repository operations
+      memory: 1Gi    # Maximum memory for repository caching
+  
+  # Prometheus metrics configuration
   metrics:
     enabled: true
     serviceMonitor:
-      enabled: true
+      enabled: true  # Creates ServiceMonitor for Prometheus scraping
 
-# ArgoCD ApplicationSet Controller
+# =============================================================================
+# ArgoCD ApplicationSet Controller Configuration
+# =============================================================================
 applicationSet:
-  enabled: true
+  enabled: true      # Enable ApplicationSet for advanced GitOps patterns
+  
+  # High availability configuration
   replicas: 2
+  
+  # Resource allocation for ApplicationSet controller
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 100m      # Minimum CPU for ApplicationSet processing
+      memory: 128Mi  # Minimum memory for ApplicationSet processing
     limits:
-      cpu: 200m
-      memory: 256Mi
+      cpu: 200m      # Maximum CPU to prevent resource exhaustion
+      memory: 256Mi  # Maximum memory to prevent OOM kills
 
-# Disable components not needed for basic setup
+# =============================================================================
+# Optional Component Configuration
+# =============================================================================
+
+# Dex (OpenID Connect) - Disabled for basic setup
+# Enable if you need advanced SSO integration beyond OIDC
 dex:
   enabled: false
 
+# Notifications - Disabled for basic setup
+# Enable if you need Slack, Teams, or email notifications
 notifications:
   enabled: false
 
+# =============================================================================
 # Redis Configuration
+# =============================================================================
 redis:
-  enabled: true
+  enabled: true    # Required for ArgoCD session management and caching
+  
+  # Resource allocation for Redis
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 100m      # Minimum CPU for Redis operations
+      memory: 128Mi  # Minimum memory for session storage
     limits:
-      cpu: 200m
-      memory: 256Mi
-  # Redis authentication configuration
+      cpu: 200m      # Maximum CPU to prevent resource exhaustion
+      memory: 256Mi  # Maximum memory for session storage
+  
+  # Redis authentication configuration for security
   auth:
-    enabled: true
-    password: ""  # Will be auto-generated if empty
+    enabled: true    # Enable Redis authentication
+    password: ""     # Will be auto-generated if empty, or set via secret
 
+# =============================================================================
 # Security Configuration
+# =============================================================================
 configs:
   secret:
-    # In production, set these via external secret management
+    # Admin password configuration
+    # In production, set these via external secret management (Vault, AWS Secrets Manager, etc.)
+    # The password below is a bcrypt hash - replace with your secure password hash
     argocdServerAdminPassword: "$2a$10$rRyBsGSHK6.uc8fntPwFyO4LQnV7sY8dZ8b4Z8b4Z8b4Z8b4Z8b4Z8"
     argocdServerAdminPasswordMtime: "2024-01-01T00:00:00Z"
 
+# =============================================================================
 # Service Account Configuration
+# =============================================================================
 serviceAccount:
-  create: true
+  create: true    # Create dedicated service account for ArgoCD components
+  
+  # Annotations for cloud provider integrations
   annotations:
-    # Add IRSA annotations for AWS if needed
-    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT-ID:role/argocd-role"
+    # AWS IAM Roles for Service Accounts (IRSA) - uncomment and configure for AWS EKS
+    # eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT-ID:role/argocd-role"
 
-# Network Policies
+# =============================================================================
+# Network Policies Configuration
+# =============================================================================
 networkPolicy:
-  enabled: true
+  enabled: true    # Enable network policies for security
+  
+  # Ingress rules for external access
   ingress:
     - from:
-      - namespaceSelector:
-          matchLabels:
-            name: ingress-nginx
+        # Allow traffic from ingress-nginx namespace
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
       ports:
         - protocol: TCP
-          port: 80
+          port: 80    # HTTP traffic
         - protocol: TCP
-          port: 443
+          port: 443   # HTTPS traffic
 
-# Pod Security Standards
+# =============================================================================
+# Pod Security Standards Configuration
+# =============================================================================
 podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 999
-  fsGroup: 999
+  runAsNonRoot: true    # Ensure pods don't run as root
+  runAsUser: 999        # Run as non-root user (argocd user)
+  fsGroup: 999          # Set filesystem group ownership
 
-# Container Security Context
+# =============================================================================
+# Container Security Context Configuration
+# =============================================================================
 containerSecurityContext:
-  allowPrivilegeEscalation: false
+  allowPrivilegeEscalation: false  # Prevent privilege escalation
   capabilities:
     drop:
-      - ALL
-  readOnlyRootFilesystem: true
-  runAsNonRoot: true
-  runAsUser: 999
+      - ALL  # Drop all capabilities for security
+  readOnlyRootFilesystem: true     # Use read-only root filesystem
+  runAsNonRoot: true              # Ensure containers don't run as root
+  runAsUser: 999                 # Run as non-root user
 
-# Prometheus Monitoring
+# =============================================================================
+# Prometheus Monitoring Configuration
+# =============================================================================
 prometheus:
-  enabled: true
+  enabled: true          # Enable Prometheus metrics collection
   serviceMonitor:
-    enabled: true
+    enabled: true        # Create ServiceMonitor for Prometheus scraping
