@@ -41,7 +41,7 @@ spec:
     targetRevision: 5.51.6
     helm:
       valueFiles:
-        - values.yaml
+        - bootstrap/helm-values/argo-cd-values.yaml
       values: |
         global:
           domain: argocd.example.com

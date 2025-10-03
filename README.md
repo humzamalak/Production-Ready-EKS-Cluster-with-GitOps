@@ -47,6 +47,10 @@ Choose your deployment platform:
 - **[AWS EKS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md)** - Complete production deployment on AWS (7 phases, ~65 min)
 - **[Minikube Deployment Guide](MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development environment (7 phases, ~45 min)
 
+### 🔧 Troubleshooting
+
+- **[ArgoCD Troubleshooting Guide](docs/troubleshooting-argocd.md)** - Common issues and solutions for ArgoCD deployments
+
 Both guides follow a **7-phase approach** to ensure reliable deployment:
 
 | Phase | Component | Purpose | Optional |

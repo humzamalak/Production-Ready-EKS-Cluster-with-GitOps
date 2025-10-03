@@ -205,7 +205,27 @@ kubectl wait --for=condition=available --timeout=600s \
   deployment/argo-cd-argocd-server -n argocd
 ```
 
-### Step 2.4: Access ArgoCD UI
+### Step 2.4: Create Required Secrets
+
+```bash
+# Create monitoring secrets (required for Grafana and other components)
+./scripts/create-monitoring-secrets.sh
+
+# Alternative: Create secrets manually if script fails
+kubectl create secret generic grafana-admin \
+  --namespace=monitoring \
+  --from-literal=admin-user=admin \
+  --from-literal=admin-password=$(openssl rand -base64 16) \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# Create ArgoCD Redis secret if needed
+kubectl create secret generic argocd-redis \
+  --namespace=argocd \
+  --from-literal=auth=$(openssl rand -base64 32) \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+### Step 2.5: Access ArgoCD UI
 
 ```bash
 # Get initial admin password
@@ -221,7 +241,7 @@ echo "ArgoCD UI: https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
 sleep 3
 ```
 
-### Step 2.5: Deploy Root Application
+### Step 2.6: Deploy Root Application
 
 ```bash
 # Deploy the root app-of-apps
@@ -232,7 +252,7 @@ kubectl wait --for=condition=Synced --timeout=300s \
   application/production-cluster -n argocd
 ```
 
-### Step 2.6: Verify Bootstrap
+### Step 2.7: Verify Bootstrap
 
 ```bash
 # Check ArgoCD applications
