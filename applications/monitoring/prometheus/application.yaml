@@ -124,57 +124,65 @@ spec:
                 hosts:
                   - alertmanager.your-domain.com
 
-        # Node Exporter
-        nodeExporter:
-          enabled: true
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 100m
-              memory: 256Mi
+# Node Exporter
+nodeExporter:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 100m
+      memory: 256Mi
+  # Disable hostNetwork and hostPort for minikube compatibility
+  hostNetwork: false
+  hostPort: 9100
+  # Use privileged security context for minikube
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    runAsNonRoot: false
 
-        # Kube State Metrics
-        kubeStateMetrics:
-          enabled: true
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 100m
-              memory: 256Mi
+# Kube State Metrics
+kubeStateMetrics:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 100m
+      memory: 256Mi
 
-        # Default ServiceMonitor and PrometheusRule discovery
-        defaultRules:
-          create: true
-          rules:
-            alertmanager: true
-            etcd: true
-            configReloaders: true
-            general: true
-            k8s: true
-            kubeApiserverAvailability: true
-            kubeApiserverBurnrate: true
-            kubeApiserverHistogram: true
-            kubeApiserverSlos: true
-            kubelet: true
-            kubeProxy: true
-            kubePrometheusGeneral: true
-            kubePrometheusNodeRecording: true
-            kubernetesApps: true
-            kubernetesResources: true
-            kubernetesStorage: true
-            kubernetesSystem: true
-            kubeScheduler: true
-            kubeStateMetrics: true
-            network: true
-            node: true
-            nodeExporterAlerting: true
-            nodeExporterRecording: true
-            prometheus: true
-            prometheusOperator: true
+# Default ServiceMonitor and PrometheusRule discovery
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: true
+    configReloaders: true
+    general: true
+    k8s: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubelet: true
+    kubeProxy: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeScheduler: true
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
 
   destination:
     server: https://kubernetes.default.svc
