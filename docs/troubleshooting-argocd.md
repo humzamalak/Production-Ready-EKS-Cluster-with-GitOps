@@ -293,11 +293,15 @@ kubectl logs -l app.kubernetes.io/name=argocd-application-controller -n argocd -
 ## Prevention Best Practices
 
 1. **Always check prerequisites** before deploying applications
-2. **Use the provided scripts** for secret creation
+2. **Use the provided scripts** for secret creation (`./scripts/create-monitoring-secrets.sh`)
 3. **Monitor application sync status** regularly
 4. **Keep resource limits appropriate** for your environment
 5. **Test configurations** in development before production
 6. **Document custom configurations** for team members
+7. **Review code comments** in configuration files for guidance
+8. **Use comprehensive logging** to troubleshoot issues
+9. **Implement proper monitoring** with Prometheus and Grafana
+10. **Follow security best practices** with Pod Security Standards
 
 ## Getting Help
 

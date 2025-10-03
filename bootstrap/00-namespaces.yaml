@@ -1,34 +1,98 @@
-# Core infrastructure namespaces - Applied manually before ArgoCD exists
-# These namespaces are required for the cluster to function and must exist before GitOps takes over
+# =============================================================================
+# Core Infrastructure Namespaces - Bootstrap Configuration
+# =============================================================================
+#
+# This file defines the core namespaces required for the GitOps cluster to function.
+# These namespaces must be applied manually before ArgoCD exists, as they are
+# prerequisites for the GitOps workflow to take over cluster management.
+#
+# Key Features:
+#   - Pod Security Standards (PSS) enforcement
+#   - Proper labeling for organization and discovery
+#   - Infrastructure component isolation
+#   - Security-focused namespace configuration
+#
+# Pod Security Standards:
+#   - baseline: Allows most common workloads while preventing privilege escalation
+#   - restricted: Most secure, prevents most security risks
+#   - privileged: Allows all capabilities (use with extreme caution)
+#
+# Author: Production-Ready EKS Cluster with GitOps
+# Version: 1.2.0
+# Last Updated: 2024-10-03
+# =============================================================================
 
+# =============================================================================
+# ArgoCD Namespace - GitOps Controller
+# =============================================================================
 apiVersion: v1
 kind: Namespace
 metadata:
   name: argocd
   labels:
+    # Basic identification labels
     name: argocd
     purpose: gitops
+    
+    # Kubernetes application labels for discovery and management
     app.kubernetes.io/name: argocd
     app.kubernetes.io/part-of: infrastructure
+    
+    # Pod Security Standards (PSS) configuration
+    # baseline: Allows most common workloads while preventing privilege escalation
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: baseline
     pod-security.kubernetes.io/warn: baseline
+    
+    # Additional metadata for documentation and management
+    environment: production
+    tier: infrastructure
+    component: gitops
   annotations:
     description: "ArgoCD GitOps controller - Infrastructure component"
+    contact: "Platform Engineering Team"
+    last-updated: "2024-10-03"
 
-## Vault namespace temporarily disabled. Re-enable when adding Vault back.
+# =============================================================================
+# Vault Namespace - Secrets Management (Currently Disabled)
+# =============================================================================
+# 
+# Vault namespace is temporarily disabled to simplify initial deployment.
+# Re-enable this section when adding HashiCorp Vault back to the cluster.
+#
+# Security Notes:
+#   - Uses privileged Pod Security Standards due to Vault's requirements
+#   - Isolated namespace for security-sensitive operations
+#   - Requires careful network policy configuration
+#
+# Uncomment the following section when ready to deploy Vault:
+#
 # apiVersion: v1
 # kind: Namespace
 # metadata:
 #   name: vault
 #   labels:
+#     # Basic identification labels
 #     name: vault
 #     purpose: secrets-management
+#     
+#     # Kubernetes application labels
 #     app.kubernetes.io/name: vault
 #     app.kubernetes.io/part-of: infrastructure
+#     
+#     # Pod Security Standards (PSS) configuration
+#     # privileged: Required for Vault's security model and host access
 #     pod-security.kubernetes.io/enforce: privileged
 #     pod-security.kubernetes.io/enforce-version: latest
 #     pod-security.kubernetes.io/audit: restricted
 #     pod-security.kubernetes.io/warn: restricted
+#     
+#     # Additional metadata
+#     environment: production
+#     tier: infrastructure
+#     component: secrets-management
 #   annotations:
 #     description: "HashiCorp Vault - Infrastructure secrets management (isolated)"
+#     contact: "Platform Engineering Team"
+#     last-updated: "2024-10-03"
+#     security-level: "high"

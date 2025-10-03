@@ -50,6 +50,16 @@ Choose your deployment platform:
 ### 🔧 Troubleshooting
 
 - **[ArgoCD Troubleshooting Guide](docs/troubleshooting-argocd.md)** - Common issues and solutions for ArgoCD deployments
+- **[Secret Management Script](scripts/create-monitoring-secrets.sh)** - Automated script for creating required secrets
+
+### 🔐 Quick Access
+
+After deployment, access your applications:
+
+- **ArgoCD UI**: `https://localhost:8080` (admin/admin123)
+- **Grafana**: `https://grafana.your-domain.com` (admin/[generated-password])
+- **Prometheus**: `https://prometheus.your-domain.com`
+- **Web App**: `https://k8s-web-app.example.com`
 
 Both guides follow a **7-phase approach** to ensure reliable deployment:
 
@@ -72,6 +82,9 @@ Both guides follow a **7-phase approach** to ensure reliable deployment:
 - ✅ Zero-downtime Vault integration
 - ✅ Clear separation of deployment concerns
 - ✅ Comprehensive troubleshooting with ArgoCD error solutions
+- ✅ Automated secret management scripts
+- ✅ Production-ready security configurations
+- ✅ Comprehensive code documentation and comments
 
 ### Prerequisites
 
