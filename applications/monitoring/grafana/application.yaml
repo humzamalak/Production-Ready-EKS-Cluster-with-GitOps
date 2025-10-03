@@ -60,10 +60,7 @@ spec:
             nginx.ingress.kubernetes.io/ssl-redirect: "true"
             nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
           hosts:
-            - host: grafana.your-domain.com
-              paths:
-                - path: /
-                  pathType: Prefix
+            - grafana.your-domain.com
           tls:
             - secretName: grafana-tls
               hosts:

@@ -13,7 +13,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: production-apps
+  project: default
   source:
     repoURL: 'https://prometheus-community.github.io/helm-charts'
     chart: kube-prometheus-stack
@@ -27,7 +27,7 @@ spec:
             storageSpec:
               volumeClaimTemplate:
                 spec:
-                  storageClassName: gp3
+                  storageClassName: standard
                   accessModes: ["ReadWriteOnce"]
                   resources:
                     requests:
@@ -51,10 +51,7 @@ spec:
               nginx.ingress.kubernetes.io/ssl-redirect: "true"
               nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
             hosts:
-              - host: prometheus.your-domain.com
-                paths:
-                  - path: /
-                    pathType: Prefix
+              - prometheus.your-domain.com
             tls:
               - secretName: prometheus-tls
                 hosts:
@@ -73,7 +70,7 @@ spec:
             storage:
               volumeClaimTemplate:
                 spec:
-                  storageClassName: gp3
+                  storageClassName: standard
                   accessModes: ["ReadWriteOnce"]
                   resources:
                     requests:
@@ -121,10 +118,7 @@ spec:
               nginx.ingress.kubernetes.io/ssl-redirect: "true"
               nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
             hosts:
-              - host: alertmanager.your-domain.com
-                paths:
-                  - path: /
-                    pathType: Prefix
+              - alertmanager.your-domain.com
             tls:
               - secretName: alertmanager-tls
                 hosts:
