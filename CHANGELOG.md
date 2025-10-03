@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2024-10-03
+
+### Added
+- **Troubleshooting Guide**: Comprehensive ArgoCD troubleshooting documentation
+- **Secret Management Script**: Automated script for creating required secrets
+- **Redis Authentication**: Proper Redis secret configuration for ArgoCD
+- **Grafana Admin Secret**: Automated creation of Grafana authentication secrets
+
+### Changed
+- **ArgoCD Configuration**: Updated to use proper values file path
+- **Monitoring Stack**: Optimized for minikube compatibility
+- **Node Exporter**: Disabled by default in minikube due to PodSecurity restrictions
+- **Storage Classes**: Changed from `gp3` to `standard` for minikube compatibility
+- **Project References**: All applications now use `default` project instead of `production-apps`
+
+### Fixed
+- **ArgoCD Redis Secret**: Fixed missing `argocd-redis` secret causing pod failures
+- **Grafana Authentication**: Fixed missing `grafana-admin` secret
+- **Ingress Configuration**: Fixed Helm template errors in ingress hosts
+- **PodSecurity Policy Violations**: Resolved node exporter security context issues
+- **CRD Annotation Issues**: Fixed Prometheus CRD validation errors
+- **YAML Indentation**: Corrected indentation issues in Prometheus configuration
+
+### Security
+- **PodSecurity Standards**: Configured applications to work within minikube security policies
+- **Secret Management**: Implemented proper secret creation and management
+- **Redis Authentication**: Enabled Redis authentication for ArgoCD
+
+### Documentation
+- **Deployment Guides**: Updated with secret creation steps
+- **Troubleshooting**: Added comprehensive troubleshooting guide
+- **README**: Added troubleshooting section and updated links
+
 ## [1.1.0] - 2024-01-15
 
 ### Added
