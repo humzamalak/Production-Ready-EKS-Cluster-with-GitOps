@@ -236,11 +236,11 @@ kubectl wait --for=condition=Synced --timeout=300s \
 ```bash
 # Check all namespaces created
 kubectl get namespaces
-# Expected: argocd, monitoring, vault, production
+# Expected: argocd, monitoring, production  (vault optional; disabled by default)
 
 # Check ArgoCD applications
 kubectl get applications -n argocd
-# Expected: production-cluster, monitoring-stack, security-stack
+# Expected: production-cluster, monitoring-stack  (security-stack/vault optional)
 
 # Check ArgoCD pods
 kubectl get pods -n argocd
