@@ -179,7 +179,7 @@ kubectl apply -f bootstrap/03-helm-repos.yaml
 
 # Wait for namespaces to be created
 kubectl get namespaces
-# Expected: argocd, monitoring, vault, production
+# Expected: argocd, monitoring, production  (vault optional; disabled by default)
 ```
 
 ### Step 2.3: Install ArgoCD
@@ -237,10 +237,10 @@ kubectl wait --for=condition=Synced --timeout=300s \
 ```bash
 # Check ArgoCD applications
 kubectl get applications -n argocd
-# Expected: production-cluster, monitoring-stack, security-stack
+# Expected: production-cluster, monitoring-stack  (security-stack/vault optional)
 
 # Check all namespaces
-kubectl get namespaces | grep -E "argocd|monitoring|vault|production"
+kubectl get namespaces | grep -E "argocd|monitoring|production"  # vault optional
 
 # Check ArgoCD pods
 kubectl get pods -n argocd

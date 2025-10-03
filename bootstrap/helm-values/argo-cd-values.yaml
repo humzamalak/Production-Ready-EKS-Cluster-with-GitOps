@@ -122,7 +122,7 @@ redis:
 configs:
   secret:
     # In production, set these via external secret management
-    argocdServerAdminPassword: "$2a$10$rRyBsGSHK6.uc8fntPwFyO4LQnV7sY8dZ8b4Z8b4Z8b4Z8b4Z8b4Z8
+    argocdServerAdminPassword: "$2a$10$rRyBsGSHK6.uc8fntPwFyO4LQnV7sY8dZ8b4Z8b4Z8b4Z8b4Z8b4Z8"
     argocdServerAdminPasswordMtime: "2024-01-01T00:00:00Z"
 
 # Service Account Configuration

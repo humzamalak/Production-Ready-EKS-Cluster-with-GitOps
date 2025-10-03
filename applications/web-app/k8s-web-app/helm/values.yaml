@@ -113,9 +113,9 @@ networkPolicy:
       - namespaceSelector:
           matchLabels:
             name: ingress-nginx
-    ports:
-      - protocol: TCP
-        port: 3000
+      ports:
+        - protocol: TCP
+          port: 3000
   egress:
     - {}  # Allow all egress traffic
 
