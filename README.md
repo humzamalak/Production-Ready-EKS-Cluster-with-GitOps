@@ -47,6 +47,32 @@ Choose your deployment platform:
 - **[AWS EKS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md)** - Complete production deployment on AWS (7 phases, ~65 min)
 - **[Minikube Deployment Guide](MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development environment (7 phases, ~45 min)
 
+### 🔧 Development Tools
+
+#### Application Validation
+Validate ArgoCD applications to prevent deployment issues:
+
+```bash
+# Validate all applications
+make validate-apps
+
+# Or run directly
+./scripts/validate-argocd-apps.sh
+```
+
+The validation script checks for:
+- ✅ Annotation size limits (prevents CRD failures)
+- ✅ Inline values size (encourages external files)
+- ✅ Required fields (spec.destination, spec.source/sources)
+- ✅ Best practices compliance
+
+#### Pre-commit Hooks
+Automatic validation runs before each commit:
+```bash
+git commit -m "Add new application"
+# Validation runs automatically
+```
+
 ### 🔧 Troubleshooting
 
 - **[ArgoCD Troubleshooting Guide](docs/troubleshooting-argocd.md)** - Common issues and solutions for ArgoCD deployments

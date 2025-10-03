@@ -1,0 +1,50 @@
+name: ArgoCD Application Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'applications/**'
+      - 'clusters/**'
+      - 'scripts/validate-argocd-apps.sh'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'applications/**'
+      - 'clusters/**'
+      - 'scripts/validate-argocd-apps.sh'
+
+jobs:
+  validate-applications:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Make validation script executable
+      run: chmod +x scripts/validate-argocd-apps.sh
+      
+    - name: Validate ArgoCD Applications
+      run: |
+        echo "🔍 Validating ArgoCD Applications..."
+        ./scripts/validate-argocd-apps.sh
+        
+    - name: Check for large files
+      run: |
+        echo "📏 Checking for large files that might cause annotation issues..."
+        find applications/ clusters/ -name "application.yaml" -exec sh -c '
+          size=$(wc -c < "$1")
+          if [ "$size" -gt 50000 ]; then
+            echo "⚠️  Large file detected: $1 ($size bytes)"
+            echo "Consider using external values files to reduce size"
+          fi
+        ' _ {} \;
+        
+    - name: Validate YAML syntax
+      run: |
+        echo "🔍 Validating YAML syntax..."
+        for file in $(find applications/ clusters/ -name "*.yaml"); do
+          echo "Checking $file..."
+          python3 -c "import yaml; yaml.safe_load(open('$file'))" || exit 1
+        done
