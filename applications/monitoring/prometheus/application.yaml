@@ -126,7 +126,7 @@ spec:
 
 # Node Exporter
 nodeExporter:
-  enabled: true
+  enabled: false  # Disabled for minikube due to PodSecurity policy restrictions
   resources:
     requests:
       cpu: 50m
