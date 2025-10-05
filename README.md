@@ -1,274 +1,156 @@
-# GitOps Repository - Production-Ready EKS Cluster
+# Production-Ready EKS Cluster with GitOps
 
-This repository follows GitOps principles to manage a production-ready EKS cluster with monitoring, security, and observability components.
-
-## 🏗️ Repository Structure
-
-```
-├── 📁 clusters/                    # Environment-specific configurations
-│   └── 📁 production/              # Production cluster configuration
-│       ├── 📄 app-of-apps.yaml     # Root application bootstrap
-│       ├── 📄 namespaces.yaml      # Required namespaces
-│       └── 📄 production-apps-project.yaml # ArgoCD project config
-├── 📁 applications/                # Application definitions
-│   ├── 📁 monitoring/              # Monitoring stack applications
-│   │   ├── 📄 app-of-apps.yaml     # Monitoring stack bootstrap
-│   │   ├── 📁 prometheus/          # Prometheus monitoring
-│   │   └── 📁 grafana/             # Grafana dashboards
-│   ├── 📁 security/                # Security applications (optional)
-│   │   ├── 📄 app-of-apps.yaml     # Security stack bootstrap (optional)
-│   │   └── 📁 vault/               # HashiCorp Vault (optional; currently disabled by default)
-│   └── 📁 web-app/                 # Web application deployments
-│       ├── 📄 namespace.yaml       # Production namespace
-│       └── 📁 k8s-web-app/         # Node.js web application
-│           └── 📁 helm/            # Helm chart
-│               └── 📄 values.yaml  # Single consolidated values (Vault optional)
-├── 📁 bootstrap/                   # Bootstrap manifests
-│   ├── 📄 00-namespaces.yaml       # Core namespaces with PSS labels
-│   ├── 📄 01-pod-security-standards.yaml # Security standards
-│   ├── 📄 02-network-policy.yaml   # Network policies
-│   ├── 📄 03-helm-repos.yaml       # Helm repository configurations
-│   ├── 📄 04-argo-cd-install.yaml  # ArgoCD installation (Helm-based)
-│   ├── 📄 05-vault-policies.yaml   # Vault policies and authentication
-│   ├── 📄 06-etcd-backup.yaml      # etcd backup cronjob
-│   └── 📁 helm-values/             # Helm values for bootstrap components
-│       └── 📄 argo-cd-values.yaml  # Production ArgoCD configuration
-├── 📁 infrastructure/              # Infrastructure as Code (Terraform)
-├── 📁 examples/                    # Example applications and scripts
-└── 📁 docs/                        # Documentation
-```
+A comprehensive GitOps repository for deploying production-ready Kubernetes clusters on AWS EKS with ArgoCD, monitoring, and security best practices.
 
 ## 🚀 Quick Start
 
-### 📖 Deployment Guides
+Choose your deployment target:
 
-Choose your deployment platform:
-
-- **[AWS EKS Deployment Guide](AWS_DEPLOYMENT_GUIDE.md)** - Complete production deployment on AWS (7 phases, ~65 min)
-- **[Minikube Deployment Guide](MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development environment (7 phases, ~45 min)
-
-### 🔧 Development Tools
-
-#### Application Validation
-Validate ArgoCD applications to prevent deployment issues:
-
-```bash
-# Validate all applications
-make validate-apps
-
-# Or run directly
-./scripts/validate-argocd-apps.sh
-```
-
-The validation script checks for:
-- ✅ Annotation size limits (prevents CRD failures)
-- ✅ Inline values size (encourages external files)
-- ✅ Required fields (spec.destination, spec.source/sources)
-- ✅ Best practices compliance
-
-#### Pre-commit Hooks
-Automatic validation runs before each commit:
-```bash
-git commit -m "Add new application"
-# Validation runs automatically
-```
-
-### 🔧 Troubleshooting
-
-- **[ArgoCD Troubleshooting Guide](docs/troubleshooting-argocd.md)** - Common issues and solutions for ArgoCD deployments
-- **[Secret Management Script](scripts/create-monitoring-secrets.sh)** - Automated script for creating required secrets
-
-### 🔐 Quick Access
-
-After deployment, access your applications:
-
-- **ArgoCD UI**: `https://localhost:8080` (admin/admin123)
-- **Grafana**: `https://grafana.your-domain.com` (admin/[generated-password])
-- **Prometheus**: `https://prometheus.your-domain.com`
-- **Web App**: `https://k8s-web-app.example.com`
-
-Both guides follow a **7-phase approach** to ensure reliable deployment:
-
-| Phase | Component | Purpose | Optional |
-|-------|-----------|---------|----------|
-| **Phase 1** | Infrastructure | Cluster setup and configuration | Required |
-| **Phase 2** | Bootstrap | ArgoCD and GitOps foundation | Required |
-| **Phase 3** | Monitoring | Prometheus and Grafana | Required |
-| **Phase 4** | Vault Deployment | Vault server and agent injector | ⚠️ **Optional (disabled by default)** |
-| **Phase 5** | Vault Configuration | **Critical**: Initialize, policies, secrets | ⚠️ **Optional (disabled by default)** |
-| **Phase 6** | Web App Deployment | Deploy application WITHOUT secrets | Required |
-| **Phase 7** | Vault Integration | Add Vault secrets to running application | ⚠️ **Optional** |
-
-> **💡 Note:** Vault (Phases 4-5-7) is optional and currently disabled by default in this repo. Deploy monitoring and applications first; add Vault later when ready.
-
-**Key Features:**
-- ✅ Built-in verification at each phase
-- ✅ Deploy applications first, add secrets later
-- ✅ Prevents Vault initialization issues
-- ✅ Zero-downtime Vault integration
-- ✅ Clear separation of deployment concerns
-- ✅ Comprehensive troubleshooting with ArgoCD error solutions
-- ✅ Automated secret management scripts
-- ✅ Production-ready security configurations
-- ✅ Comprehensive code documentation and comments
-
-### Prerequisites
-
-#### For AWS EKS:
-- AWS CLI configured with appropriate permissions
-- Terraform >=1.4.0
-- kubectl v1.31+
-- Helm v3.18+
-
-#### For Minikube:
-- Docker Desktop
-- Minikube
-- kubectl v1.31+
-- Helm v3.18+
-
-### Quick Start Commands
-
-#### AWS EKS:
-```bash
-# Clone repository
-git clone https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps.git
-cd Production-Ready-EKS-Cluster-with-GitOps
-
-# Follow the AWS Deployment Guide
-open AWS_DEPLOYMENT_GUIDE.md
-```
-
-#### Minikube:
-```bash
-# Clone repository
-git clone https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps.git
-cd Production-Ready-EKS-Cluster-with-GitOps
-
-# Follow the Minikube Deployment Guide
-open MINIKUBE_DEPLOYMENT_GUIDE.md
-```
+- **[Local Deployment](docs/local-deployment.md)** - Deploy on Minikube for development and testing
+- **[AWS Deployment](docs/aws-deployment.md)** - Deploy on AWS EKS for production environments
 
 ## 📚 Documentation
 
-- **[Application Access Guide](APPLICATION_ACCESS_GUIDE.md)** - Comprehensive guide for Prometheus, Grafana, ArgoCD, and optional Vault
-- **[Project Structure Guide](docs/PROJECT_STRUCTURE.md)** - Comprehensive overview of the repository structure
-- **[Vault Setup Guide](docs/VAULT_SETUP_GUIDE.md)** - Detailed Vault configuration and troubleshooting
-- **[Security Best Practices](docs/security-best-practices.md)** - Security guidelines and recommendations
-- **[Disaster Recovery Runbook](docs/disaster-recovery-runbook.md)** - Backup and recovery procedures
-- **[Changelog](CHANGELOG.md)** - Version history and changes
-- **[Pull Request Summary](PULL_REQUEST_SUMMARY.md)** - Recent fixes and improvements
-- **[Documentation Update Summary](DOCUMENTATION_UPDATE_SUMMARY.md)** - Documentation changes and updates
+| Document | Purpose |
+|----------|---------|
+| [**Architecture Guide**](docs/architecture.md) | Repository structure, GitOps flow, and environment overlays |
+| [**Local Deployment**](docs/local-deployment.md) | Step-by-step instructions for Minikube/local clusters |
+| [**AWS Deployment**](docs/aws-deployment.md) | Complete AWS EKS deployment guide |
+| [**Troubleshooting**](docs/troubleshooting.md) | Common issues and solutions |
 
-## 🔧 Application Access
+## 🏗️ What's Included
 
-After deployment, access your applications:
+### Core Components
+- **ArgoCD** - GitOps continuous delivery
+- **Prometheus & Grafana** - Monitoring and alerting
+- **Vault** - Secrets management (optional)
+- **Web Application** - Sample Node.js app with Helm charts
 
-#### Quick Access
-```bash
-# ArgoCD UI
-kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 &
-# Access: https://localhost:8080 (admin / password from secret)
+### Environments
+- **Development** - Local testing with Minikube
+- **Staging** - Pre-production validation
+- **Production** - AWS EKS with full security
 
-# Prometheus
-kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090 &
-# Access: http://localhost:9090
+### Security Features
+- Pod Security Standards
+- Network Policies
+- RBAC configurations
+- Vault integration for secrets
 
-# Grafana
-kubectl port-forward svc/grafana -n monitoring 3000:80 &
-# Access: http://localhost:3000 (admin / password from secret)
+## 🛠️ Prerequisites
 
-# Vault (optional; only if enabled)
-# kubectl port-forward svc/vault -n vault 8200:8200 &
-# Access: http://localhost:8200
+### For Local Deployment
+- Minikube or similar local Kubernetes
+- kubectl, helm, and ArgoCD CLI
+- yq for YAML processing
+
+### For AWS Deployment
+- AWS CLI v2, Terraform, kubectl
+- AWS account with appropriate permissions
+- yq for configuration management
+
+## 📁 Repository Structure
+
+```
+├── environments/           # Environment-specific configurations
+│   ├── dev/               # Development environment
+│   ├── staging/           # Staging environment
+│   └── prod/              # Production environment
+├── applications/          # Application deployments
+│   ├── monitoring/        # Prometheus & Grafana
+│   ├── infrastructure/    # Infrastructure components
+│   └── web-app/          # Web application stack
+├── bootstrap/            # Initial cluster setup
+├── infrastructure/       # Terraform for AWS resources
+├── config/               # Common configuration files
+├── scripts/              # Consolidated management scripts
+└── docs/                # Consolidated documentation
 ```
 
-### 🌐 Access the Web App
+## 🚦 Getting Started
 
-After `k8s-web-app` is Synced and Healthy in Argo CD, you can access it via:
+1. **Choose your deployment target** from the documentation above
+2. **Follow the step-by-step guide** for your chosen environment
+3. **Verify deployment** using the provided validation scripts
+4. **Access applications** through the provided URLs
 
-#### Option A: Ingress (Production)
+## 🔧 Management Scripts
 
-1) Get the Ingress address
+This repository includes consolidated management scripts for common operations:
+
+### **Deployment Script** (`scripts/deploy.sh`)
+Unified interface for deploying and managing infrastructure:
 ```bash
-kubectl get ingress k8s-web-app -n production
+./scripts/deploy.sh terraform prod          # Deploy infrastructure
+./scripts/deploy.sh bootstrap prod          # Bootstrap ArgoCD
+./scripts/deploy.sh secrets monitoring      # Create secrets
+./scripts/deploy.sh validate all            # Validate deployment
+./scripts/deploy.sh sync prod               # Sync applications
 ```
-2) Point your DNS `A`/`CNAME` record to the address and update `applications/web-app/k8s-web-app/helm/values.yaml` host if needed (`ingress.hosts[0].host`).
-3) Browse to: https://<your-host>
 
-#### Option B: Port-forward (Quick test)
+### **Validation Script** (`scripts/validate.sh`)
+Comprehensive validation across all components:
 ```bash
-kubectl port-forward svc/k8s-web-app -n production 8081:80 &
-echo "Web App: http://localhost:8081"
-curl -s http://localhost:8081/health
+./scripts/validate.sh all                   # Validate everything
+./scripts/validate.sh apps                  # Validate ArgoCD apps
+./scripts/validate.sh helm                  # Validate Helm charts
+./scripts/validate.sh security              # Validate security configs
 ```
 
-### 📖 Comprehensive Access Guide
+### **Secrets Management** (`scripts/secrets.sh`)
+Complete secrets lifecycle management:
+```bash
+./scripts/secrets.sh create monitoring      # Create secrets
+./scripts/secrets.sh rotate web-app         # Rotate secrets
+./scripts/secrets.sh verify all             # Verify secrets
+./scripts/secrets.sh backup vault           # Backup secrets
+```
 
-For detailed usage guides including PromQL queries, Grafana dashboards, Vault secret management, and more:
+### **Configuration Management** (`scripts/config.sh`)
+Environment-specific configuration handling:
+```bash
+./scripts/config.sh generate --environment prod  # Generate configs
+./scripts/config.sh validate --environment prod  # Validate configs
+./scripts/config.sh merge --environment prod     # Merge configs
+```
 
-**→ [Application Access Guide](APPLICATION_ACCESS_GUIDE.md)**
+### **Makefile Targets**
+Convenient Make targets for common operations:
+```bash
+make validate-all                           # Validate all components
+make create-secrets                         # Create all secrets
+make deploy-infra ENV=prod                  # Deploy infrastructure
+make bootstrap-cluster ENV=prod             # Bootstrap cluster
+make generate-config ENV=prod               # Generate configurations
+```
 
-This guide covers:
-- **Prometheus**: PromQL queries, targets, alerts, metrics API
-- **Grafana**: Dashboard creation, data sources, importing community dashboards
-- **Vault**: Secret CRUD operations, policies, Kubernetes auth, audit logs
-- **ArgoCD**: Application management, CLI operations, sync strategies
-- **Troubleshooting**: Common access and connectivity issues
+## 🔧 Maintenance
 
-## 📋 Applications Managed
+- **Update manifests** in the appropriate environment directories
+- **Use consolidated scripts** for common operations (deploy, validate, secrets)
+- **Monitor applications** through ArgoCD UI
+- **Troubleshoot issues** using the troubleshooting guide
+- **Validate configurations** before deployment using `./scripts/validate.sh`
+- **Rotate secrets** regularly using `./scripts/secrets.sh rotate`
+- **Scale resources** as needed for your workload
 
-### Monitoring Stack
-- **Prometheus**: Metrics collection and alerting
-- **Grafana**: Dashboards and visualization  
-- **AlertManager**: Alert routing and notification
+## 📝 Contributing
 
-### Security Stack (optional)
-- **HashiCorp Vault**: Secrets management with agent injection (currently disabled by default)
-- **Pod Security Standards**: Restricted security contexts
-- **Network Policies**: Traffic isolation between components
-
-### Web Application
-- **Node.js Application**: Production-ready with health checks and security contexts
-- **Auto-scaling**: Horizontal Pod Autoscaler configuration
-- **Vault Integration**: Enhanced with environment variable support and improved security practices
-- **Security**: Pod Security Standards, network policies, and proper RBAC configurations
-
-## 🔒 Security Features
-
-- **Pod Security Standards**: Restricted mode enforced
-- **Network Policies**: Traffic isolation between components
-- **RBAC**: Role-based access control
-- **Vault Agent Injection**: Secure secret management without Kubernetes Secrets (when Vault is enabled)
-- **TLS Encryption**: All communications encrypted
-
-## 🏷️ GitOps Principles
-
-This repository follows GitOps best practices:
-
-- ✅ **Declarative**: All desired state defined in Git
-- ✅ **Versioned**: All changes tracked in version control
-- ✅ **Automated**: Continuous reconciliation with desired state
-- ✅ **Observable**: Full audit trail of all changes
-- ✅ **Secure**: Immutable infrastructure with proper access controls
-- ✅ **Production-Ready**: Enhanced security, reliability, and maintainability
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make changes following GitOps principles
-4. Follow YAML linting standards (`.yamllint` configuration)
-5. Test in a development environment
-6. Update documentation as needed
-7. Submit a pull request
+1. Make changes to the appropriate environment or application directories
+2. Test changes in development environment first
+3. Update documentation if needed
+4. Submit pull request with clear description
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## 🆘 Support
 
-- [ArgoCD](https://argoproj.github.io/cd/) - GitOps continuous delivery
-- [Prometheus](https://prometheus.io/) - Monitoring and alerting
-- [Grafana](https://grafana.com/) - Observability platform
-- [HashiCorp Vault](https://www.vaultproject.io/) - Secrets management
+- **Documentation**: Check the [docs/](docs/) directory
+- **Issues**: Use GitHub issues for bug reports
+- **Troubleshooting**: See [troubleshooting guide](docs/troubleshooting.md)
+
+---
+
+**Ready to deploy?** Start with [Local Deployment](docs/local-deployment.md) or [AWS Deployment](docs/aws-deployment.md).

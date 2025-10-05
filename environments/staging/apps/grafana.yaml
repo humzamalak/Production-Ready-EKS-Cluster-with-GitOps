@@ -1,0 +1,47 @@
+# Argo CD Application - Grafana (Staging)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-staging
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: monitoring-stack
+    app.kubernetes.io/managed-by: argocd
+    environment: staging
+    app: grafana
+    environment-name: staging
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: staging-apps
+  sources:
+    - repoURL: 'https://grafana.github.io/helm-charts'
+      chart: grafana
+      targetRevision: 7.3.7
+    - repoURL: 'https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps'
+      targetRevision: main
+      path: applications/monitoring/grafana
+  helm:
+    valueFiles:
+      - values-production.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging-monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 3

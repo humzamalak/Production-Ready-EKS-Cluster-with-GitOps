@@ -1,0 +1,22 @@
+# Namespaces - Production
+# Refactor: Env-specific namespaces grouped for easier bootstrap and review.
+apiVersion: v1
+kind: List
+metadata:
+  labels:
+    environment: prod
+items:
+  - apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: production
+      labels:
+        name: production
+        environment: prod
+  - apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: monitoring
+      labels:
+        name: monitoring
+        environment: prod

@@ -1,0 +1,51 @@
+# Argo CD Application - Web App (Production)
+# Refactor: Env-scoped app with standardized labels and kebab-case names.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: k8s-web-app-prod
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: k8s-web-app
+    app.kubernetes.io/part-of: web-app
+    app.kubernetes.io/managed-by: argocd
+    environment: prod
+    app: k8s-web-app
+    environment-name: prod
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: prod-apps
+  source:
+    repoURL: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
+    targetRevision: main
+    path: applications/web-app/k8s-web-app/helm
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 3
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

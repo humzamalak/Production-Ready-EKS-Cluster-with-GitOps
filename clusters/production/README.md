@@ -52,8 +52,8 @@ Ensure the following are completed:
 ### 2. Deploy Production Cluster
 
 ```bash
-# Apply the root application
-kubectl apply -f clusters/production/app-of-apps.yaml
+# Apply the root application (app-of-apps)
+kubectl apply -f environments/prod/app-of-apps.yaml
 
 # Verify deployment
 kubectl get applications -n argocd
@@ -198,7 +198,8 @@ Applications are deployed in waves to ensure proper dependency ordering:
 
 ## 📚 Related Documentation
 
-- [GitOps Structure](../../docs/gitops-structure.md) - Repository structure guide
-- [Deployment Guide](../../DEPLOYMENT_GUIDE.md) - Complete deployment instructions
-- [Security Best Practices](../../docs/security-best-practices.md) - Security guidelines
+- [Architecture Guide](../../docs/architecture.md) - Repository structure and GitOps flow
+- [AWS Deployment Guide](../../docs/aws-deployment.md) - Complete AWS deployment instructions
+- [Local Deployment Guide](../../docs/local-deployment.md) - Local development setup
+- [Troubleshooting Guide](../../docs/troubleshooting.md) - Common issues and solutions
 - [Bootstrap Configuration](../../bootstrap/README.md) - Bootstrap setup guide

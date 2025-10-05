@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-DOCKERHUB_USERNAME="windwalker101"
+DOCKERHUB_USERNAME="windrunner101"
 IMAGE_NAME="k8s-web-app"
 DEFAULT_TAG="latest"
 TAG=${1:-$DEFAULT_TAG}

@@ -1,0 +1,174 @@
+# Common Configuration for EKS GitOps Infrastructure
+# This file contains shared configuration values used across environments
+# and applications to ensure consistency and maintainability.
+
+# Global application labels and annotations
+global:
+  labels:
+    app.kubernetes.io/managed-by: "argocd"
+    app.kubernetes.io/part-of: "eks-gitops"
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+
+# Common image configurations
+images:
+  pullPolicy: "IfNotPresent"
+  pullSecrets: []
+
+# Common security configurations
+security:
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    fsGroup: 1001
+    seccompProfile:
+      type: RuntimeDefault
+  
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+
+# Common resource configurations
+resources:
+  default:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  monitoring:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# Common ingress configurations
+ingress:
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+
+# Common monitoring configurations
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    interval: 30s
+    honorLabels: false
+
+# Common autoscaling configurations
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+
+# Common health check configurations
+healthCheck:
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Common network policy configurations
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: http
+  egress:
+    - {}  # Allow all egress traffic
+
+# Common service account configurations
+serviceAccount:
+  create: true
+  annotations: {}
+  automountServiceAccountToken: true
+
+# Common node selector and affinity configurations
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Environment-specific configurations
+environments:
+  dev:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+    autoscaling:
+      enabled: false
+  
+  staging:
+    replicaCount: 2
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 400m
+        memory: 512Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 5
+  
+  prod:
+    replicaCount: 3
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    autoscaling:
+      minReplicas: 2
+      maxReplicas: 10
