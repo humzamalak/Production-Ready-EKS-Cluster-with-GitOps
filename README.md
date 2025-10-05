@@ -1,3 +1,4 @@
+<!-- Docs Update: 2025-10-05 — Verified structure, scripts, and cross-links. Keep high-level only. -->
 # Production-Ready EKS Cluster with GitOps
 
 A comprehensive GitOps repository for deploying production-ready Kubernetes clusters on AWS EKS with ArgoCD, monitoring, and security best practices.

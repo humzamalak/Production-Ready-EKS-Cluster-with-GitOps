@@ -1,3 +1,4 @@
+<!-- Docs Update: 2025-10-05 — Align paths, remove non-existent value files, clarify Argo CD flow and Vault toggle. -->
 # Web Application Stack
 
 This directory contains the ArgoCD applications and Helm charts for deploying web applications to the production EKS cluster.
@@ -6,15 +7,11 @@ This directory contains the ArgoCD applications and Helm charts for deploying we
 
 ```
 web-app/
-├── namespace.yaml                # Production namespace definition
 └── k8s-web-app/                 # Node.js web application
-    ├── application.yaml          # ArgoCD Application manifest
-    ├── values.yaml              # Production Helm values
-    ├── values-local.yaml        # Local development values
-    ├── values-vault-enabled.yaml # Vault integration override
-    └── helm/                    # Helm chart
+    ├── values.yaml              # Environment-scoped Helm values used by Argo CD
+    └── helm/                    # Application Helm chart
         ├── Chart.yaml
-        ├── values.yaml          # Default Helm chart values
+        ├── values.yaml          # Chart defaults (do not edit for env-specific config)
         └── templates/
             ├── deployment.yaml
             ├── service.yaml
@@ -22,7 +19,8 @@ web-app/
             ├── hpa.yaml
             ├── serviceaccount.yaml
             ├── networkpolicy.yaml
-            └── servicemonitor.yaml
+            ├── servicemonitor.yaml
+            └── vault-agent.yaml
 ```
 
 ## Applications
@@ -42,14 +40,14 @@ A production-ready Node.js web application with the following features:
 
 ### Prerequisites
 
-1. **Domain**: Update the ingress host in `values.yaml`:
+1. **Domain**: Update the ingress host in `applications/web-app/k8s-web-app/helm/values.yaml`:
    ```yaml
    ingress:
      hosts:
        - host: k8s-web-app.yourdomain.com  # Update this
    ```
 
-2. **Vault Setup**: The application uses Vault for secret management:
+2. **Vault Setup**: Optional. Vault can be enabled after initial deployment by toggling `vault.enabled` in `applications/web-app/k8s-web-app/helm/values.yaml`. If you plan to use Vault, ensure it is deployed and initialized first (see `docs/local-deployment.md` or `docs/aws-deployment.md`). Example local setup commands:
    ```bash
    # Install Vault CLI (if not already installed)
    brew tap hashicorp/tap
@@ -90,7 +88,7 @@ A production-ready Node.js web application with the following features:
      policies=k8s-web-app ttl=1h max_ttl=24h
    ```
 
-3. **Vault Secrets**: Update the secrets in Vault with your actual values:
+3. **Vault Secrets**: If Vault is enabled, create application secrets:
    ```bash
    # Database secrets
    vault kv put secret/production/web-app/db \
@@ -115,7 +113,7 @@ A production-ready Node.js web application with the following features:
      redis_url="redis://your-redis-host:6379"
    ```
 
-4. **IRSA Role**: Update the service account annotation in `values.yaml`:
+4. **IRSA Role (AWS only)**: If using AWS services from pods, annotate the service account in `applications/web-app/k8s-web-app/helm/values.yaml`:
    ```yaml
    serviceAccount:
      annotations:
@@ -135,10 +133,7 @@ The application can be customized by modifying the `values.yaml` file:
 
 ## Deployment
 
-The web application is automatically deployed when ArgoCD syncs the applications. The sync order is:
-
-1. Namespace creation (sync-wave: "0")
-2. Web app deployment (sync-wave: "1")
+Argo CD deploys this chart via the environment definitions under `environments/<env>/apps/web-app.yaml` (referenced by the root `app-of-apps.yaml`). Update values, commit, and Argo CD will reconcile automatically.
 
 ## Monitoring
 
@@ -162,7 +157,7 @@ Security features include:
 
 ## Vault Integration
 
-The web application is integrated with HashiCorp Vault for secure secret management:
+The chart includes optional HashiCorp Vault Agent injection. Enable by setting `vault.enabled: true` in `applications/web-app/k8s-web-app/helm/values.yaml` once Vault is deployed and configured.
 
 ### Features
 

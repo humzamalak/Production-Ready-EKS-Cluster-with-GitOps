@@ -1,3 +1,4 @@
+<!-- Docs Update: 2025-10-05 — Verified links, clarified navigation and environment locations. -->
 # Documentation Index
 
 This directory contains comprehensive, consolidated documentation for the Production-Ready EKS Cluster with GitOps.

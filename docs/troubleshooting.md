@@ -205,30 +205,23 @@ Invalid value: "": a lowercase RFC 1123 subdomain must consist of...
 #### Solutions
 
 **Check Values Configuration**:
-```bash
-# Check current valueFiles being used
-kubectl get application k8s-web-app -n argocd -o jsonpath='{.spec.source.helm.valueFiles}'
+```
+# Verify Vault toggle in Helm values
+grep -A3 "^vault:" applications/web-app/k8s-web-app/helm/values.yaml
 
-# For production WITHOUT Vault: should show ["values.yaml"]
-# For production WITH Vault: should show ["values.yaml","values-vault-enabled.yaml"]
+# Expected when disabled:
+# vault:
+#   enabled: false
+#   ready: false
 ```
 
 **Update Application Configuration**:
-```bash
-# Update if incorrect (production without Vault)
-kubectl patch application k8s-web-app -n argocd --type merge -p '
-{
-  "spec": {
-    "source": {
-      "helm": {
-        "valueFiles": ["values.yaml"]
-      }
-    }
-  }
-}'
-
-# Wait for sync
-kubectl wait --for=condition=Synced --timeout=300s application/k8s-web-app -n argocd
+```
+# Edit chart values and commit; Argo CD will sync automatically
+vi applications/web-app/k8s-web-app/helm/values.yaml
+git add applications/web-app/k8s-web-app/helm/values.yaml
+git commit -m "Toggle Vault (enable/disable)"
+git push
 ```
 
 **Debug Helm Template**:
