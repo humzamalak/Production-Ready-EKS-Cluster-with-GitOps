@@ -1,4 +1,5 @@
 # ETCD Backup CronJob
+# Kubernetes v1.33.0: using batch/v1 CronJob; ensure fields conform to stable schema
 apiVersion: batch/v1
 kind: CronJob
 metadata:

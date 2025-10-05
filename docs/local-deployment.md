@@ -1,5 +1,7 @@
 # Local Deployment Guide
 
+> Compatibility: Kubernetes v1.33.0 (Minikube or compatible local cluster)
+
 Complete guide for deploying this GitOps repository on **Minikube** or similar local Kubernetes clusters.
 
 ## 🎯 Overview
@@ -36,7 +38,7 @@ brew install minikube kubectl helm vault
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 sudo install minikube-linux-amd64 /usr/local/bin/minikube
 
-# kubectl v1.31+
+# kubectl v1.33+
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
@@ -60,7 +62,7 @@ minikube start \
   --cpus=2 \
   --disk-size=30g \
   --driver=docker \
-  --kubernetes-version=v1.31.0
+  --kubernetes-version=v1.33.0
 ```
 
 ### Step 1.2: Enable Required Addons

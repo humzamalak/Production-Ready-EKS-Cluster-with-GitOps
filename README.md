@@ -1,6 +1,8 @@
 <!-- Docs Update: 2025-10-05 — Verified structure, scripts, and cross-links. Keep high-level only. -->
 # Production-Ready EKS Cluster with GitOps
 
+> Compatibility: Kubernetes v1.33.0 (validated). See section below for notes.
+
 A comprehensive GitOps repository for deploying production-ready Kubernetes clusters on AWS EKS with ArgoCD, monitoring, and security best practices.
 
 ## 🚀 Quick Start
@@ -41,12 +43,12 @@ Choose your deployment target:
 ## 🛠️ Prerequisites
 
 ### For Local Deployment
-- Minikube or similar local Kubernetes
+- Minikube or similar local Kubernetes (k8s v1.33.0)
 - kubectl, helm, and ArgoCD CLI
 - yq for YAML processing
 
 ### For AWS Deployment
-- AWS CLI v2, Terraform, kubectl
+- AWS CLI v2, Terraform, kubectl (>=1.33)
 - AWS account with appropriate permissions
 - yq for configuration management
 
@@ -155,3 +157,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Ready to deploy?** Start with [Local Deployment](docs/local-deployment.md) or [AWS Deployment](docs/aws-deployment.md).
+
+## Kubernetes v1.33.0 Compatibility Notes
+
+- Updated APIs used:
+  - networking.k8s.io/v1 for `Ingress`
+  - autoscaling/v2 for `HorizontalPodAutoscaler`
+  - batch/v1 for `CronJob` and `Job`
+  - apps/v1 for `Deployment`
+  - rbac.authorization.k8s.io/v1 for RBAC resources
+  - networking.k8s.io/v1 for `NetworkPolicy`
+- Removed/avoided deprecated resources and beta APIs (e.g., PodSecurityPolicy, v1beta1 variants)
+- Helm templates and scripts validated with `kubectl --dry-run=client` and `helm lint`
+- Use `scripts/validate.sh all` to run schema and best-practice checks.

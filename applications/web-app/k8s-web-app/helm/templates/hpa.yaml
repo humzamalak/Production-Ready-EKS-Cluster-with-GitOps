@@ -1,4 +1,5 @@
 {{- if .Values.autoscaling.enabled }}
+# Kubernetes v1.33.0: autoscaling/v2 with resource metrics and optional behavior supported
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

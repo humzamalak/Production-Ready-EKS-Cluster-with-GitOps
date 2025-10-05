@@ -1,4 +1,5 @@
 {{- if .Values.ingress.enabled -}}
+# Kubernetes v1.33.0: validated Ingress schema (networking.k8s.io/v1, service backend fields)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
