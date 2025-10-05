@@ -138,18 +138,15 @@ kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 &
 echo "ArgoCD UI: https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
 ```
 
-### Step 2.5: Deploy Root Application
+### Step 2.5: Deploy Root Application (dev)
 
 ```bash
-# Deploy the root app-of-apps
-kubectl apply -f environments/prod/app-of-apps.yaml
+# Deploy the root app-of-apps for the dev environment
+kubectl apply -f environments/dev/app-of-apps.yaml
 
-# Wait for root app to sync
-kubectl wait --for=condition=Synced --timeout=300s \
-  application/production-cluster -n argocd
+# Verify discovery (view apps in Argo CD)
+kubectl get applications -n argocd
 ```
-
-**✅ Phase 2 Complete**: ArgoCD installed, secrets created, root application synced
 
 ## 📊 Phase 3: Monitoring Stack
 
@@ -310,26 +307,24 @@ curl -s http://localhost:8081/health
 
 ## 🔐 Phase 7: Vault Integration (Optional)
 
-> **⚠️ Prerequisites**: Phases 4, 5, and 6 must be complete.
+> ⚠️ Prerequisites: Vault is deployed and initialized.
 
 ### Step 7.1: Enable Vault in Web App
 
 ```bash
-# Update application to enable Vault
-kubectl patch application k8s-web-app -n argocd --type merge -p '
-{
-  "spec": {
-    "source": {
-      "helm": {
-        "valueFiles": ["values.yaml", "values-vault-enabled.yaml"]
-      }
-    }
-  }
-}'
+# Toggle Vault in the chart values and commit
+vi applications/web-app/k8s-web-app/helm/values.yaml
+# Set:
+# vault:
+#   enabled: true
+#   ready: true
 
-# Wait for rollout
-kubectl wait --for=condition=Synced --timeout=300s \
-  application/k8s-web-app -n argocd
+git add applications/web-app/k8s-web-app/helm/values.yaml
+git commit -m "Enable Vault for web app (local)"
+git push
+
+# Argo CD will reconcile automatically; verify status
+kubectl get applications -n argocd
 ```
 
 ### Step 7.2: Verify Vault Integration

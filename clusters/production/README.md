@@ -1,3 +1,4 @@
+<!-- Docs Update: 2025-10-05 — Correct file locations under environments/prod and clarify commands. -->
 # Production Cluster Configuration
 
 This directory contains the production cluster configuration for the GitOps environment. It defines the root application that manages all other applications in the production environment.
@@ -12,10 +13,10 @@ The production cluster configuration provides:
 
 ## 📁 Components
 
-### Core Files
-- **`app-of-apps.yaml`**: Root ArgoCD Application that manages all other applications
-- **`namespaces.yaml`**: Required namespaces for the production environment
-- **`production-apps-project.yaml`**: ArgoCD project configuration with security policies
+### Core Files (located under `environments/prod/`)
+- **`environments/prod/app-of-apps.yaml`**: Root Argo CD Application that manages all other applications
+- **`environments/prod/namespaces.yaml`**: Required namespaces for the production environment
+- **`environments/prod/project.yaml`**: Argo CD project configuration with security policies
 
 ## 🏗️ Architecture
 
@@ -49,7 +50,7 @@ Ensure the following are completed:
 - Bootstrap manifests have been applied
 - Cluster has sufficient resources
 
-### 2. Deploy Production Cluster
+### 2. Deploy Production Cluster (from repo root)
 
 ```bash
 # Apply the root application (app-of-apps)

@@ -1,3 +1,4 @@
+<!-- Docs Update: 2025-10-05 — Confirm apply order and replace Flux CRD example with generic repo note. -->
 # Bootstrap Configuration
 
 This directory contains the bootstrap configuration for the GitOps environment. These manifests are applied first to set up the foundational components required for the GitOps workflow.
@@ -90,17 +91,7 @@ server:
 
 ### Adding Helm Repositories
 
-Add new repositories in `helm-repos.yaml` (if present) or manage via your GitOps tooling:
-```yaml
-apiVersion: source.toolkit.fluxcd.io/v1beta2
-kind: HelmRepository
-metadata:
-  name: your-repo
-  namespace: argocd
-spec:
-  url: https://your-helm-repo.com
-  interval: 24h
-```
+Manage Helm repositories through Argo CD or your preferred tooling. The provided `03-helm-repos.yaml` seeds common repos used by this repo (Prometheus, Grafana, Vault).
 
 ## 🔒 Security Considerations
 

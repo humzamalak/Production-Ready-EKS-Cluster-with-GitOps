@@ -374,22 +374,20 @@ curl -s http://localhost:8081/health
 
 ### Step 7.1: Enable Vault in Web App
 
-```bash
-# Update application to enable Vault
-kubectl patch application k8s-web-app -n argocd --type merge -p '
-{
-  "spec": {
-    "source": {
-      "helm": {
-        "valueFiles": ["values.yaml", "values-vault-enabled.yaml"]
-      }
-    }
-  }
-}'
+```
+# Edit the chart values to enable Vault, then commit
+vi applications/web-app/k8s-web-app/helm/values.yaml
+# Set:
+# vault:
+#   enabled: true
+#   ready: true
 
-# Wait for rollout
-kubectl wait --for=condition=Synced --timeout=300s \
-  application/k8s-web-app -n argocd
+git add applications/web-app/k8s-web-app/helm/values.yaml
+git commit -m "Enable Vault for web app (prod)"
+git push
+
+# Argo CD will reconcile automatically; verify status
+kubectl get applications -n argocd
 ```
 
 ### Step 7.2: Verify Vault Integration
@@ -449,26 +447,16 @@ echo "Web App: http://localhost:8081"
 
 ## 🔧 Configuration Updates
 
-### Update Vault Secrets
-
-```bash
-# Update database password
-vault kv patch secret/production/web-app/db password="$(openssl rand -base64 32)"
-```
-
 ### Update Application Configuration
 
 ```bash
 # Edit values
 vi applications/web-app/k8s-web-app/helm/values.yaml
 
-# Commit changes
+# Commit changes (Argo CD auto-sync applies)
 git add applications/web-app/k8s-web-app/helm/values.yaml
 git commit -m "Update application configuration"
 git push
-
-# ArgoCD will auto-sync (or force sync)
-kubectl patch application k8s-web-app -n argocd -p '{"operation":{"sync":{}}}' --type merge
 ```
 
 ### Scale Application
