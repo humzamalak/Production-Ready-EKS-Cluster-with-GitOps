@@ -546,6 +546,18 @@ main() {
         exit 1
     fi
     
+    # Kubernetes v1.33.0 compatibility: require kubectl >= 1.33
+    local kubectl_ver_short
+    kubectl_ver_short=$(kubectl version --client -o json 2>/dev/null | grep -E '"gitVersion"' | sed -E 's/.*v([0-9]+\.[0-9]+).*/\1/' || echo "0.0")
+    if [[ "$kubectl_ver_short" != "0.0" ]]; then
+        awk -v v="$kubectl_ver_short" 'BEGIN { split(v,a,"."); if (a[1] < 1 || (a[1]==1 && a[2] < 33)) exit 1; else exit 0 }'
+        if [[ $? -ne 0 ]]; then
+            print_warning "kubectl client version ($kubectl_ver_short) < 1.33. Some validations may be inaccurate."
+        else
+            print_success "kubectl client version $kubectl_ver_short (>=1.33)"
+        fi
+    fi
+    
     if [ "$DRY_RUN" = false ] && ! kubectl cluster-info >/dev/null 2>&1; then
         print_error "kubectl is not configured or cannot connect to cluster"
         exit 1

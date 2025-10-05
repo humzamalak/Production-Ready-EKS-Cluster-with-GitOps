@@ -1,5 +1,7 @@
 # AWS Deployment Guide
 
+> Compatibility: Kubernetes v1.33.0 (EKS cluster version 1.33)
+
 Complete guide for deploying this GitOps repository on **AWS EKS** for production environments.
 
 ## 🎯 Overview
@@ -28,7 +30,7 @@ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip
 unzip awscliv2.zip && sudo ./aws/install
 aws --version
 
-# kubectl v1.31+
+# kubectl v1.33+
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
@@ -79,8 +81,8 @@ project_prefix = "my-eks-cluster"
 environment    = "prod"
 aws_region     = "us-west-2"
 
-# EKS Configuration
-cluster_version = "1.31"
+# EKS Configuration (Kubernetes v1.33.0)
+cluster_version = "1.33"
 node_instance_types = ["t3.medium"]
 min_size = 2
 max_size = 5

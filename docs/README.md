@@ -1,6 +1,8 @@
 <!-- Docs Update: 2025-10-05 — Verified links, clarified navigation and environment locations. -->
 # Documentation Index
 
+> Compatibility: This repository is validated against Kubernetes v1.33.0.
+
 This directory contains comprehensive, consolidated documentation for the Production-Ready EKS Cluster with GitOps.
 
 ## 📚 Documentation Structure

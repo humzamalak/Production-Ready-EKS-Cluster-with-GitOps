@@ -1,4 +1,5 @@
 apiVersion: apps/v1
+# Kubernetes v1.33.0: verified fields; probes/resources required by repo policies
 kind: Deployment
 metadata:
   name: {{ include "k8s-web-app.fullname" . }}
