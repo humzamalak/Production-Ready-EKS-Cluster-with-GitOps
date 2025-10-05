@@ -1,24 +1,29 @@
-# ArgoCD Application for Prometheus Stack Deployment
-# Uses kube-prometheus-stack Helm chart for comprehensive monitoring
-# This application deploys Prometheus, AlertManager, Node Exporter, and kube-state-metrics
+# Argo CD Application - Prometheus (Production)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: prometheus
+  name: prometheus-prod
   namespace: argocd
   labels:
     app.kubernetes.io/name: prometheus
     app.kubernetes.io/part-of: monitoring-stack
-    app.kubernetes.io/version: "61.6.0"
+    app.kubernetes.io/managed-by: argocd
+    environment: prod
+    app: prometheus
+    environment-name: prod
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: prod-apps
   source:
     repoURL: 'https://prometheus-community.github.io/helm-charts'
-    chart: prometheus
-    targetRevision: 25.8.0
-
+    chart: kube-prometheus-stack
+    targetRevision: 61.6.0
+    helm:
+      valueFiles:
+        - applications/monitoring/prometheus/values-production.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -29,9 +34,11 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
     retry:
       limit: 5
       backoff:
         duration: 5s
         factor: 2
         maxDuration: 3m
+  revisionHistoryLimit: 3

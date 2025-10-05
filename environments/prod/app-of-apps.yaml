@@ -1,31 +1,28 @@
-# App of Apps Pattern - Bootstrap Application
-# This is the root ArgoCD Application that manages all other applications
-# Apply this single manifest to bootstrap your entire GitOps infrastructure
-#
-# IMPORTANT: Update the repoURL to point to your forked repository before deploying
-
+# App of Apps - Production
+# Refactor: Centralizes prod apps under environments/prod for clarity and GitOps best practices.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: production-cluster
+  name: prod-cluster
   namespace: argocd
   labels:
-    app.kubernetes.io/name: production-cluster
+    app.kubernetes.io/name: prod-cluster
     app.kubernetes.io/part-of: gitops
-    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/component: app-of-apps
+    environment: prod
   annotations:
     argocd.argoproj.io/sync-wave: "1"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: prod-apps
   source:
     repoURL: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
     targetRevision: main
-    path: applications
+    path: environments/prod/apps
     directory:
       recurse: true
-      include: '{*/app-of-apps.yaml,web-app/k8s-web-app/application.yaml,monitoring/*/application.yaml}'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
@@ -44,4 +41,3 @@ spec:
         factor: 2
         maxDuration: 3m
   revisionHistoryLimit: 3
-

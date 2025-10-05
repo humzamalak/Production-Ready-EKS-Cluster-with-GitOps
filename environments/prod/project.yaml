@@ -1,0 +1,41 @@
+# AppProject - Production
+# Refactor: Env-scoped AppProject limits destinations and increases security boundaries.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: prod-apps
+  namespace: argocd
+  labels:
+    environment: prod
+spec:
+  description: Production workloads managed by Argo CD
+  sourceRepos:
+    - https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana.github.io/helm-charts
+  destinations:
+    - namespace: production
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  roles:
+    - name: admin
+      description: Full access to project applications
+      policies:
+        - p, proj:prod-apps:admin, applications, *, production/*, allow
+      groups:
+        - admin
+    - name: readonly
+      description: Read-only access
+      policies:
+        - p, proj:prod-apps:readonly, applications, get, production/*, allow
+      groups:
+        - developer

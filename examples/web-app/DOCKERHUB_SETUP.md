@@ -5,7 +5,7 @@ This guide walks you through building and pushing your K8s Web App to DockerHub.
 ## Prerequisites
 
 1. ✅ Docker installed and running
-2. ✅ DockerHub account (username: `windwalker101`)
+2. ✅ DockerHub account (username: `windrunner101`)
 3. ✅ DockerHub access token or password
 
 ## Step 1: Login to DockerHub
@@ -17,7 +17,7 @@ This guide walks you through building and pushing your K8s Web App to DockerHub.
 docker login
 
 # Enter your credentials:
-# Username: windwalker101
+# Username: windrunner101
 # Password: [your DockerHub password or access token]
 ```
 
@@ -30,7 +30,7 @@ docker login
 
 ```bash
 docker login
-# Username: windwalker101
+# Username: windrunner101
 # Password: [paste your access token]
 ```
 
@@ -47,7 +47,7 @@ cd web-app
 ```
 
 This script will:
-- Build the Docker image with tag `windwalker101/k8s-web-app:latest`
+- Build the Docker image with tag `windrunner101/k8s-web-app:latest`
 - Push it to DockerHub
 - Show you the DockerHub URL
 
@@ -55,10 +55,10 @@ This script will:
 
 ```bash
 # Build the image
-docker build -t windwalker101/k8s-web-app:latest .
+docker build -t windrunner101/k8s-web-app:latest .
 
 # Push to DockerHub
-docker push windwalker101/k8s-web-app:latest
+docker push windrunner101/k8s-web-app:latest
 ```
 
 ### Build with Custom Tag
@@ -67,18 +67,18 @@ docker push windwalker101/k8s-web-app:latest
 # Build with version tag
 ./build-and-push.sh v1.0.0
 
-# This creates: windwalker101/k8s-web-app:v1.0.0
-# And also: windwalker101/k8s-web-app:latest
+# This creates: windrunner101/k8s-web-app:v1.0.0
+# And also: windrunner101/k8s-web-app:latest
 ```
 
 ## Step 3: Verify Upload
 
-1. **Check DockerHub**: Visit https://hub.docker.com/r/windwalker101/k8s-web-app
+1. **Check DockerHub**: Visit https://hub.docker.com/r/windrunner101/k8s-web-app
 2. **Test locally**:
    ```bash
    # Pull and test the image
-   docker pull windwalker101/k8s-web-app:latest
-   docker run -p 3000:3000 windwalker101/k8s-web-app:latest
+   docker pull windrunner101/k8s-web-app:latest
+   docker run -p 3000:3000 windrunner101/k8s-web-app:latest
    
    # Test the application
    curl http://localhost:3000/health
@@ -136,9 +136,9 @@ curl http://localhost:8080/health
 
 ## DockerHub Repository Details
 
-- **Repository**: https://hub.docker.com/r/windwalker101/k8s-web-app
-- **Image Name**: `windwalker101/k8s-web-app`
-- **Latest Tag**: `windwalker101/k8s-web-app:latest`
+- **Repository**: https://hub.docker.com/r/windrunner101/k8s-web-app
+- **Image Name**: `windrunner101/k8s-web-app`
+- **Latest Tag**: `windrunner101/k8s-web-app:latest`
 
 ## Updating the Application
 
@@ -152,7 +152,7 @@ When you make changes to your application:
 2. **Update Helm values** (if using version tags):
    ```yaml
    image:
-     repository: windwalker101/k8s-web-app
+     repository: windrunner101/k8s-web-app
      tag: "v1.1.0"
    ```
 
@@ -184,17 +184,17 @@ docker login
 docker info
 
 # Check Dockerfile syntax
-docker build --no-cache -t windwalker101/k8s-web-app:latest .
+docker build --no-cache -t windrunner101/k8s-web-app:latest .
 ```
 
 ### Push Issues
 
 ```bash
 # Check image exists locally
-docker images | grep windwalker101/k8s-web-app
+docker images | grep windrunner101/k8s-web-app
 
 # Test push with verbose output
-docker push windwalker101/k8s-web-app:latest
+docker push windrunner101/k8s-web-app:latest
 ```
 
 ### Kubernetes Deployment Issues

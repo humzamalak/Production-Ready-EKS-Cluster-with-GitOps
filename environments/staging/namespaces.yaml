@@ -1,0 +1,21 @@
+# Namespaces - Staging
+apiVersion: v1
+kind: List
+metadata:
+  labels:
+    environment: staging
+items:
+  - apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: staging
+      labels:
+        name: staging
+        environment: staging
+  - apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: staging-monitoring
+      labels:
+        name: staging-monitoring
+        environment: staging

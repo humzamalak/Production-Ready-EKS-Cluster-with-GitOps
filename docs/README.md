@@ -1,59 +1,45 @@
 # Documentation Index
 
-This directory contains comprehensive documentation for the Production-Ready EKS Cluster with GitOps.
+This directory contains comprehensive, consolidated documentation for the Production-Ready EKS Cluster with GitOps.
 
 ## 📚 Documentation Structure
 
 ### 🚀 **Getting Started**
 - **[Main README](../README.md)** - Project overview and quick start
-- **[AWS Deployment Guide](../AWS_DEPLOYMENT_GUIDE.md)** - Production deployment on AWS (6-phase approach, ~60 min)
-- **[Minikube Deployment Guide](../MINIKUBE_DEPLOYMENT_GUIDE.md)** - Local development setup (6-phase approach, ~40 min)
+- **[AWS Deployment Guide](aws-deployment.md)** - Complete production deployment on AWS EKS
+- **[Local Deployment Guide](local-deployment.md)** - Complete local development setup with Minikube
 
 ### 🏗️ **Architecture & Structure**
-- **[Project Structure Guide](PROJECT_STRUCTURE.md)** - Complete repository structure and GitOps patterns
-
-### 🔐 **Security & Secrets**
-- **[Security Best Practices](security-best-practices.md)** - Security guidelines and best practices
-- **[Vault Setup Guide](VAULT_SETUP_GUIDE.md)** - Comprehensive Vault configuration
-- **[Vault Integration Guide](../applications/web-app/VAULT_INTEGRATION.md)** - Web app Vault integration with progressive deployment
+- **[Architecture Guide](architecture.md)** - Complete repository structure, GitOps patterns, and implementation flow
 
 ### 🛠️ **Operations & Maintenance**
-- **[Troubleshooting Guide](../TROUBLESHOOTING.md)** - Common issues and solutions
-- **[Disaster Recovery Runbook](disaster-recovery-runbook.md)** - Recovery procedures
-
-### 📊 **Project Management**
-- **[Changelog](CHANGELOG.md)** - Version history and changes
+- **[Troubleshooting Guide](troubleshooting.md)** - Comprehensive troubleshooting including ArgoCD, Kubernetes, Vault, and validation issues
 
 ## 🎯 **Quick Navigation**
 
 ### **For New Users:**
 1. Start with [Main README](../README.md)
-2. Choose your platform: [AWS](../AWS_DEPLOYMENT_GUIDE.md) or [Minikube](../MINIKUBE_DEPLOYMENT_GUIDE.md)
+2. Choose your platform: [AWS](aws-deployment.md) or [Local](local-deployment.md)
 3. Follow the phase-based deployment guide step-by-step
 
 ### **For Developers:**
-1. Review [Project Structure Guide](PROJECT_STRUCTURE.md)
-2. Set up local environment with [Minikube Deployment Guide](../MINIKUBE_DEPLOYMENT_GUIDE.md)
-3. See optimization tips in Minikube guide's "Local Development Tips & Optimization" section
+1. Review [Architecture Guide](architecture.md)
+2. Set up local environment with [Local Deployment Guide](local-deployment.md)
+3. Use [Troubleshooting Guide](troubleshooting.md) for common issues
 
 ### **For Operators:**
-1. Familiarize with [Security Best Practices](security-best-practices.md)
-2. Review [Troubleshooting Guide](../TROUBLESHOOTING.md)
-3. Understand [Disaster Recovery Runbook](disaster-recovery-runbook.md)
-
-### **For Vault Integration:**
-1. Start with [Vault Setup Guide](VAULT_SETUP_GUIDE.md)
-2. Review [Vault Integration Guide](../applications/web-app/VAULT_INTEGRATION.md) (includes progressive deployment)
-3. Enhanced with environment variable support and improved security practices
+1. Follow [AWS Deployment Guide](aws-deployment.md) for production
+2. Use [Troubleshooting Guide](troubleshooting.md) for operational issues
+3. Review [Architecture Guide](architecture.md) for system understanding
 
 ## 📁 **Directory-Specific Documentation**
 
 ### **Bootstrap Components**
-- **[Bootstrap README](../bootstrap/README.md)** - Bootstrap configuration details
+- **[Bootstrap README](../bootstrap/README.md)** - Bootstrap configuration details (Argo CD install, security, repos)
 
-### **Application Documentation**
-- **[Web App README](../applications/web-app/README.md)** - Web application stack
-- **[Production Cluster README](../clusters/production/README.md)** - Production configuration
+### **Environment & Applications**
+- **[Production Environment README](../clusters/production/README.md)** - Production environment overview
+- Environment apps live under `environments/<env>/apps/*.yaml` and reference sources in `applications/`
 
 ### **Example Applications**
 - **[Example Web App README](../examples/web-app/README.md)** - Sample application reference
@@ -66,10 +52,9 @@ This directory contains comprehensive documentation for the Production-Ready EKS
 This documentation is maintained as part of the GitOps workflow. When making changes:
 
 1. Update relevant documentation files
-2. Update the [Changelog](../CHANGELOG.md)
-3. Test documentation accuracy with actual deployments
-4. Keep this index updated
-5. Follow YAML linting standards with `.yamllint` configuration
+2. Test documentation accuracy with actual deployments
+3. Keep this index updated
+4. Follow consistent formatting and structure
 
 ## 📝 **Contributing to Documentation**
 
@@ -83,6 +68,6 @@ When adding new documentation:
 
 ---
 
-**Last Updated**: 2024-01-15
-**Maintainer**: GitOps Team
-**Version**: 1.1.0 - Production-ready with enhanced security and reliability
+**Last Updated**: 2024-01-15  
+**Maintainer**: GitOps Team  
+**Version**: 1.1.0 - Production-ready with comprehensive documentation

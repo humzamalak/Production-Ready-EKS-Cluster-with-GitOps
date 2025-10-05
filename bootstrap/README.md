@@ -65,7 +65,7 @@ kubectl get helmrepositories -A
 
 ```bash
 # Port forward to ArgoCD UI
-kubectl port-forward svc/argocd-server -n argocd 8080:443
+kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443
 
 # Get admin password
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
@@ -192,13 +192,14 @@ kubectl get namespaces -o yaml | grep pod-security
 
 After applying bootstrap manifests:
 
-1. **Deploy Applications**: Use `clusters/production/app-of-apps.yaml`
+1. **Deploy Applications**: Use `environments/prod/app-of-apps.yaml`
 2. **Configure Vault**: Run the vault setup script if needed
 3. **Set Up Monitoring**: Applications will be deployed automatically
 4. **Configure Ingress**: Update ingress configurations for external access
 
 ## 🔗 Related Documentation
 
-- [GitOps Structure](../docs/gitops-structure.md) - Repository structure guide
-- [Security Best Practices](../docs/security-best-practices.md) - Security guidelines
-- [Deployment Guide](../DEPLOYMENT_GUIDE.md) - Complete deployment instructions
+- [Architecture Guide](../docs/architecture.md) - Repository structure and GitOps flow
+- [AWS Deployment Guide](../docs/aws-deployment.md) - Complete AWS deployment instructions
+- [Local Deployment Guide](../docs/local-deployment.md) - Local development setup
+- [Troubleshooting Guide](../docs/troubleshooting.md) - Common issues and solutions
