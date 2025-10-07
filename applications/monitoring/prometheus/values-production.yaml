@@ -24,6 +24,22 @@ prometheus:
     ruleSelectorNilUsesHelmValues: false
     retention: "15d"
     retentionSize: "10GiB"
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 1000
+      seccompProfile:
+        type: RuntimeDefault
   ingress:
     enabled: true
     ingressClassName: nginx
@@ -62,6 +78,22 @@ alertmanager:
       limits:
         cpu: 100m
         memory: 256Mi
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 1000
+      seccompProfile:
+        type: RuntimeDefault
   config:
     global:
       resolve_timeout: 5m
@@ -114,6 +146,22 @@ nodeExporter:
     limits:
       cpu: 100m
       memory: 256Mi
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    fsGroup: 65534
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 65534
+    seccompProfile:
+      type: RuntimeDefault
 
 # Kube State Metrics with production resources
 kubeStateMetrics:
@@ -125,6 +173,22 @@ kubeStateMetrics:
     limits:
       cpu: 100m
       memory: 256Mi
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    fsGroup: 65534
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 65534
+    seccompProfile:
+      type: RuntimeDefault
 
 # Default ServiceMonitor and PrometheusRule discovery for production
 defaultRules:

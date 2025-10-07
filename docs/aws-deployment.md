@@ -183,7 +183,24 @@ helm upgrade --install argo-cd argo/argo-cd \
 
 > **Note**: ArgoCD will auto-generate a random admin password and store it in the `argocd-initial-admin-secret` secret on first installation.
 
-### Step 2.4: Access ArgoCD UI
+### Step 2.4: Create Monitoring Secrets
+
+```bash
+# Create monitoring secrets before deploying apps
+./scripts/secrets.sh create monitoring
+```
+
+### Step 2.5: Deploy ArgoCD Project
+
+```bash
+# Deploy the AppProject for production
+kubectl apply -f environments/prod/project.yaml
+
+# Verify project creation
+kubectl get appprojects -n argocd
+```
+
+### Step 2.6: Access ArgoCD UI
 
 ```bash
 # Get auto-generated admin password
@@ -198,7 +215,7 @@ echo "Username: admin"
 echo "Password: $ARGOCD_PASSWORD"
 ```
 
-### Step 2.5: Deploy Root Application
+### Step 2.7: Deploy Root Application
 
 ```bash
 # Deploy the root app-of-apps
@@ -206,7 +223,11 @@ kubectl apply -f environments/prod/app-of-apps.yaml
 
 # Wait for root app to sync
 kubectl wait --for=condition=Synced --timeout=300s \
-  application/production-cluster -n argocd
+  application/prod-cluster -n argocd
+
+# Verify child applications are discovered
+# You should see: prometheus-prod, grafana-prod, k8s-web-app-prod
+kubectl get applications -n argocd
 ```
 
 **✅ Phase 2 Complete**: ArgoCD installed, root application synced
@@ -216,9 +237,13 @@ kubectl wait --for=condition=Synced --timeout=300s \
 ### Step 3.1: Wait for Monitoring Deployment
 
 ```bash
-# Wait for monitoring stack to deploy
+# Wait for Prometheus to deploy
 kubectl wait --for=condition=Synced --timeout=600s \
-  application/monitoring-stack -n argocd
+  application/prometheus-prod -n argocd
+
+# Wait for Grafana to deploy
+kubectl wait --for=condition=Synced --timeout=600s \
+  application/grafana-prod -n argocd
 
 # Check monitoring pods
 kubectl get pods -n monitoring
@@ -253,17 +278,16 @@ curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length'
 
 ## 🔒 Phase 4: Vault Deployment (Optional)
 
-> **💡 Skip This Phase If**: You want to deploy just monitoring and web app first.
+> **⚠️ Important**: Vault is currently disabled in this repository. The `vault` namespace is commented out in `bootstrap/00-namespaces.yaml`. To enable Vault, uncomment the vault namespace section and create a separate Vault Application manifest in `environments/prod/apps/`.
 
-### Step 4.1: Wait for Vault Deployment
+> **💡 Skip This Phase**: Vault integration is not yet implemented. Proceed to Phase 6 to deploy the web application without Vault secrets.
+
+### Step 4.1: Wait for Vault Deployment (Not Currently Available)
 
 ```bash
-# Wait for Vault deployment
-kubectl wait --for=condition=Synced --timeout=600s \
-  application/security-stack -n argocd
-
-# Check Vault pods
-kubectl get pods -n vault
+# Note: Vault is not currently deployed via ArgoCD in this repository
+# If you manually deploy Vault, you can check the pods with:
+# kubectl get pods -n vault
 ```
 
 ### Step 4.2: Port Forward to Vault
@@ -361,7 +385,7 @@ vault kv put secret/production/web-app/api \
 ```bash
 # Wait for app to sync (using values without Vault secrets)
 kubectl wait --for=condition=Synced --timeout=600s \
-  application/k8s-web-app -n argocd
+  application/k8s-web-app-prod -n argocd
 
 # Check pods
 kubectl get pods -n production
@@ -390,15 +414,15 @@ curl -s http://localhost:8081/health
 
 ### Step 7.1: Enable Vault in Web App
 
-```
-# Edit the chart values to enable Vault, then commit
-vi applications/web-app/k8s-web-app/helm/values.yaml
+```bash
+# Edit the production values file to enable Vault, then commit
+vi applications/web-app/k8s-web-app/values.yaml
 # Set:
 # vault:
 #   enabled: true
 #   ready: true
 
-git add applications/web-app/k8s-web-app/helm/values.yaml
+git add applications/web-app/k8s-web-app/values.yaml
 git commit -m "Enable Vault for web app (prod)"
 git push
 
@@ -472,11 +496,11 @@ echo "Web App: http://localhost:8081"
 ### Update Application Configuration
 
 ```bash
-# Edit values
-vi applications/web-app/k8s-web-app/helm/values.yaml
+# Edit production values
+vi applications/web-app/k8s-web-app/values.yaml
 
 # Commit changes (Argo CD auto-sync applies)
-git add applications/web-app/k8s-web-app/helm/values.yaml
+git add applications/web-app/k8s-web-app/values.yaml
 git commit -m "Update application configuration"
 git push
 ```
@@ -500,10 +524,10 @@ kubectl patch hpa k8s-web-app -n production --patch '{"spec":{"maxReplicas":30}}
 **Secret Reference Errors**:
 ```bash
 # Check application configuration
-kubectl get application k8s-web-app -n argocd -o yaml
+kubectl get application k8s-web-app-prod -n argocd -o yaml
 
 # Force refresh
-kubectl patch application k8s-web-app -n argocd \
+kubectl patch application k8s-web-app-prod -n argocd \
   --type merge -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'
 ```
 
@@ -561,13 +585,13 @@ terraform destroy -var-file="terraform.tfvars" -auto-approve
 
 ```bash
 # Remove application only
-kubectl delete application k8s-web-app -n argocd
+kubectl delete application k8s-web-app-prod -n argocd
 
-# Remove monitoring stack
-kubectl delete application monitoring-stack -n argocd
+# Remove Prometheus
+kubectl delete application prometheus-prod -n argocd
 
-# Remove security stack  
-kubectl delete application security-stack -n argocd
+# Remove Grafana
+kubectl delete application grafana-prod -n argocd
 ```
 
 ## 🔐 Adding Vault Later

@@ -23,7 +23,7 @@ spec:
       targetRevision: 61.6.0
       helm:
         valueFiles:
-          - $values/applications/monitoring/prometheus/values-production.yaml
+          - $values/applications/monitoring/prometheus/staging/values-staging.yaml
     - repoURL: 'https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps'
       targetRevision: main
       ref: values
