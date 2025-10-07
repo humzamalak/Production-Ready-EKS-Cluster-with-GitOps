@@ -1,5 +1,27 @@
-# AppProject - Production
-# Refactor: Env-scoped AppProject limits destinations and increases security boundaries.
+# =============================================================================
+# ArgoCD AppProject - Production Environment
+# =============================================================================
+#
+# AppProject provides multi-tenancy and security boundaries in ArgoCD.
+# This project defines what Git repos and Kubernetes resources can be deployed
+# to production namespaces, and who has access to manage those applications.
+#
+# Key Features:
+#   - Environment-scoped isolation (production resources only)
+#   - Source repository restrictions (only approved repos)
+#   - Destination namespace restrictions (controlled deployment targets)
+#   - RBAC policies for admin and readonly access
+#
+# Security Benefits:
+#   - Prevents accidental deployment to wrong namespaces
+#   - Limits blast radius of misconfiguration
+#   - Provides audit trail of who deployed what
+#   - Enforces separation of concerns
+#
+# Author: Production-Ready EKS Cluster with GitOps
+# Version: 1.3.0
+# Last Updated: 2025-10-07
+# =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -7,37 +29,83 @@ metadata:
   namespace: argocd
   labels:
     environment: prod
+    app.kubernetes.io/part-of: gitops-infrastructure
+  annotations:
+    description: "Production environment AppProject with controlled access"
 spec:
+  # Human-readable description
   description: Production workloads managed by Argo CD
+  
+  # =============================================================================
+  # Source Repositories - Git Repos and Helm Chart Repos
+  # =============================================================================
+  # Only applications from these repos can be deployed via this project
+  # Add new repos here when onboarding new services
   sourceRepos:
+    # Main GitOps repository (infrastructure as code)
     - https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
+    
+    # Official Helm chart repositories for monitoring stack
     - https://prometheus-community.github.io/helm-charts
     - https://grafana.github.io/helm-charts
+  
+  # =============================================================================
+  # Destination Restrictions - Where Apps Can Be Deployed
+  # =============================================================================
+  # Applications in this project can only deploy to these namespaces
+  # This prevents accidental deployment to wrong environments
   destinations:
+    # Production application workloads
     - namespace: production
       server: https://kubernetes.default.svc
+    
+    # Monitoring stack (Prometheus, Grafana)
     - namespace: monitoring
       server: https://kubernetes.default.svc
+    
+    # ArgoCD itself (for self-management)
     - namespace: argocd
       server: https://kubernetes.default.svc
+    
+    # Kubernetes system components (use with caution)
     - namespace: kube-system
       server: https://kubernetes.default.svc
+  
+  # =============================================================================
+  # Resource Whitelists
+  # =============================================================================
+  # Cluster-scoped resources (CRDs, ClusterRoles, etc.)
+  # Currently allows all cluster resources - consider restricting in production
   clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
+    - group: '*'    # All API groups
+      kind: '*'     # All resource kinds
+  
+  # Namespace-scoped resources (Deployments, Services, etc.)
+  # Currently allows all namespace resources - standard for most use cases
   namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
+    - group: '*'    # All API groups
+      kind: '*'     # All resource kinds
+  
+  # =============================================================================
+  # RBAC Roles and Policies
+  # =============================================================================
+  # Define who can do what with applications in this project
   roles:
+    # Admin role - Full control over production applications
     - name: admin
-      description: Full access to project applications
+      description: Full access to project applications (deploy, sync, delete)
       policies:
+        # Allow all actions on all applications in production namespace
+        # Format: p, proj:PROJECT:ROLE, RESOURCE, ACTION, OBJECT, EFFECT
         - p, proj:prod-apps:admin, applications, *, production/*, allow
       groups:
-        - admin
+        - admin  # Map to SSO/OIDC group
+    
+    # Readonly role - View-only access for developers and operators
     - name: readonly
-      description: Read-only access
+      description: Read-only access (view applications, no changes)
       policies:
+        # Allow get (view) action only
         - p, proj:prod-apps:readonly, applications, get, production/*, allow
       groups:
-        - developer
+        - developer  # Map to SSO/OIDC group
