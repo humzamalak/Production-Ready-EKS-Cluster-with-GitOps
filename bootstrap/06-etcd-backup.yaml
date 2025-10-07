@@ -11,6 +11,12 @@ spec:
     spec:
       template:
         spec:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault
           containers:
             - name: etcd-backup
               image: bitnami/etcd:3.5.10
@@ -23,6 +29,16 @@ spec:
                     --cacert=/etc/kubernetes/pki/etcd/ca.crt \
                     --cert=/etc/kubernetes/pki/etcd/server.crt \
                     --key=/etc/kubernetes/pki/etcd/server.key
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                readOnlyRootFilesystem: false
+                runAsNonRoot: true
+                runAsUser: 1001
+                seccompProfile:
+                  type: RuntimeDefault
               volumeMounts:
                 - name: backup
                   mountPath: /backup

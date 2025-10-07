@@ -134,7 +134,17 @@ helm upgrade --install argo-cd argo/argo-cd \
 ./scripts/secrets.sh create monitoring
 ```
 
-### Step 2.4: Access ArgoCD UI
+### Step 2.4: Deploy ArgoCD Project
+
+```bash
+# Deploy the AppProject for production
+kubectl apply -f environments/prod/project.yaml
+
+# Verify project creation
+kubectl get appprojects -n argocd
+```
+
+### Step 2.5: Access ArgoCD UI
 
 ```bash
 # Get auto-generated admin password
@@ -149,13 +159,18 @@ echo "Username: admin"
 echo "Password: $ARGOCD_PASSWORD"
 ```
 
-### Step 2.5: Deploy Root Application (dev)
+### Step 2.6: Deploy Root Application (prod)
 
 ```bash
-# Deploy the root app-of-apps for the dev environment
-kubectl apply -f environments/dev/app-of-apps.yaml
+# Deploy the root app-of-apps for the prod environment
+kubectl apply -f environments/prod/app-of-apps.yaml
 
-# Verify discovery (view apps in Argo CD)
+# Wait for root app to sync
+kubectl wait --for=condition=Synced --timeout=300s \
+  application/prod-cluster -n argocd
+
+# Verify discovery (view child apps in Argo CD)
+# You should see: prometheus-prod, grafana-prod, k8s-web-app-prod
 kubectl get applications -n argocd
 ```
 
@@ -164,11 +179,15 @@ kubectl get applications -n argocd
 ### Step 3.1: Wait for Monitoring Deployment
 
 ```bash
-# Wait for monitoring stack to deploy
+# Wait for Prometheus to deploy
 kubectl wait --for=condition=Synced --timeout=600s \
-  application/monitoring-stack -n argocd
+  application/prometheus-prod -n argocd
 
-# Check pods
+# Wait for Grafana to deploy
+kubectl wait --for=condition=Synced --timeout=600s \
+  application/grafana-prod -n argocd
+
+# Check monitoring pods
 kubectl get pods -n monitoring
 ```
 
@@ -191,17 +210,16 @@ echo "Grafana: http://localhost:3000 (admin / $GRAFANA_PASSWORD)"
 
 ## 🔒 Phase 4: Vault Deployment (Optional)
 
-> **💡 Skip This Phase If**: You want to deploy just monitoring and web app first.
+> **⚠️ Important**: Vault is currently disabled in this repository. The `vault` namespace is commented out in `bootstrap/00-namespaces.yaml`. To enable Vault, uncomment the vault namespace section and create a separate Vault Application manifest in `environments/prod/apps/`.
 
-### Step 4.1: Wait for Vault Deployment
+> **💡 Skip This Phase**: Vault integration is not yet implemented. Proceed to Phase 6 to deploy the web application without Vault secrets.
+
+### Step 4.1: Wait for Vault Deployment (Not Currently Available)
 
 ```bash
-# Wait for Vault deployment
-kubectl wait --for=condition=Synced --timeout=600s \
-  application/security-stack -n argocd
-
-# Check Vault pods
-kubectl get pods -n vault
+# Note: Vault is not currently deployed via ArgoCD in this repository
+# If you manually deploy Vault, you can check the pods with:
+# kubectl get pods -n vault
 ```
 
 ### Step 4.2: Port Forward to Vault
@@ -297,7 +315,7 @@ vault kv put secret/production/web-app/api \
 ```bash
 # Wait for app to sync (using values without Vault secrets)
 kubectl wait --for=condition=Synced --timeout=600s \
-  application/k8s-web-app -n argocd
+  application/k8s-web-app-prod -n argocd
 
 # Check pods
 kubectl get pods -n production
@@ -323,15 +341,15 @@ curl -s http://localhost:8081/health
 ### Step 7.1: Enable Vault in Web App
 
 ```bash
-# Toggle Vault in the chart values and commit
-vi applications/web-app/k8s-web-app/helm/values.yaml
+# Toggle Vault in the production values file and commit
+vi applications/web-app/k8s-web-app/values.yaml
 # Set:
 # vault:
 #   enabled: true
 #   ready: true
 
-git add applications/web-app/k8s-web-app/helm/values.yaml
-git commit -m "Enable Vault for web app (local)"
+git add applications/web-app/k8s-web-app/values.yaml
+git commit -m "Enable Vault for web app (prod)"
 git push
 
 # Argo CD will reconcile automatically; verify status
@@ -443,14 +461,17 @@ rm -f ~/.vault-local-env
 
 ### Partial Cleanup (Keep Minikube)
 ```bash
-# Delete applications
+# Delete root application (this will cascade delete all child apps)
 kubectl delete -f environments/prod/app-of-apps.yaml
+
+# Wait for applications to be removed
+kubectl wait --for=delete application/prod-cluster -n argocd --timeout=300s
 
 # Delete ArgoCD
 helm uninstall argo-cd -n argocd
 
 # Delete namespaces
-kubectl delete namespace argocd monitoring vault production
+kubectl delete namespace argocd monitoring production
 ```
 
 ## 🔧 Daily Operations

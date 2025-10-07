@@ -13,6 +13,13 @@ items:
       labels:
         name: production
         environment: prod
+        app.kubernetes.io/part-of: production-workloads
+        # Pod Security Standards - restricted for production workloads
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/audit: restricted
+        pod-security.kubernetes.io/warn: restricted
+      annotations:
+        description: "Production namespace for web applications and services"
   - apiVersion: v1
     kind: Namespace
     metadata:
@@ -20,3 +27,10 @@ items:
       labels:
         name: monitoring
         environment: prod
+        app.kubernetes.io/part-of: monitoring-stack
+        # Pod Security Standards - restricted for monitoring stack
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/audit: restricted
+        pod-security.kubernetes.io/warn: restricted
+      annotations:
+        description: "Production monitoring stack - Prometheus, Grafana, and related services"

@@ -127,6 +127,8 @@ podSecurityContext:
   runAsUser: 472
   runAsGroup: 472
   fsGroup: 472
+  seccompProfile:
+    type: RuntimeDefault
 
 securityContext:
   allowPrivilegeEscalation: false
@@ -136,6 +138,8 @@ securityContext:
   readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsUser: 472
+  seccompProfile:
+    type: RuntimeDefault
 
 # Network policy for staging
 networkPolicy:

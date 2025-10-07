@@ -63,6 +63,16 @@ spec:
             sleep 5
           done
           echo "Vault is ready!"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001
+          seccompProfile:
+            type: RuntimeDefault
         resources:
           requests:
             cpu: 10m
