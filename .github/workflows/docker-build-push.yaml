@@ -1,0 +1,185 @@
+name: Build and Push Multi-Arch Docker Image
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+    paths:
+      - 'examples/web-app/**'
+      - '.github/workflows/docker-build-push.yaml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'examples/web-app/**'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker image tag'
+        required: false
+        default: 'latest'
+
+env:
+  DOCKERHUB_USERNAME: windrunner101
+  IMAGE_NAME: k8s-web-app
+  PLATFORMS: linux/amd64,linux/arm64
+
+jobs:
+  build-and-push:
+    name: Build and Push Multi-Arch Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git describe
+
+      - name: Set up QEMU for multi-arch builds
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: ${{ env.PLATFORMS }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Latest tag on main branch
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Semantic versioning (v1.2.3)
+            type=semver,pattern={{version}}
+            # Short form (v1.2)
+            type=semver,pattern={{major}}.{{minor}}
+            # Major version (v1)
+            type=semver,pattern={{major}}
+            # Branch name
+            type=ref,event=branch
+            # PR number
+            type=ref,event=pr
+            # Git SHA (short)
+            type=sha,prefix=sha-,format=short
+            # Manual trigger tag
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+          labels: |
+            org.opencontainers.image.title=K8s Web App
+            org.opencontainers.image.description=Production-ready web application for Kubernetes
+            org.opencontainers.image.vendor=Production-Ready-EKS-Cluster-with-GitOps
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/blob/main/examples/web-app/README.md
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./examples/web-app
+          file: ./examples/web-app/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          provenance: false  # Disable provenance attestation for better compatibility
+
+      - name: Verify multi-arch manifest
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "🔍 Verifying multi-architecture manifest..."
+          docker buildx imagetools inspect ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest || true
+
+      - name: Generate SBOM (Software Bill of Materials)
+        if: github.event_name != 'pull_request'
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+          retention-days: 30
+
+      - name: Scan image for vulnerabilities
+        if: github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Comment PR with build status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `
+            #### 🐳 Docker Multi-Arch Build Result
+            
+            **Status**: ✅ Build successful (test only - not pushed)
+            
+            **Platforms**: \`${{ env.PLATFORMS }}\`
+            
+            **Image**: \`${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}\`
+            
+            **Note**: Image was built but not pushed to Docker Hub (PR builds are test-only).
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Summary
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "## 🎉 Multi-Arch Docker Image Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image**: \`${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms**: ${{ env.PLATFORMS }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags**:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Docker Hub URL**: https://hub.docker.com/r/${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Update Helm values or Kubernetes manifests with the new image tag" >> $GITHUB_STEP_SUMMARY
+          echo "2. Deploy to staging/production via ArgoCD" >> $GITHUB_STEP_SUMMARY
+          echo "3. Monitor deployment: \`kubectl get pods -n production\`" >> $GITHUB_STEP_SUMMARY
+
