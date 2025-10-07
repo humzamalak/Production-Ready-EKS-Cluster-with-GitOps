@@ -159,6 +159,10 @@ kubectl apply -f bootstrap/03-helm-repos.yaml
 ### Step 2.3: Install ArgoCD
 
 ```bash
+# Ensure namespace exists and is ready
+kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd
+kubectl wait --for=condition=ready ns/argocd --timeout=60s
+
 # Add ArgoCD Helm repo
 helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update
@@ -171,17 +175,21 @@ helm upgrade --install argo-cd argo/argo-cd \
   --wait --timeout=10m
 ```
 
+> **Note**: ArgoCD will auto-generate a random admin password and store it in the `argocd-initial-admin-secret` secret on first installation.
+
 ### Step 2.4: Access ArgoCD UI
 
 ```bash
-# Get initial admin password
+# Get auto-generated admin password
 export ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d)
 echo "ArgoCD Password: $ARGOCD_PASSWORD"
 
 # Port forward to access UI
 kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 &
-echo "ArgoCD: https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
+echo "ArgoCD: https://localhost:8080"
+echo "Username: admin"
+echo "Password: $ARGOCD_PASSWORD"
 ```
 
 ### Step 2.5: Deploy Root Application
@@ -426,6 +434,12 @@ kubectl top nodes
 ### Access All Services
 
 ```bash
+# Get passwords
+export ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d)
+export GRAFANA_PASSWORD=$(kubectl get secret grafana-admin -n monitoring \
+  -o jsonpath="{.data.admin-password}" | base64 -d)
+
 # ArgoCD
 kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 &
 echo "ArgoCD: https://localhost:8080 (admin / $ARGOCD_PASSWORD)"

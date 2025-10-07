@@ -35,7 +35,7 @@ global:
   image:
     # Pin to stable version for production reliability
     # Check https://github.com/argoproj/argo-cd/releases for latest stable
-    tag: "v2.8.4"
+    tag: "v2.12.3"
 
 # =============================================================================
 # ArgoCD Server Configuration
@@ -227,10 +227,16 @@ redis:
 configs:
   secret:
     # Admin password configuration
-    # In production, set these via external secret management (Vault, AWS Secrets Manager, etc.)
-    # The password below is a bcrypt hash - replace with your secure password hash
-    argocdServerAdminPassword: "$2a$10$rRyBsGSHK6.uc8fntPwFyO4LQnV7sY8dZ8b4Z8b4Z8b4Z8b4Z8b4Z8"
-    argocdServerAdminPasswordMtime: "2024-01-01T00:00:00Z"
+    # By leaving these fields empty/commented out, ArgoCD will auto-generate a random password
+    # and store it in the 'argocd-initial-admin-secret' secret on first installation.
+    # 
+    # To retrieve the auto-generated password after installation:
+    #   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+    #
+    # For production environments with existing clusters, set these via external secret 
+    # management (Vault, AWS Secrets Manager, etc.) or use a bcrypt-hashed password:
+    # argocdServerAdminPassword: "$2a$10$your-bcrypt-hash-here"
+    # argocdServerAdminPasswordMtime: "2024-01-01T00:00:00Z"
 
 # =============================================================================
 # Service Account Configuration

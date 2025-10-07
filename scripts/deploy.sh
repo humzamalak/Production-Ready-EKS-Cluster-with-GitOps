@@ -176,6 +176,16 @@ bootstrap_argocd() {
     
     print_header "Bootstrapping ArgoCD for $environment"
     
+    # Ensure argocd namespace exists and is ready
+    print_step "Ensuring argocd namespace exists and is ready..."
+    kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd
+    kubectl wait --for=condition=ready ns/argocd --timeout=60s || true
+
+    # Ensure Helm repo metadata is fresh for manual installs
+    print_step "Refreshing Helm repositories..."
+    helm repo add argo https://argoproj.github.io/argo-helm >/dev/null 2>&1 || true
+    helm repo update
+
     # Apply bootstrap manifests
     print_step "Applying bootstrap manifests..."
     kubectl apply -f "$BOOTSTRAP_DIR/00-namespaces.yaml"

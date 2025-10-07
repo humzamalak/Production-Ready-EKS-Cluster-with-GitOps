@@ -38,7 +38,7 @@ spec:
   source:
     repoURL: https://argoproj.github.io/argo-helm
     chart: argo-cd
-    targetRevision: 5.51.6
+    targetRevision: 7.7.12
     helm:
       valueFiles:
         - bootstrap/helm-values/argo-cd-values.yaml
@@ -104,6 +104,7 @@ spec:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
       - PrunePropagationPolicy=foreground
+      - ServerSideApply=true
     retry:
       limit: 5
       backoff:

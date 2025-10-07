@@ -37,6 +37,7 @@ metadata:
     # Kubernetes application labels for discovery and management
     app.kubernetes.io/name: argocd
     app.kubernetes.io/part-of: infrastructure
+    kubectl.kubernetes.io/last-applied-configuration: ""
     
     # Pod Security Standards (PSS) configuration
     # baseline: Allows most common workloads while preventing privilege escalation
