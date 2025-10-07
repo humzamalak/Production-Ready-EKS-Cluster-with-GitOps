@@ -1,12 +1,48 @@
-# NetworkPolicy for Namespace Isolation
+# =============================================================================
+# Default Network Policy - Namespace Isolation (Defense in Depth)
+# =============================================================================
+#
+# This NetworkPolicy implements a default-deny-all approach for the production
+# namespace. All ingress and egress traffic is blocked by default, requiring
+# explicit allow rules for each pod that needs network access.
+#
+# Security Benefits:
+#   - Zero-trust network model (deny by default)
+#   - Prevents lateral movement in case of pod compromise
+#   - Forces explicit definition of allowed traffic
+#   - Implements micro-segmentation at the namespace level
+#
+# Important Notes:
+#   - Individual pods can override this with more permissive policies
+#   - DNS traffic needs explicit egress rules (kube-dns/CoreDNS)
+#   - Application-specific NetworkPolicies should be added for each service
+#
+# Production Best Practice:
+#   - Keep this default-deny policy in place
+#   - Create specific allow policies per application
+#   - Monitor NetworkPolicy denials for troubleshooting
+#
+# Author: Production-Ready EKS Cluster with GitOps
+# Version: 1.3.0
+# Last Updated: 2025-10-07
+# =============================================================================
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-all
   namespace: production
+  labels:
+    app.kubernetes.io/part-of: infrastructure
+    policy-type: default-deny
+  annotations:
+    description: "Default deny-all network policy for production namespace"
+    security-level: "high"
 spec:
+  # Empty podSelector matches all pods in the namespace
   podSelector: {}
+  
+  # Block both ingress and egress traffic by default
   policyTypes:
-    - Ingress
-    - Egress
+    - Ingress  # No pods can receive traffic unless explicitly allowed
+    - Egress   # No pods can send traffic unless explicitly allowed
 
