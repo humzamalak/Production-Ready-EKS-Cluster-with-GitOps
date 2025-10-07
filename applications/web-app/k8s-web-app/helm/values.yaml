@@ -119,7 +119,11 @@ securityContext:
   # Writable paths must be explicitly mounted as volumes
   readOnlyRootFilesystem: true
   
-  # Seccomp profile (same as pod-level for consistency)
+  # Run as non-root user (container-level enforcement)
+  runAsNonRoot: true
+  runAsUser: 1001
+  
+  # Seccomp profile (required by PodSecurity restricted mode)
   seccompProfile:
     type: RuntimeDefault
 

@@ -3,6 +3,13 @@
 
 # Prometheus configuration with production resources
 prometheus:
+  # ServiceAccount configuration
+  # Explicitly create ServiceAccount to prevent ArgoCD pruning issues
+  serviceAccount:
+    create: true
+    name: prometheus-prod-kube-prome-prometheus
+    annotations: {}
+  
   prometheusSpec:
     replicas: 2
     storageSpec:
@@ -61,6 +68,12 @@ grafana:
 # AlertManager configuration with production resources
 alertmanager:
   enabled: true
+  # ServiceAccount configuration
+  serviceAccount:
+    create: true
+    name: prometheus-prod-kube-prome-alertmanager
+    annotations: {}
+  
   alertmanagerSpec:
     replicas: 2
     storage:
@@ -212,7 +225,7 @@ defaultRules:
     kubernetesResources: true
     kubernetesStorage: true
     kubernetesSystem: true
-    kubeScheduler: true
+    kubeScheduler: false  # Disabled: EKS does not expose kube-scheduler metrics on managed control plane
     kubeStateMetrics: true
     network: true
     node: true
