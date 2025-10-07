@@ -94,6 +94,7 @@ alertmanager:
       runAsUser: 1000
       seccompProfile:
         type: RuntimeDefault
+  # Alertmanager configuration - inline config will be converted to a secret by Helm
   config:
     global:
       resolve_timeout: 5m
