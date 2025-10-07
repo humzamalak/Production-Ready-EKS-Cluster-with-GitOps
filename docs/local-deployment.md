@@ -87,6 +87,7 @@ docker build -t k8s-web-app:latest .
 
 # Navigate back to root
 cd ../..
+
 ```
 
 **✅ Phase 1 Complete**: Minikube running, addons enabled, application image built
@@ -106,6 +107,10 @@ kubectl apply -f bootstrap/03-helm-repos.yaml
 ### Step 2.2: Install ArgoCD
 
 ```bash
+# Ensure namespace exists and is ready
+kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd
+kubectl wait --for=condition=ready ns/argocd --timeout=60s
+
 # Add ArgoCD Helm repo
 helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update
@@ -120,6 +125,8 @@ helm upgrade --install argo-cd argo/argo-cd \
   --wait --timeout=10m
 ```
 
+> **Note**: ArgoCD will auto-generate a random admin password and store it in the `argocd-initial-admin-secret` secret on first installation.
+
 ### Step 2.3: Create Required Secrets
 
 ```bash
@@ -130,14 +137,16 @@ helm upgrade --install argo-cd argo/argo-cd \
 ### Step 2.4: Access ArgoCD UI
 
 ```bash
-# Get initial admin password
+# Get auto-generated admin password
 export ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d)
 echo "ArgoCD Password: $ARGOCD_PASSWORD"
 
 # Port forward to access UI
 kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 &
-echo "ArgoCD UI: https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
+echo "ArgoCD UI: https://localhost:8080"
+echo "Username: admin"
+echo "Password: $ARGOCD_PASSWORD"
 ```
 
 ### Step 2.5: Deploy Root Application (dev)
@@ -366,6 +375,12 @@ kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app
 # Stop any existing port-forwards
 pkill -f "kubectl port-forward"
 
+# Get passwords
+export ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d)
+export GRAFANA_PASSWORD=$(kubectl get secret grafana-admin -n monitoring \
+  -o jsonpath="{.data.admin-password}" | base64 -d)
+
 # Start all port-forwards
 kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 > /dev/null 2>&1 &
 kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090 > /dev/null 2>&1 &
@@ -374,9 +389,9 @@ kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
 kubectl port-forward svc/k8s-web-app -n production 8081:80 > /dev/null 2>&1 &
 
 echo "✅ All services accessible:"
-echo "   ArgoCD:      https://localhost:8080"
+echo "   ArgoCD:      https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
 echo "   Prometheus:  http://localhost:9090"
-echo "   Grafana:     http://localhost:3000"
+echo "   Grafana:     http://localhost:3000 (admin / $GRAFANA_PASSWORD)"
 echo "   Vault:       http://localhost:8200"
 echo "   Web App:     http://localhost:8081"
 ```
