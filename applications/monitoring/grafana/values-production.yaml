@@ -1,6 +1,10 @@
 # Grafana Production Values
 # Optimized for production with security and monitoring
 
+# Global naming configuration for consistent resource names
+fullnameOverride: "grafana-prod"
+nameOverride: "grafana-prod"
+
 # Admin configuration
 admin:
   existingSecret: grafana-admin
@@ -70,7 +74,7 @@ datasources:
     datasources:
       - name: Prometheus
         type: prometheus
-        url: http://prometheus-server.monitoring.svc.cluster.local:80
+        url: http://prometheus-prod-kube-prome-prometheus.monitoring.svc.cluster.local:9090
         access: proxy
         isDefault: true
         editable: true
@@ -80,7 +84,7 @@ datasources:
           httpMethod: "POST"
       - name: AlertManager
         type: alertmanager
-        url: http://prometheus-alertmanager.monitoring.svc.cluster.local:9093
+        url: http://prometheus-prod-kube-prome-alertmanager.monitoring.svc.cluster.local:9093
         access: proxy
         editable: true
         jsonData:
