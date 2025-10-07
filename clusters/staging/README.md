@@ -1,7 +1,18 @@
-<!-- Docs Update: 2025-10-05 — Point to environments/staging paths and correct apply commands. -->
-# Staging Environment Configuration
+> **⚠️ DEPRECATION NOTICE**: This directory (`clusters/staging/`) is maintained for backward compatibility only.
+>
+> **Please use `environments/staging/` instead**, which contains the current staging configuration:
+> - `environments/staging/app-of-apps.yaml` - Root application
+> - `environments/staging/namespaces.yaml` - Namespace definitions
+> - `environments/staging/project.yaml` - ArgoCD project
+> - `environments/staging/apps/` - Individual applications
+>
+> This directory may be removed in a future version.
 
-This directory contains the GitOps configuration for the staging environment.
+---
+
+# Staging Environment Configuration (LEGACY)
+
+This directory contains legacy staging configuration. The active configuration has moved to `environments/staging/`.
 
 ## Structure
 

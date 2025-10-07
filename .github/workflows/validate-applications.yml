@@ -5,13 +5,13 @@ on:
     branches: [ main, develop ]
     paths:
       - 'applications/**'
-      - 'clusters/**'
+      - 'environments/**'
       - 'scripts/validate-argocd-apps.sh'
   pull_request:
     branches: [ main ]
     paths:
       - 'applications/**'
-      - 'clusters/**'
+      - 'environments/**'
       - 'scripts/validate-argocd-apps.sh'
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
     - name: Check for large files
       run: |
         echo "📏 Checking for large files that might cause annotation issues..."
-        find applications/ clusters/ -name "application.yaml" -exec sh -c '
+        find applications/ environments/ -name "*.yaml" -exec sh -c '
           size=$(wc -c < "$1")
           if [ "$size" -gt 50000 ]; then
             echo "⚠️  Large file detected: $1 ($size bytes)"
@@ -44,7 +44,7 @@ jobs:
     - name: Validate YAML syntax
       run: |
         echo "🔍 Validating YAML syntax..."
-        for file in $(find applications/ clusters/ -name "*.yaml"); do
+        for file in $(find applications/ environments/ bootstrap/ -name "*.yaml"); do
           echo "Checking $file..."
           python3 -c "import yaml; yaml.safe_load(open('$file'))" || exit 1
         done

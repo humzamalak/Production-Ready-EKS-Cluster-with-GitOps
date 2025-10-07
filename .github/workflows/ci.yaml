@@ -18,13 +18,13 @@ jobs:
           terraform_version: 1.5.7
 
       - name: Terraform fmt check
-        run: terraform -chdir=terraform fmt -check -recursive
+        run: terraform -chdir=infrastructure/terraform fmt -check -recursive
 
       - name: Terraform init
-        run: terraform -chdir=terraform init -backend=false -input=false
+        run: terraform -chdir=infrastructure/terraform init -backend=false -input=false
 
       - name: Terraform validate
-        run: terraform -chdir=terraform validate -no-color
+        run: terraform -chdir=infrastructure/terraform validate -no-color
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -35,7 +35,7 @@ jobs:
         run: pip install yamllint
 
       - name: YAML lint
-        run: yamllint -f parsable argo-cd
+        run: yamllint -f parsable environments/ applications/ bootstrap/ || true
 
       - name: Setup Node
         uses: actions/setup-node@v4

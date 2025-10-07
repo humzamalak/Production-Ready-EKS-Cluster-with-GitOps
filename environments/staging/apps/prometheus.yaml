@@ -17,13 +17,16 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: staging-apps
-  source:
-    repoURL: 'https://prometheus-community.github.io/helm-charts'
-    chart: kube-prometheus-stack
-    targetRevision: 61.6.0
-    helm:
-      valueFiles:
-        - applications/monitoring/prometheus/values-production.yaml
+  sources:
+    - repoURL: 'https://prometheus-community.github.io/helm-charts'
+      chart: kube-prometheus-stack
+      targetRevision: 61.6.0
+      helm:
+        valueFiles:
+          - $values/applications/monitoring/prometheus/values-production.yaml
+    - repoURL: 'https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps'
+      targetRevision: main
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: staging-monitoring

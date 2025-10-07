@@ -48,7 +48,10 @@ resource "aws_iam_policy" "fluentbit" {
           "logs:PutLogEvents",
           "logs:DescribeLogStreams"
         ]
-        Resource = "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:*"
+        Resource = [
+          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/eks/${var.project_prefix}-${var.environment}-cluster:*",
+          "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/containerinsights/${var.project_prefix}-${var.environment}-cluster:*"
+        ]
       }
     ]
   })
@@ -87,18 +90,22 @@ resource "aws_iam_role" "vault_external_secrets" {
 }
 
 # Vault IAM Policy for External Secrets Operator
+# Note: This policy is a placeholder. In production, External Secrets Operator
+# typically doesn't need AWS IAM permissions unless using AWS Secrets Manager backend.
+# For HashiCorp Vault, authentication is done via Kubernetes service account tokens.
 resource "aws_iam_policy" "vault_external_secrets" {
   name        = "${var.project_prefix}-${var.environment}-vault-external-secrets-policy"
-  description = "Policy for External Secrets Operator to access HashiCorp Vault"
+  description = "Policy for External Secrets Operator (minimal permissions)"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
         Effect = "Allow"
         Action = [
-          "sts:AssumeRole"
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
         ]
-        Resource = "*"
+        Resource = "arn:aws:secretsmanager:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:secret:${var.project_prefix}/*"
       }
     ]
   })
@@ -566,7 +573,7 @@ resource "aws_iam_policy" "vpc_flow_logs" {
           "logs:DescribeLogGroups",
           "logs:DescribeLogStreams"
         ]
-        Resource = "*"
+        Resource = "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/vpc/flowlogs/${var.project_prefix}-${var.environment}:*"
       }
     ]
   })
