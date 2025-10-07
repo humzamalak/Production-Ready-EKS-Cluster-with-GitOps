@@ -1,7 +1,18 @@
-<!-- Docs Update: 2025-10-05 — Correct file locations under environments/prod and clarify commands. -->
-# Production Cluster Configuration
+> **⚠️ DEPRECATION NOTICE**: This directory (`clusters/production/`) is maintained for backward compatibility only. 
+> 
+> **Please use `environments/prod/` instead**, which contains the current production configuration:
+> - `environments/prod/app-of-apps.yaml` - Root application
+> - `environments/prod/namespaces.yaml` - Namespace definitions
+> - `environments/prod/project.yaml` - ArgoCD project
+> - `environments/prod/apps/` - Individual applications
+>
+> This directory may be removed in a future version.
 
-This directory contains the production cluster configuration for the GitOps environment. It defines the root application that manages all other applications in the production environment.
+---
+
+# Production Cluster Configuration (LEGACY)
+
+This directory contains legacy production cluster configuration. The active configuration has moved to `environments/prod/`.
 
 ## 🎯 Purpose
 

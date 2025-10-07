@@ -154,10 +154,8 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_AmazonEKSClusterPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-resource "aws_iam_role_policy_attachment" "eks_cluster_AmazonEKSServicePolicy" {
-  role       = aws_iam_role.eks_cluster.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
-}
+# NOTE: AmazonEKSServicePolicy is deprecated by AWS.
+# The AmazonEKSClusterPolicy now includes all necessary permissions for the EKS control plane.
 
 # Attach required policies to EKS node group role
 resource "aws_iam_role_policy_attachment" "eks_node_AmazonEKSWorkerNodePolicy" {

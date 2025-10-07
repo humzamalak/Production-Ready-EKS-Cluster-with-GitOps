@@ -65,7 +65,21 @@ See below for a minimal IAM policy for Terraform provisioning:
 ## Kubernetes Version
 - **Default**: 1.33
 - **Supported**: 1.29+
+- **Compatibility**: All manifests validated for Kubernetes v1.33.0 API compatibility
 - Update via `kubernetes_version` variable in `terraform.tfvars`
+
+### API Version Compatibility (v1.33.0)
+- ✅ `networking.k8s.io/v1` for Ingress and NetworkPolicy
+- ✅ `autoscaling/v2` for HorizontalPodAutoscaler
+- ✅ `batch/v1` for CronJob and Job
+- ✅ `apps/v1` for Deployment, StatefulSet, DaemonSet
+- ✅ `rbac.authorization.k8s.io/v1` for RBAC resources
+
+### Recent Changes
+- **v1.3.0**: Removed deprecated `AmazonEKSServicePolicy` IAM policy
+- **v1.3.0**: All IAM policies updated to least-privilege with resource scoping
+- **v1.3.0**: GitHub Actions OIDC role no longer uses `AdministratorAccess`
+- **v1.3.0**: All Kubernetes manifests validated for v1.33.0 compatibility
 
 ## Best Practices
 - Use feature branches for changes

@@ -37,9 +37,9 @@ variable "eks_node_group_sg_id" {
 }
 
 variable "kubernetes_version" {
-  description = "Kubernetes version for EKS cluster. Use the latest stable version unless you have specific requirements."
+  description = "Kubernetes version for EKS cluster. All manifests validated for v1.33.0 compatibility."
   type        = string
-  default     = "1.31"
+  default     = "1.33"
 }
 
 variable "node_instance_type" {

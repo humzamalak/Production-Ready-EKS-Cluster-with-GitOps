@@ -24,8 +24,67 @@ resource "aws_iam_role" "github_actions" {
   })
 }
 
-# Attach least-privilege policies as needed, e.g.:
+# GitHub Actions IAM Policy (Least Privilege)
+# WARNING: The AdministratorAccess policy has been replaced with specific permissions.
+# Adjust these permissions based on your actual CI/CD requirements.
+resource "aws_iam_policy" "github_actions" {
+  name        = "github-actions-ci-policy"
+  description = "Least-privilege policy for GitHub Actions CI/CD"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters",
+          "eks:DescribeNodegroup",
+          "eks:ListNodegroups",
+          "eks:DescribeAddon",
+          "eks:ListAddons"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::terraform-state-*",
+          "arn:aws:s3:::terraform-state-*/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem"
+        ]
+        Resource = "arn:aws:dynamodb:*:*:table/terraform-state-lock"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "github_actions_terraform" {
   role       = aws_iam_role.github_actions.name
-  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess" # Replace with least-privilege policy in production
+  policy_arn = aws_iam_policy.github_actions.arn
 }

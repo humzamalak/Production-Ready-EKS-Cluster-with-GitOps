@@ -143,8 +143,14 @@ kubectl cluster-info
 cd ../..
 
 # Update repo URL in all manifests (replace with your fork)
-find environments/ applications/ -name "*.yaml" -type f -exec sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/YOUR-ORG/YOUR-REPO|g' {} \;
+# For Linux/Mac:
+find environments/ applications/ bootstrap/ -name "*.yaml" -type f -exec sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/YOUR-ORG/YOUR-REPO|g' {} \;
+
+# For macOS (requires '' after -i):
+# find environments/ applications/ bootstrap/ -name "*.yaml" -type f -exec sed -i '' 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/YOUR-ORG/YOUR-REPO|g' {} \;
 ```
+
+> **Note**: If you're using the repository directly without forking, you can skip this step. ArgoCD will pull from the main repository.
 
 ### Step 2.2: Deploy Core Components
 
