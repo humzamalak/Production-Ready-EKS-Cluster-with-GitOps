@@ -59,19 +59,24 @@ Choose your deployment path based on your target environment:
 ## 📁 Repository Structure
 
 ```
-├── environments/           # Environment-specific configurations
-│   ├── dev/               # Development environment
-│   ├── staging/           # Staging environment
-│   └── prod/              # Production environment
-├── applications/          # Application deployments
-│   ├── monitoring/        # Prometheus & Grafana
-│   ├── infrastructure/    # Infrastructure components
-│   └── web-app/          # Web application stack
-├── bootstrap/            # Initial cluster setup
-├── infrastructure/       # Terraform for AWS resources
-├── config/               # Common configuration files
-├── scripts/              # Consolidated management scripts
-└── docs/                # Consolidated documentation
+├── argocd/                  # ArgoCD GitOps Configuration
+│   ├── install/            # ArgoCD installation manifests
+│   ├── projects/           # ArgoCD Projects (RBAC, repos, destinations)
+│   └── apps/               # ArgoCD Applications (web-app, prometheus, grafana, vault)
+├── apps/                    # Application Helm Charts & Values
+│   ├── web-app/            # Custom web app Helm chart
+│   ├── prometheus/         # Prometheus values (default, minikube, AWS)
+│   ├── grafana/            # Grafana values (default, minikube, AWS)
+│   └── vault/              # Vault values (default, minikube, AWS)
+├── infrastructure/          # Terraform for AWS EKS
+│   └── terraform/          # Terraform modules (VPC, EKS, IAM)
+├── scripts/                 # Deployment & management scripts
+│   ├── setup-minikube.sh   # Minikube deployment
+│   ├── setup-aws.sh        # AWS EKS deployment
+│   ├── deploy.sh           # Unified deployment interface
+│   ├── validate.sh         # Validation script
+│   └── secrets.sh          # Secrets management
+└── docs/                    # Comprehensive documentation
 ```
 
 ## 🚦 Getting Started
@@ -113,12 +118,10 @@ Complete secrets lifecycle management:
 ./scripts/secrets.sh backup vault           # Backup secrets
 ```
 
-### **Configuration Management** (`scripts/config.sh`)
-Environment-specific configuration handling:
+### **ArgoCD Diagnostics** (`scripts/argo-diagnose.sh`)
+ArgoCD connection and diagnostic tool:
 ```bash
-./scripts/config.sh generate --environment prod  # Generate configs
-./scripts/config.sh validate --environment prod  # Validate configs
-./scripts/config.sh merge --environment prod     # Merge configs
+./scripts/argo-diagnose.sh                       # Connect to ArgoCD and list apps
 ```
 
 ### **Makefile Targets**
