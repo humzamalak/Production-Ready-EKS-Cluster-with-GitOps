@@ -1,0 +1,65 @@
+# =============================================================================
+# Namespace Creation - Minimal Production Setup
+# =============================================================================
+#
+# Creates essential namespaces for the GitOps cluster:
+#   - argocd: GitOps control plane
+#   - monitoring: Observability stack (Prometheus + Grafana)
+#   - production: Production workloads
+#   - vault: Secrets management
+#
+# Security:
+#   - Pod Security Standards enforced
+#   - Network policies applied per namespace
+#
+# Compatibility: Kubernetes 1.33+
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    name: argocd
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/part-of: gitops
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    app.kubernetes.io/name: monitoring
+    app.kubernetes.io/part-of: observability
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    name: production
+    app.kubernetes.io/name: production
+    app.kubernetes.io/part-of: workloads
+    environment: production
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault
+  labels:
+    name: vault
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/part-of: security
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+

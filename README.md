@@ -7,10 +7,11 @@ A comprehensive GitOps repository for deploying production-ready Kubernetes clus
 
 ## 🚀 Quick Start
 
-Choose your deployment target:
+Choose your deployment path based on your target environment:
 
 - **[Local Deployment](docs/local-deployment.md)** - Deploy on Minikube for development and testing
 - **[AWS Deployment](docs/aws-deployment.md)** - Deploy on AWS EKS for production environments
+- **[Architecture Guide](docs/architecture.md)** - Understand the repository structure and GitOps patterns
 
 ## 📚 Documentation
 
@@ -18,27 +19,30 @@ Choose your deployment target:
 |----------|---------|
 | [**Architecture Guide**](docs/architecture.md) | Repository structure, GitOps flow, and environment overlays |
 | [**Local Deployment**](docs/local-deployment.md) | Step-by-step instructions for Minikube/local clusters |
-| [**AWS Deployment**](docs/aws-deployment.md) | Complete AWS EKS deployment guide |
-| [**Troubleshooting**](docs/troubleshooting.md) | Common issues and solutions |
+| [**AWS Deployment**](docs/aws-deployment.md) | Complete AWS EKS deployment guide with Terraform |
+| [**Troubleshooting**](docs/troubleshooting.md) | Common issues and solutions with detailed diagnostics |
+| [**K8s Version Policy**](docs/K8S_VERSION_POLICY.md) | Kubernetes version compatibility and upgrade guidelines |
+| [**Changelog**](CHANGELOG.md) | Complete version history and migration guides |
 
 ## 🏗️ What's Included
 
-### Core Components
-- **ArgoCD** - GitOps continuous delivery
-- **Prometheus & Grafana** - Monitoring and alerting
-- **Vault** - Secrets management (optional)
-- **Web Application** - Sample Node.js app with Helm charts
+### Core Infrastructure Components
+- **🚀 ArgoCD** - GitOps continuous delivery with automated synchronization
+- **📊 Prometheus & Grafana** - Comprehensive monitoring, metrics, and alerting
+- **🔐 Vault** - HashiCorp Vault for secrets management (optional, documented for future integration)
+- **📦 Sample Web Application** - Production-ready Node.js app with complete Helm charts
 
-### Environments
-- **Development** - Local testing with Minikube
-- **Staging** - Pre-production validation
-- **Production** - AWS EKS with full security
+### Multi-Environment Support
+- **Development** - Local Kubernetes (Minikube) for rapid iteration and testing
+- **Staging** - Pre-production environment for validation and integration testing
+- **Production** - AWS EKS with enterprise-grade security and high availability
 
-### Security Features
-- Pod Security Standards
-- Network Policies
-- RBAC configurations
-- Vault integration for secrets
+### Security & Compliance
+- **Pod Security Standards** - Enforced at namespace level (baseline/restricted policies)
+- **Network Policies** - Default-deny with explicit allow rules for zero-trust networking
+- **RBAC** - Role-based access control with least-privilege principles
+- **Secrets Management** - Documentation and integration points for Vault
+- **Encryption** - KMS-based encryption for EKS secrets and EBS volumes
 
 ## 🛠️ Prerequisites
 

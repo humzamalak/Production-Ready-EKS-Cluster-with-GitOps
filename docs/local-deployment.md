@@ -134,15 +134,25 @@ helm upgrade --install argo-cd argo/argo-cd \
 ./scripts/secrets.sh create monitoring
 ```
 
-### Step 2.4: Deploy ArgoCD Project
+### Step 2.4: Deploy ArgoCD Projects via GitOps
 
 ```bash
-# Deploy the AppProject for production
-kubectl apply -f environments/prod/project.yaml
+# Deploy the projects bootstrap Application (manages all AppProjects via GitOps)
+kubectl apply -f bootstrap/05-argocd-projects.yaml
+
+# Wait for projects to be synced (ArgoCD will create prod-apps and staging-apps)
+sleep 15
 
 # Verify project creation
 kubectl get appprojects -n argocd
+# Expected output:
+#   NAME           AGE
+#   default        Xm
+#   prod-apps      Xs
+#   staging-apps   Xs
 ```
+
+> **✅ What Changed**: AppProjects are now managed by Argo CD via GitOps (from `bootstrap/projects/`), eliminating manual kubectl apply steps.
 
 ### Step 2.5: Access ArgoCD UI
 

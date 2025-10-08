@@ -1,0 +1,29 @@
+# =============================================================================
+# Grafana - Minikube Values
+# =============================================================================
+# Minimal configuration for local development
+# =============================================================================
+
+replicas: 1
+
+# Minimal persistence
+persistence:
+  enabled: true
+  size: 2Gi
+
+# Reduced resources
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+# Enable ingress for local access
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  hosts:
+    - grafana.local
+
