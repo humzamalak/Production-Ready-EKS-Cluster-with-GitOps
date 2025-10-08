@@ -20,6 +20,7 @@ Choose your deployment path based on your target environment:
 | [**Architecture Guide**](docs/architecture.md) | Repository structure, GitOps flow, and environment overlays |
 | [**Local Deployment**](docs/local-deployment.md) | Step-by-step instructions for Minikube/local clusters |
 | [**AWS Deployment**](docs/aws-deployment.md) | Complete AWS EKS deployment guide with Terraform |
+| [**ArgoCD CLI Setup**](docs/argocd-cli-setup.md) | Automated ArgoCD CLI access for Windows Git Bash |
 | [**Troubleshooting**](docs/troubleshooting.md) | Common issues and solutions with detailed diagnostics |
 | [**K8s Version Policy**](docs/K8S_VERSION_POLICY.md) | Kubernetes version compatibility and upgrade guidelines |
 | [**Changelog**](CHANGELOG.md) | Complete version history and migration guides |
@@ -75,7 +76,8 @@ Choose your deployment path based on your target environment:
 │   ├── setup-aws.sh        # AWS EKS deployment
 │   ├── deploy.sh           # Unified deployment interface
 │   ├── validate.sh         # Validation script
-│   └── secrets.sh          # Secrets management
+│   ├── secrets.sh          # Secrets management
+│   └── argocd-login.sh     # ArgoCD CLI login automation (Windows)
 └── docs/                    # Comprehensive documentation
 ```
 
@@ -118,10 +120,16 @@ Complete secrets lifecycle management:
 ./scripts/secrets.sh backup vault           # Backup secrets
 ```
 
+### **ArgoCD CLI Login** (`scripts/argocd-login.sh`)
+Automated ArgoCD CLI setup with port-forwarding and login (Windows Git Bash):
+```bash
+./scripts/argocd-login.sh                   # Setup port-forward, login, and sync apps
+```
+
 ### **ArgoCD Diagnostics** (`scripts/argo-diagnose.sh`)
 ArgoCD connection and diagnostic tool:
 ```bash
-./scripts/argo-diagnose.sh                       # Connect to ArgoCD and list apps
+./scripts/argo-diagnose.sh                  # Connect to ArgoCD and list apps
 ```
 
 ### **Makefile Targets**
