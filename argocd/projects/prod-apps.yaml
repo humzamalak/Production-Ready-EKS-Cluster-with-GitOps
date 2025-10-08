@@ -102,6 +102,10 @@ spec:
   
   # Namespace resource allowlist
   namespaceResourceWhitelist:
+    # ArgoCD Applications (for App-of-Apps pattern)
+    - group: 'argoproj.io'
+      kind: Application
+    
     # Core resources
     - group: ''
       kind: ConfigMap
