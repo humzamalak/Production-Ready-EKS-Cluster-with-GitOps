@@ -25,11 +25,15 @@ The bootstrap directory provides:
 - **`network-policy.yaml`**: Default network policies for security
 - **`pod-security-standards.yaml`**: Pod Security Standards configuration
 
+### ArgoCD Projects
+- **`05-argocd-projects.yaml`**: Bootstrap Application that manages all ArgoCD AppProjects via GitOps
+- **`projects/`**: Directory containing AppProject definitions (prod-apps, staging-apps)
+
 ### Secrets Management
-- **`05-vault-policies.yaml`**: Vault policies, authentication, and initialization scripts
+- **`06-vault-policies.yaml`**: Vault policies, authentication, and initialization scripts
 
 ### Backup and Recovery
-- **`06-etcd-backup.yaml`**: etcd backup configuration
+- **`07-etcd-backup.yaml`**: etcd backup configuration
 
 ### Configuration
 - **`values.yaml`**: ArgoCD Helm values for customization
@@ -45,8 +49,13 @@ kubectl apply -f bootstrap/01-pod-security-standards.yaml
 kubectl apply -f bootstrap/02-network-policy.yaml
 kubectl apply -f bootstrap/03-helm-repos.yaml      # add shared Helm repos
 kubectl apply -f bootstrap/04-argo-cd-install.yaml # install Argo CD
-kubectl apply -f bootstrap/05-vault-policies.yaml  # baseline Vault policies
-kubectl apply -f bootstrap/06-etcd-backup.yaml     # etcd backup cronjob
+
+# ⚠️ CRITICAL: Wait for ArgoCD to be ready before proceeding
+kubectl wait --for=condition=available --timeout=300s deployment/argo-cd-argocd-server -n argocd
+
+kubectl apply -f bootstrap/05-argocd-projects.yaml # ArgoCD projects (REQUIRED before app-of-apps)
+kubectl apply -f bootstrap/06-vault-policies.yaml  # baseline Vault policies
+kubectl apply -f bootstrap/07-etcd-backup.yaml     # etcd backup cronjob
 ```
 
 ### 2. Verify Installation

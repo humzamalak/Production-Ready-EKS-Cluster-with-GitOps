@@ -1,0 +1,168 @@
+# =============================================================================
+# ArgoCD AppProject - Unified Production Apps
+# =============================================================================
+#
+# Single AppProject for all production applications (web-app, monitoring, vault).
+# Simplifies RBAC and management while maintaining security boundaries.
+#
+# Allowed Resources:
+#   - All standard Kubernetes workload resources
+#   - Monitoring (Prometheus, Grafana)
+#   - Secrets management (Vault)
+#   - Custom resources for monitoring
+#
+# Namespaces:
+#   - production: Application workloads
+#   - monitoring: Prometheus, Grafana
+#   - vault: HashiCorp Vault
+#
+# Source Repos:
+#   - This GitOps repository
+#   - Official Helm charts (Prometheus, Grafana, Vault)
+#
+# Compatibility: ArgoCD 2.13+
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: prod-apps
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: prod-apps
+    app.kubernetes.io/part-of: gitops
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    description: "Unified production applications project"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "Production applications including web-app, monitoring, and vault"
+  
+  # Source repositories
+  sourceRepos:
+    # GitOps repository
+    - 'https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps'
+    
+    # Official Helm repositories
+    - 'https://prometheus-community.github.io/helm-charts'
+    - 'https://grafana.github.io/helm-charts'
+    - 'https://helm.releases.hashicorp.com'
+  
+  # Destination clusters and namespaces
+  destinations:
+    # In-cluster deployments
+    - namespace: production
+      server: 'https://kubernetes.default.svc'
+    - namespace: monitoring
+      server: 'https://kubernetes.default.svc'
+    - namespace: vault
+      server: 'https://kubernetes.default.svc'
+    - namespace: argocd
+      server: 'https://kubernetes.default.svc'
+  
+  # Cluster resource allowlist
+  clusterResourceWhitelist:
+    # Storage
+    - group: ''
+      kind: PersistentVolume
+    - group: 'storage.k8s.io'
+      kind: StorageClass
+    
+    # Networking
+    - group: 'networking.k8s.io'
+      kind: IngressClass
+    
+    # Security
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRole
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRoleBinding
+    
+    # Monitoring CRDs
+    - group: 'monitoring.coreos.com'
+      kind: Prometheus
+    - group: 'monitoring.coreos.com'
+      kind: PrometheusRule
+    - group: 'monitoring.coreos.com'
+      kind: ServiceMonitor
+    - group: 'monitoring.coreos.com'
+      kind: PodMonitor
+    - group: 'monitoring.coreos.com'
+      kind: Alertmanager
+    
+    # Custom Resource Definitions
+    - group: 'apiextensions.k8s.io'
+      kind: CustomResourceDefinition
+    
+    # Admission controllers
+    - group: 'admissionregistration.k8s.io'
+      kind: MutatingWebhookConfiguration
+    - group: 'admissionregistration.k8s.io'
+      kind: ValidatingWebhookConfiguration
+  
+  # Namespace resource allowlist
+  namespaceResourceWhitelist:
+    # Core resources
+    - group: ''
+      kind: ConfigMap
+    - group: ''
+      kind: Secret
+    - group: ''
+      kind: Service
+    - group: ''
+      kind: ServiceAccount
+    - group: ''
+      kind: PersistentVolumeClaim
+    - group: ''
+      kind: Pod
+    
+    # Workloads
+    - group: 'apps'
+      kind: Deployment
+    - group: 'apps'
+      kind: StatefulSet
+    - group: 'apps'
+      kind: DaemonSet
+    - group: 'apps'
+      kind: ReplicaSet
+    
+    # Jobs
+    - group: 'batch'
+      kind: Job
+    - group: 'batch'
+      kind: CronJob
+    
+    # Networking
+    - group: 'networking.k8s.io'
+      kind: Ingress
+    - group: 'networking.k8s.io'
+      kind: NetworkPolicy
+    
+    # Autoscaling
+    - group: 'autoscaling'
+      kind: HorizontalPodAutoscaler
+    
+    # RBAC
+    - group: 'rbac.authorization.k8s.io'
+      kind: Role
+    - group: 'rbac.authorization.k8s.io'
+      kind: RoleBinding
+    
+    # Monitoring
+    - group: 'monitoring.coreos.com'
+      kind: ServiceMonitor
+    - group: 'monitoring.coreos.com'
+      kind: PodMonitor
+    - group: 'monitoring.coreos.com'
+      kind: PrometheusRule
+  
+  # Sync windows (optional - can be used to restrict deployments)
+  # syncWindows: []
+  
+  # Namespace resource blacklist (deny specific resources)
+  namespaceResourceBlacklist: []
+  
+  # Orphaned resources handling
+  orphanedResources:
+    warn: true
+

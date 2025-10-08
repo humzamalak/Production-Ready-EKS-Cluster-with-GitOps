@@ -1,0 +1,41 @@
+# =============================================================================
+# HashiCorp Vault - Minikube Values
+# =============================================================================
+# Development mode for local testing
+# =============================================================================
+
+# Vault server in dev mode
+server:
+  dev:
+    enabled: true
+    devRootToken: "root"
+  
+  standalone:
+    enabled: false
+  
+  # Minimal resources
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+  
+  # Minimal storage
+  dataStorage:
+    enabled: true
+    size: 2Gi
+
+# Injector with minimal resources
+injector:
+  replicas: 1
+  
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+

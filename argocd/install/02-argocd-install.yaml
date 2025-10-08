@@ -1,0 +1,138 @@
+# =============================================================================
+# ArgoCD Installation - Minimal Production Setup
+# =============================================================================
+#
+# Installs ArgoCD using the official Helm chart with minimal configuration.
+# Supports both Minikube (dev) and AWS EKS (production).
+#
+# Features:
+#   - Single replica for Minikube, HA for AWS
+#   - Automatic sync and self-healing
+#   - Resource limits for stability
+#   - Server-side apply for large manifests
+#
+# Installation:
+#   kubectl apply -f 01-namespaces.yaml
+#   kubectl apply -f 02-argocd-install.yaml
+#
+# Access:
+#   kubectl port-forward svc/argocd-server -n argocd 8080:443
+#   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+#
+# Compatibility: Kubernetes 1.33+, ArgoCD 2.13+
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/part-of: gitops
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-cd
+    targetRevision: 7.7.12
+    helm:
+      # Minimal values for both Minikube and AWS
+      # Override via environment-specific values files as needed
+      values: |
+        global:
+          domain: argocd.local
+        
+        # Server configuration
+        server:
+          replicas: 1  # Use 2+ for production AWS deployment
+          service:
+            type: NodePort  # Use LoadBalancer for AWS
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # Ingress disabled by default
+          ingress:
+            enabled: false
+        
+        # Controller configuration
+        controller:
+          replicas: 1  # Use 2+ for production AWS deployment
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+        
+        # Repo server configuration
+        repoServer:
+          replicas: 1  # Use 2+ for production AWS deployment
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+        
+        # ApplicationSet controller
+        applicationSet:
+          enabled: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+        
+        # Disable optional components for minimal setup
+        dex:
+          enabled: false
+        
+        notifications:
+          enabled: false
+        
+        # Security context
+        redis:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  revisionHistoryLimit: 3
+

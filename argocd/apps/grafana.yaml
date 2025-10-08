@@ -1,0 +1,85 @@
+# =============================================================================
+# ArgoCD Application - Grafana
+# =============================================================================
+#
+# Deploys Grafana for visualization and dashboards.
+# Integrates with Prometheus for data source.
+#
+# Chart: grafana/grafana
+# Version: 7.3.7
+# Namespace: monitoring
+#
+# Features:
+#   - Pre-configured Prometheus datasource
+#   - Default dashboards for Kubernetes monitoring
+#   - Persistent storage for dashboards
+#   - Admin credentials via Secret
+#
+# Values Files:
+#   - Default: apps/grafana/values.yaml
+#   - Minikube: apps/grafana/values-minikube.yaml
+#   - AWS: apps/grafana/values-aws.yaml
+#
+# Access:
+#   kubectl port-forward -n monitoring svc/grafana 3000:80
+#   Default credentials: admin / (from grafana-admin-secret)
+#
+# Sync Wave: 4 (deploys after Prometheus)
+# Compatibility: Kubernetes 1.33+
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: monitoring-stack
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    description: "Grafana dashboards and visualization"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: prod-apps
+  
+  # Multi-source pattern: chart from Helm repo, values from Git
+  sources:
+    # Grafana Helm chart
+    - repoURL: 'https://grafana.github.io/helm-charts'
+      chart: grafana
+      targetRevision: 7.3.7
+      helm:
+        valueFiles:
+          - $values/apps/grafana/values.yaml
+          # Environment-specific values (uncomment as needed)
+          # - $values/apps/grafana/values-minikube.yaml
+          # - $values/apps/grafana/values-aws.yaml
+    
+    # Values from Git repository
+    - repoURL: 'https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps'
+      targetRevision: main
+      ref: values
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  revisionHistoryLimit: 3
+

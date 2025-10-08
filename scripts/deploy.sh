@@ -201,16 +201,18 @@ bootstrap_argocd() {
     print_step "Waiting for ArgoCD to be ready..."
     kubectl wait --for=condition=available --timeout=${TIMEOUT}s deployment/argo-cd-argocd-server -n argocd
     
-    # Apply environment-specific project FIRST (critical for app-of-apps to work)
-    print_step "Applying $environment AppProject..."
-    if [ -f "$ENVIRONMENTS_DIR/$environment/project.yaml" ]; then
-        kubectl apply -f "$ENVIRONMENTS_DIR/$environment/project.yaml"
-        print_success "AppProject created successfully"
-    else
-        print_warning "No project.yaml found for $environment environment"
-    fi
+    # Apply ArgoCD Projects bootstrap (manages all AppProjects via GitOps)
+    print_step "Deploying ArgoCD Projects via GitOps..."
+    kubectl apply -f "$BOOTSTRAP_DIR/05-argocd-projects.yaml"
     
-    # Apply environment-specific app-of-apps AFTER project exists
+    # Wait for projects to be created
+    print_step "Waiting for AppProjects to be created..."
+    sleep 10  # Give ArgoCD time to sync the projects
+    kubectl wait --for=condition=ready --timeout=60s -n argocd appproject/${environment}-apps 2>/dev/null || {
+        print_warning "AppProject ${environment}-apps not ready yet, continuing..."
+    }
+    
+    # Apply environment-specific app-of-apps AFTER projects exist
     print_step "Applying $environment app-of-apps..."
     kubectl apply -f "$ENVIRONMENTS_DIR/$environment/app-of-apps.yaml"
     
