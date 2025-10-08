@@ -1,41 +1,154 @@
 # =============================================================================
 # HashiCorp Vault - Minikube Values
 # =============================================================================
-# Development mode for local testing
+# HA configuration with Raft storage for local development
+# Features: Raft storage, AWS KMS auto-unseal (with manual fallback), HA mode
 # =============================================================================
 
-# Vault server in dev mode
+global:
+  enabled: true
+  tlsDisable: true  # Enable TLS in production
+
+# Vault server in HA mode with Raft storage
 server:
+  # Disable dev mode
   dev:
-    enabled: true
-    devRootToken: "root"
+    enabled: false
   
+  # Disable standalone mode
   standalone:
     enabled: false
   
-  # Minimal resources
+  # Service account (for AWS KMS if credentials are provided)
+  serviceAccount:
+    create: true
+    name: vault-server
+    annotations: {}
+      # Add AWS IAM role if using IRSA for KMS access
+      # eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT:role/vault-kms-role"
+  
+  # HA mode with Raft storage
+  ha:
+    enabled: true
+    replicas: 3  # Set to 1 if Minikube struggles with resources
+    
+    raft:
+      enabled: true
+      setNodeId: true
+      
+      config: |
+        ui = true
+        
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+        
+        storage "raft" {
+          path = "/vault/data"
+          
+          retry_join {
+            leader_api_addr = "http://vault-0.vault-internal:8200"
+          }
+          
+          retry_join {
+            leader_api_addr = "http://vault-1.vault-internal:8200"
+          }
+          
+          retry_join {
+            leader_api_addr = "http://vault-2.vault-internal:8200"
+          }
+        }
+        
+        # AWS KMS auto-unseal (optional for Minikube)
+        # Uncomment if AWS credentials are available locally
+        # seal "awskms" {
+        #   region     = "us-west-2"
+        #   kms_key_id = "alias/vault-kms-key"
+        # }
+        
+        service_registration "kubernetes" {}
+        
+        telemetry {
+          prometheus_retention_time = "30s"
+          disable_hostname = true
+          dogstatsd_addr = "localhost:8125"
+        }
+  
+  # Resources suitable for Minikube
   resources:
     requests:
-      memory: 128Mi
-      cpu: 100m
+      memory: 512Mi
+      cpu: 500m
     limits:
-      memory: 256Mi
-      cpu: 200m
+      memory: 2Gi
+      cpu: 2000m
   
-  # Minimal storage
+  # Persistent storage using Minikube's default storage class
   dataStorage:
     enabled: true
-    size: 2Gi
-
-# Injector with minimal resources
-injector:
-  replicas: 1
+    size: 10Gi
+    storageClass: standard  # Minikube default storage class
+    accessMode: ReadWriteOnce
   
+  # Audit storage
+  auditStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: standard
+    accessMode: ReadWriteOnce
+  
+  # Service configuration
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 8200
+  
+  # Ingress disabled for Minikube (use port-forward instead)
+  ingress:
+    enabled: false
+  
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  
+  # No pod anti-affinity for Minikube (single-node cluster)
+  affinity: ""
+
+# Vault Agent Injector
+injector:
+  enabled: true
+  
+  replicas: 1  # Single replica for Minikube
+  
+  # Resources
   resources:
     requests:
-      memory: 128Mi
-      cpu: 100m
-    limits:
       memory: 256Mi
-      cpu: 200m
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  
+  # Security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 100
+    seccompProfile:
+      type: RuntimeDefault
 
+# UI enabled
+ui:
+  enabled: true
+  serviceType: ClusterIP
