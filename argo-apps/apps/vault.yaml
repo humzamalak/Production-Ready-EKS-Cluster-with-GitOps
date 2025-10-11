@@ -65,8 +65,8 @@ spec:
         valueFiles:
           - $values/helm-charts/vault/values.yaml
           # Environment-specific values (uncomment as needed)
-          # - $values/helm-charts/vault/values-minikube.yaml
-          - $values/helm-charts/vault/values-aws.yaml
+          - $values/helm-charts/vault/values-minikube.yaml
+          # - $values/helm-charts/vault/values-aws.yaml
     
     # Values from Git repository
     - repoURL: 'https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps'

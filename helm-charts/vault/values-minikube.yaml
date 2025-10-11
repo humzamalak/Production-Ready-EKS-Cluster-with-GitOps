@@ -30,7 +30,7 @@ server:
   # HA mode with Raft storage
   ha:
     enabled: true
-    replicas: 3  # Set to 1 if Minikube struggles with resources
+    replicas: 1  # Single replica for resource efficiency on local machine
     
     raft:
       enabled: true
@@ -50,14 +50,6 @@ server:
           
           retry_join {
             leader_api_addr = "http://vault-0.vault-internal:8200"
-          }
-          
-          retry_join {
-            leader_api_addr = "http://vault-1.vault-internal:8200"
-          }
-          
-          retry_join {
-            leader_api_addr = "http://vault-2.vault-internal:8200"
           }
         }
         
