@@ -54,9 +54,21 @@ jobs:
 
       - name: Install ArgoCD CLI
         run: |
-          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          ARGOCD_VERSION="3.1.0"
+          ARGOCD_CLI_URL="https://github.com/argoproj/argo-cd/releases/download/v${ARGOCD_VERSION}/argocd-linux-amd64"
+          
+          # Download CLI
+          curl -sSL -o argocd "$ARGOCD_CLI_URL"
+          
+          # TODO: Add SHA256 checksum verification when available
+          # Expected checksum should be added here from official release
+          # echo "${ARGOCD_SHA256}  argocd" | sha256sum -c -
+          
           chmod +x argocd
           sudo mv argocd /usr/local/bin/
+          
+          # Verify installation
+          argocd version --client
 
       - name: Wait for ArgoCD Server
         run: |

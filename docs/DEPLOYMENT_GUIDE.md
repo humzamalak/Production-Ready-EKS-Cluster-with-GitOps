@@ -37,6 +37,7 @@ This GitOps repository provides a complete, production-ready Kubernetes stack wi
 ✅ **High Availability** - HA configurations for production  
 ✅ **GitOps Workflow** - Automated sync and self-healing  
 ✅ **Kubernetes 1.33+ Compatible** - Latest API versions  
+✅ **ArgoCD 3.1.0** - Latest features and security enhancements  
 
 ---
 

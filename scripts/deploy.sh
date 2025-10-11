@@ -183,7 +183,7 @@ bootstrap_argocd() {
 
     # Install ArgoCD using official manifest
     print_step "Installing ArgoCD..."
-    ARGOCD_VERSION="2.13.0"
+    ARGOCD_VERSION="3.1.0"
     kubectl apply -n argocd -f "https://raw.githubusercontent.com/argoproj/argo-cd/v${ARGOCD_VERSION}/manifests/install.yaml"
     
     # Wait for ArgoCD to be ready
