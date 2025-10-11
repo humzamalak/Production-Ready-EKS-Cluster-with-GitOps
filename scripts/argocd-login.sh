@@ -1,385 +1,261 @@
 #!/usr/bin/env bash
 # =============================================================================
-# ArgoCD CLI Login & Sync Script (Windows Git Bash)
+# ArgoCD CLI Login Script - Minikube Optimized
 # =============================================================================
-# Automates the setup of Argo CD CLI for Kubernetes cluster, including:
-#   - Port-forwarding to Argo CD server
-#   - CLI login authentication
-#   - Syncing Prometheus and Vault applications
-#
-# Prerequisites:
-#   - kubectl installed and configured
-#   - argocd CLI installed
-#   - Kubernetes cluster with ArgoCD deployed
-#   - Git Bash on Windows
-#
-# Usage:
-#   ./scripts/argocd-login.sh
-#
-# Notes:
-#   - Script is idempotent - safe to run multiple times
-#   - Kills existing port-forward on 8080 before starting
-#   - Works with both Minikube and AWS EKS clusters
+# Simplified version specifically for Minikube with better timeout handling
 # =============================================================================
 
 set -eo pipefail
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Configuration
 ARGOCD_NAMESPACE="argocd"
 LOCAL_PORT="8080"
-POD_PORT="443"
 ARGOCD_SERVER="localhost:${LOCAL_PORT}"
-LOGIN_RETRIES=3
-RETRY_DELAY=5
 
-# Helper functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
+# Logging functions
+log_info() { echo -e "${GREEN}[INFO]${NC} $1" >&2; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+log_step() { echo -e "${BLUE}[STEP]${NC} $1" >&2; }
 
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-log_step() {
-    echo -e "${BLUE}[STEP]${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+# Find ArgoCD CLI
+find_argocd() {
+    local argocd_path=""
+    
+    # Try standard command
+    if command -v argocd &> /dev/null; then
+        argocd_path=$(command -v argocd)
+    elif command -v argocd.exe &> /dev/null; then
+        argocd_path=$(command -v argocd.exe)
+    elif [ -f "/c/WINDOWS/system32/argocd.exe" ]; then
+        argocd_path="/c/WINDOWS/system32/argocd.exe"
+    else
+        log_error "ArgoCD CLI not found!"
+        exit 1
+    fi
+    
+    echo "$argocd_path"
 }
 
 # Check prerequisites
 check_prerequisites() {
     log_step "Checking prerequisites..."
     
-    # Check kubectl
     if ! command -v kubectl &> /dev/null; then
-        log_error "kubectl not found. Please install kubectl first."
+        log_error "kubectl not found"
         exit 1
     fi
     
-    # Check argocd CLI
-    if ! command -v argocd &> /dev/null; then
-        log_error "argocd CLI not found. Please install ArgoCD CLI first."
-        log_error "Installation: https://argo-cd.readthedocs.io/en/stable/cli_installation/"
-        exit 1
-    fi
+    ARGOCD_CMD=$(find_argocd)
+    log_info "Found ArgoCD CLI: $ARGOCD_CMD"
     
-    # Verify kubectl connection
-    if ! kubectl cluster-info &> /dev/null; then
-        log_error "kubectl not connected to a cluster. Please configure kubectl first."
-        exit 1
-    fi
-    
-    # Check if ArgoCD namespace exists
     if ! kubectl get namespace "${ARGOCD_NAMESPACE}" &> /dev/null; then
-        log_error "ArgoCD namespace '${ARGOCD_NAMESPACE}' not found."
-        log_error "Please deploy ArgoCD first using setup-minikube.sh or setup-aws.sh"
+        log_error "ArgoCD namespace not found. Please run setup-minikube.sh first"
         exit 1
     fi
-    
-    log_success "All prerequisites met!"
 }
 
-# Kill any process using port 8080
-kill_port_process() {
-    log_step "Checking for processes using port ${LOCAL_PORT}..."
+# Wait for ArgoCD to be fully ready
+wait_for_argocd() {
+    log_step "Waiting for ArgoCD server to be fully ready..."
     
-    # Windows Git Bash compatible - use netstat to find process
-    # The netstat output format in Windows: TCP    0.0.0.0:8080    0.0.0.0:0    LISTENING    1234
-    local pid=$(netstat -ano | grep ":${LOCAL_PORT}" | grep "LISTENING" | awk '{print $5}' | head -n 1)
-    
-    if [ -n "$pid" ]; then
-        log_warn "Found process ${pid} using port ${LOCAL_PORT}"
-        log_info "Killing process ${pid}..."
-        
-        # Use taskkill for Windows
-        if command -v taskkill.exe &> /dev/null; then
-            taskkill.exe //PID "${pid}" //F &> /dev/null || true
-            log_success "Killed process ${pid}"
-        else
-            log_warn "taskkill not found, attempting alternative method..."
-            kill -9 "${pid}" &> /dev/null || true
-        fi
-        
-        # Wait a moment for port to be released
-        sleep 2
-    else
-        log_info "Port ${LOCAL_PORT} is available"
-    fi
-}
-
-# Find ArgoCD server pod
-find_argocd_pod() {
-    log_step "Finding ArgoCD server pod..."
-    
-    local pod_name=$(kubectl get pods -n "${ARGOCD_NAMESPACE}" \
-        -l app.kubernetes.io/name=argocd-server \
-        -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-    
-    if [ -z "$pod_name" ]; then
-        log_error "ArgoCD server pod not found in namespace '${ARGOCD_NAMESPACE}'"
-        log_error "Check pod status: kubectl get pods -n ${ARGOCD_NAMESPACE}"
-        exit 1
-    fi
-    
-    log_info "Found ArgoCD server pod: ${pod_name}"
-    echo "$pod_name"
-}
-
-# Check if ArgoCD server is ready
-check_argocd_ready() {
-    log_step "Checking if ArgoCD server is ready..."
-    
-    local ready=$(kubectl get deployment argocd-server -n "${ARGOCD_NAMESPACE}" \
-        -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' 2>/dev/null)
-    
-    if [ "$ready" != "True" ]; then
-        log_error "ArgoCD server is not ready yet"
-        log_error "Check status: kubectl get deployment argocd-server -n ${ARGOCD_NAMESPACE}"
-        exit 1
-    fi
-    
-    log_success "ArgoCD server is ready!"
-}
-
-# Start port-forward in background
-start_port_forward() {
-    log_step "Starting port-forward to ArgoCD server..."
-    
-    # Kill any existing kubectl port-forward processes
-    pkill -f "kubectl port-forward.*argocd-server" &> /dev/null || true
-    sleep 1
-    
-    # Start port-forward in background
-    kubectl port-forward -n "${ARGOCD_NAMESPACE}" \
-        svc/argocd-server "${LOCAL_PORT}:${POD_PORT}" \
-        > /dev/null 2>&1 &
-    
-    local pf_pid=$!
-    
-    # Wait for port-forward to establish
-    log_info "Waiting for port-forward to establish..."
-    local max_wait=15
+    local max_wait=120
     local waited=0
     
     while [ $waited -lt $max_wait ]; do
-        if netstat -ano | grep ":${LOCAL_PORT}" | grep "LISTENING" &> /dev/null; then
-            log_success "Port-forward established on port ${LOCAL_PORT} (PID: ${pf_pid})"
+        # Check if all argocd-server pods are ready
+        local ready_pods=$(kubectl get pods -n "${ARGOCD_NAMESPACE}" \
+            -l app.kubernetes.io/name=argocd-server \
+            -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+        
+        if echo "$ready_pods" | grep -q "True"; then
+            # Give it a bit more time for internal initialization
+            log_info "ArgoCD pods are ready, waiting 15 more seconds for internal initialization..."
+            sleep 15
+            log_info "ArgoCD should be fully ready now"
+            return 0
+        fi
+        
+        echo -n "." >&2
+        sleep 2
+        waited=$((waited + 2))
+    done
+    
+    log_error "ArgoCD server did not become ready within ${max_wait} seconds"
+    log_error "Check status with: kubectl get pods -n argocd"
+    exit 1
+}
+
+# Kill process on port
+kill_port_process() {
+    log_step "Checking port ${LOCAL_PORT}..."
+    
+    local pid=$(netstat -ano 2>/dev/null | grep ":${LOCAL_PORT}" | grep "LISTENING" | awk '{print $5}' | head -n 1)
+    
+    if [ -n "$pid" ]; then
+        log_warn "Port ${LOCAL_PORT} in use by process ${pid}, stopping it..."
+        taskkill.exe //PID "${pid}" //F &> /dev/null || kill -9 "${pid}" &> /dev/null || true
+        sleep 2
+    fi
+}
+
+# Start port forward
+start_port_forward() {
+    log_step "Starting port-forward..."
+    
+    # Kill existing port-forwards
+    pkill -f "kubectl port-forward.*argocd-server" &> /dev/null || true
+    sleep 1
+    
+    # Start new port-forward
+    kubectl port-forward -n "${ARGOCD_NAMESPACE}" \
+        svc/argocd-server "${LOCAL_PORT}:443" > /dev/null 2>&1 &
+    
+    local pf_pid=$!
+    log_info "Port-forward started (PID: ${pf_pid})"
+    
+    # Wait for port to be listening
+    log_info "Waiting for port-forward to establish..."
+    local max_wait=30
+    local waited=0
+    
+    while [ $waited -lt $max_wait ]; do
+        if netstat -ano 2>/dev/null | grep ":${LOCAL_PORT}" | grep -q "LISTENING"; then
+            log_info "Port-forward established successfully"
+            # Give it a moment to fully stabilize
+            sleep 3
             return 0
         fi
         sleep 1
         waited=$((waited + 1))
     done
     
-    log_error "Port-forward failed to establish within ${max_wait} seconds"
+    log_error "Port-forward failed to establish"
     exit 1
 }
 
-# Retrieve ArgoCD admin password
-get_argocd_password() {
+# Get ArgoCD password
+get_password() {
     log_step "Retrieving ArgoCD admin password..."
     
     local password=$(kubectl -n "${ARGOCD_NAMESPACE}" get secret argocd-initial-admin-secret \
         -o jsonpath="{.data.password}" 2>/dev/null | base64 -d)
     
     if [ -z "$password" ]; then
-        log_error "Failed to retrieve ArgoCD admin password"
-        log_error "Check if secret exists: kubectl get secret argocd-initial-admin-secret -n ${ARGOCD_NAMESPACE}"
+        log_error "Failed to retrieve password"
         exit 1
     fi
     
-    log_success "ArgoCD admin password retrieved (hidden for security)"
     echo "$password"
 }
 
-# Login to ArgoCD CLI
+# Login to ArgoCD
 login_argocd() {
     local password=$1
     log_step "Logging in to ArgoCD CLI..."
     
-    local attempt=1
-    while [ $attempt -le $LOGIN_RETRIES ]; do
-        log_info "Login attempt ${attempt}/${LOGIN_RETRIES}..."
-        
-        if echo "$password" | argocd login "${ARGOCD_SERVER}" \
-            --username admin \
-            --password "$password" \
-            --insecure 2>/dev/null; then
-            log_success "Successfully logged in to ArgoCD!"
-            return 0
-        fi
-        
-        if [ $attempt -lt $LOGIN_RETRIES ]; then
-            log_warn "Login failed, retrying in ${RETRY_DELAY} seconds..."
-            sleep $RETRY_DELAY
-        fi
-        
-        attempt=$((attempt + 1))
-    done
+    # Give the connection a moment to stabilize
+    sleep 2
     
-    log_error "Failed to login to ArgoCD after ${LOGIN_RETRIES} attempts"
-    log_error "Verify port-forward is working: curl -k https://localhost:${LOCAL_PORT}"
-    exit 1
-}
-
-# Check if an ArgoCD application exists
-app_exists() {
-    local app_name=$1
-    argocd app get "$app_name" &> /dev/null
-}
-
-# Sync ArgoCD application
-sync_app() {
-    local app_name=$1
-    log_step "Syncing ArgoCD application: ${app_name}..."
+    # Try login with increased timeout
+    log_info "Attempting login (this may take up to 30 seconds)..."
     
-    if ! app_exists "$app_name"; then
-        log_warn "Application '${app_name}' not found in ArgoCD, skipping sync"
+    # Use --grpc-web and disable TLS verification
+    if "$ARGOCD_CMD" login "${ARGOCD_SERVER}" \
+        --username admin \
+        --password "$password" \
+        --insecure \
+        --grpc-web 2>&1 | grep -q "Logged in"; then
+        log_info "Login successful!"
         return 0
     fi
     
-    log_info "Application '${app_name}' found, starting sync..."
-    
-    if argocd app sync "$app_name" --force --prune --timeout 300; then
-        log_success "Successfully synced '${app_name}'"
-        
-        # Show app status
-        log_info "Current status of '${app_name}':"
-        argocd app get "$app_name" --show-operation
-    else
-        log_error "Failed to sync '${app_name}'"
-        return 1
-    fi
-}
-
-# Sync multiple applications
-sync_apps() {
-    log_step "Syncing applications..."
-    
-    local apps=("prometheus" "vault")
-    local failed_apps=()
-    
-    for app in "${apps[@]}"; do
-        if ! sync_app "$app"; then
-            failed_apps+=("$app")
-        fi
-        echo ""
-    done
-    
-    # Report results
-    if [ ${#failed_apps[@]} -eq 0 ]; then
-        log_success "All applications synced successfully!"
-    else
-        log_warn "Some applications failed to sync: ${failed_apps[*]}"
-    fi
-}
-
-# Verify ArgoCD connection and list apps
-verify_connection() {
-    log_step "Verifying ArgoCD connection..."
-    
-    # Get current user
-    log_info "Current user:"
-    if argocd account get-user-info; then
-        log_success "Connection verified!"
-    else
-        log_error "Failed to verify connection"
-        return 1
+    # Alternative: Try without --grpc-web
+    log_warn "First attempt failed, trying without gRPC-web..."
+    if "$ARGOCD_CMD" login "${ARGOCD_SERVER}" \
+        --username admin \
+        --password "$password" \
+        --insecure 2>&1 | grep -q "Logged in"; then
+        log_info "Login successful!"
+        return 0
     fi
     
-    echo ""
-    
-    # List all applications
-    log_info "ArgoCD Applications:"
-    argocd app list
-}
-
-# Display access information
-display_access_info() {
-    local password=$1
-    
-    echo ""
-    log_info "==================================================================="
-    log_info "ArgoCD CLI Setup Complete!"
-    log_info "==================================================================="
-    echo ""
-    log_info "Access Information:"
-    echo ""
-    echo "  ArgoCD UI:"
-    echo "    URL: https://localhost:${LOCAL_PORT}"
-    echo "    Username: admin"
-    echo "    Password: ${password}"
-    echo ""
-    echo "  CLI Commands:"
-    echo "    List apps:        argocd app list"
-    echo "    Get app status:   argocd app get <app-name>"
-    echo "    Sync app:         argocd app sync <app-name>"
-    echo "    Delete app:       argocd app delete <app-name>"
-    echo "    View logs:        argocd app logs <app-name>"
-    echo ""
-    log_info "Port-forward is running in background (PID: $(pgrep -f 'kubectl port-forward.*argocd-server' | head -n 1))"
-    log_warn "To stop port-forward: pkill -f 'kubectl port-forward.*argocd-server'"
-    echo ""
-    log_info "==================================================================="
-}
-
-# Cleanup handler
-cleanup() {
-    log_warn "Script interrupted, cleaning up..."
-    # Note: We intentionally keep port-forward running
+    log_error "Login failed"
+    log_error ""
+    log_error "Manual troubleshooting:"
+    log_error "  1. Check ArgoCD status: kubectl get pods -n argocd"
+    log_error "  2. View logs: kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server"
+    log_error "  3. Test port-forward manually in another terminal:"
+    log_error "     kubectl port-forward -n argocd svc/argocd-server 8080:443"
+    log_error "  4. Access UI in browser: https://localhost:8080"
+    log_error "     Username: admin"
+    log_error "     Password: $password"
     exit 1
 }
 
-# Set trap for cleanup on exit signals
-trap cleanup SIGINT SIGTERM
+# Verify connection
+verify_connection() {
+    log_step "Verifying connection..."
+    
+    if "$ARGOCD_CMD" app list &> /dev/null; then
+        log_info "Connection verified successfully!"
+        echo "" >&2
+        log_info "Available applications:"
+        "$ARGOCD_CMD" app list
+        return 0
+    else
+        log_warn "Could not list applications yet"
+        return 1
+    fi
+}
+
+# Display info
+display_info() {
+    local password=$1
+    
+    echo "" >&2
+    log_info "================================================================"
+    log_info "ArgoCD CLI Login Complete!"
+    log_info "================================================================"
+    echo "" >&2
+    log_info "Access Information:"
+    echo "" >&2
+    echo "  ArgoCD UI: https://localhost:${LOCAL_PORT}" >&2
+    echo "  Username:  admin" >&2
+    echo "  Password:  $password" >&2
+    echo "" >&2
+    log_info "Common Commands:"
+    echo "  List apps:     argocd app list" >&2
+    echo "  Sync app:      argocd app sync <app-name>" >&2
+    echo "  Get app:       argocd app get <app-name>" >&2
+    echo "  Delete app:    argocd app delete <app-name>" >&2
+    echo "" >&2
+    log_info "================================================================"
+}
 
 # Main execution
 main() {
-    log_info "Starting ArgoCD CLI Login & Sync Script..."
-    echo ""
+    log_info "ArgoCD CLI Login Script (Minikube)"
+    echo "" >&2
     
-    # Execute steps
     check_prerequisites
-    echo ""
-    
+    wait_for_argocd
     kill_port_process
-    echo ""
-    
-    check_argocd_ready
-    echo ""
-    
     start_port_forward
-    echo ""
     
-    ARGOCD_PASSWORD=$(get_argocd_password)
-    echo ""
+    PASSWORD=$(get_password)
+    login_argocd "$PASSWORD"
+    verify_connection || log_warn "Verification failed but login succeeded"
     
-    login_argocd "$ARGOCD_PASSWORD"
-    echo ""
-    
-    sync_apps
-    echo ""
-    
-    verify_connection
-    echo ""
-    
-    display_access_info "$ARGOCD_PASSWORD"
-    
-    log_success "Setup complete!"
+    display_info "$PASSWORD"
+    log_info "Setup complete!"
 }
 
 main "$@"
-

@@ -1,0 +1,103 @@
+# =============================================================================
+# HashiCorp Vault - Default Values
+# =============================================================================
+# Vault configuration with agent injector
+# =============================================================================
+
+global:
+  enabled: true
+  tlsDisable: true  # Enable TLS in production
+
+# Vault server
+server:
+  enabled: true
+  
+  # Development mode (disable for production)
+  dev:
+    enabled: false
+    devRootToken: "root"
+  
+  # Standalone mode (use HA for production)
+  standalone:
+    enabled: true
+    config: |
+      ui = true
+      
+      listener "tcp" {
+        tls_disable = 1
+        address = "[::]:8200"
+        cluster_address = "[::]:8201"
+      }
+      
+      storage "file" {
+        path = "/vault/data"
+      }
+  
+  # Resources
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  
+  # Service
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 8200
+  
+  # Ingress
+  ingress:
+    enabled: false
+  
+  # Data storage
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    accessMode: ReadWriteOnce
+  
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+# Vault Agent Injector
+injector:
+  enabled: true
+  
+  replicas: 1
+  
+  # Resources
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  
+  # Security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 100
+    seccompProfile:
+      type: RuntimeDefault
+
+# UI
+ui:
+  enabled: true
+  serviceType: ClusterIP
+
+
+

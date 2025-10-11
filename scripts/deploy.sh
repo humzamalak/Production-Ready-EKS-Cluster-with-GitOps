@@ -49,9 +49,9 @@ NC='\033[0m' # No Color
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-TERRAFORM_DIR="$REPO_ROOT/infrastructure/terraform"
-BOOTSTRAP_DIR="$REPO_ROOT/bootstrap"
-ENVIRONMENTS_DIR="$REPO_ROOT/environments"
+TERRAFORM_DIR="$REPO_ROOT/terraform/environments/aws"
+ARGOCD_INSTALL_DIR="$REPO_ROOT/argo-apps/install"
+ARGOCD_APPS_DIR="$REPO_ROOT/argo-apps/apps"
 
 # Default values
 DEFAULT_ENVIRONMENT="prod"
@@ -177,46 +177,31 @@ bootstrap_argocd() {
     print_header "Bootstrapping ArgoCD for $environment"
     
     # Ensure argocd namespace exists and is ready
-    print_step "Ensuring argocd namespace exists and is ready..."
-    kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd
-    kubectl wait --for=condition=ready ns/argocd --timeout=60s || true
+    print_step "Creating namespaces..."
+    kubectl apply -f "$ARGOCD_INSTALL_DIR/01-namespaces.yaml"
+    kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/argocd --timeout=60s || true
 
-    # Ensure Helm repo metadata is fresh for manual installs
-    print_step "Refreshing Helm repositories..."
-    helm repo add argo https://argoproj.github.io/argo-helm >/dev/null 2>&1 || true
-    helm repo update
-
-    # Apply bootstrap manifests
-    print_step "Applying bootstrap manifests..."
-    kubectl apply -f "$BOOTSTRAP_DIR/00-namespaces.yaml"
-    kubectl apply -f "$BOOTSTRAP_DIR/01-pod-security-standards.yaml"
-    kubectl apply -f "$BOOTSTRAP_DIR/02-network-policy.yaml"
-    kubectl apply -f "$BOOTSTRAP_DIR/03-helm-repos.yaml"
-    
-    # Wait for ArgoCD installation
+    # Install ArgoCD using official manifest
     print_step "Installing ArgoCD..."
-    kubectl apply -f "$BOOTSTRAP_DIR/04-argo-cd-install.yaml"
+    ARGOCD_VERSION="2.13.0"
+    kubectl apply -n argocd -f "https://raw.githubusercontent.com/argoproj/argo-cd/v${ARGOCD_VERSION}/manifests/install.yaml"
     
     # Wait for ArgoCD to be ready
     print_step "Waiting for ArgoCD to be ready..."
-    kubectl wait --for=condition=available --timeout=${TIMEOUT}s deployment/argo-cd-argocd-server -n argocd
+    kubectl wait --for=condition=available --timeout=${TIMEOUT}s deployment/argocd-server -n argocd
     
-    # Apply ArgoCD Projects bootstrap (manages all AppProjects via GitOps)
-    print_step "Deploying ArgoCD Projects via GitOps..."
-    kubectl apply -f "$BOOTSTRAP_DIR/05-argocd-projects.yaml"
+    # Additional wait for initialization
+    sleep 30
     
-    # Wait for projects to be created
-    print_step "Waiting for AppProjects to be created..."
-    sleep 10  # Give ArgoCD time to sync the projects
-    kubectl wait --for=condition=ready --timeout=60s -n argocd appproject/${environment}-apps 2>/dev/null || {
-        print_warning "AppProject ${environment}-apps not ready yet, continuing..."
-    }
+    # Deploy bootstrap applications
+    print_step "Deploying applications via GitOps..."
+    kubectl apply -f "$ARGOCD_INSTALL_DIR/03-bootstrap.yaml"
     
-    # Apply environment-specific app-of-apps AFTER projects exist
-    print_step "Applying $environment app-of-apps..."
-    kubectl apply -f "$ENVIRONMENTS_DIR/$environment/app-of-apps.yaml"
+    # Wait for applications to appear
+    sleep 15
     
     print_success "ArgoCD bootstrapping completed successfully"
+    print_status "Applications will sync automatically. Use './scripts/argocd-login.sh' to monitor."
 }
 
 # Function to create monitoring secrets

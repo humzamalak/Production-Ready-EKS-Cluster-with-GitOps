@@ -1,0 +1,32 @@
+# =============================================================================
+# ArgoCD Installation - Official Manifest
+# =============================================================================
+#
+# This file will be applied by the setup script to install ArgoCD.
+# It uses the official ArgoCD installation manifest from the project repository.
+#
+# The setup script will:
+#   1. Apply this manifest to install ArgoCD core components
+#   2. Wait for ArgoCD to be ready
+#   3. Then apply bootstrap configuration (03-bootstrap.yaml)
+#
+# Installation:
+#   kubectl apply -f 01-namespaces.yaml
+#   kubectl apply -f 02-argocd-install.yaml
+#
+# Access:
+#   kubectl port-forward svc/argocd-server -n argocd 8080:443
+#   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+#
+# Compatibility: Kubernetes 1.33+, ArgoCD 2.13+
+#
+# NOTE: This file is a placeholder. The actual installation is done via:
+#   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.0/manifests/install.yaml
+# =============================================================================
+
+# This file intentionally contains only this comment.
+# The setup-minikube.sh script will install ArgoCD using the official manifest.
+# After ArgoCD is installed and running, the bootstrap configuration can be applied.
+
+
+

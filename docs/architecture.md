@@ -63,79 +63,109 @@ environments/
 - ✅ Environment-specific configurations
 - ✅ Consistent structure across environments
 
-### `applications/` - Application Deployments
+### `helm-charts/` - Helm Charts & Values
 
-**Purpose**: Organized application deployments by domain
+**Purpose**: Helm charts and values for all applications
 
 ```
-applications/
-├── monitoring/                   # Monitoring stack
-│   ├── grafana/
-│   │   ├── staging/
-│   │   │   ├── application.yaml  # Staging Grafana
-│   │   │   └── values-staging.yaml
-│   │   ├── values-local.yaml     # Local development values
-│   │   └── values-production.yaml # Production values
-│   └── prometheus/
-│       ├── values-local.yaml
-│       └── values-production.yaml
-├── infrastructure/               # Infrastructure components
-│   └── README.md
-└── web-app/                     # Web application
-    └── k8s-web-app/
-        └── helm/                # Helm chart used by environment apps
-            ├── Chart.yaml
-            ├── values.yaml      # Default/production values
-            └── templates/       # Kubernetes templates
+helm-charts/
+├── web-app/                      # Custom Helm chart (maintained locally)
+│   ├── Chart.yaml
+│   ├── values.yaml               # Default values
+│   ├── values-minikube.yaml      # Minikube-specific overrides
+│   ├── values-aws.yaml           # AWS-specific overrides
+│   └── templates/                # Kubernetes manifests
+│       ├── deployment.yaml
+│       ├── service.yaml
+│       ├── ingress.yaml
+│       ├── hpa.yaml
+│       ├── servicemonitor.yaml
+│       └── vault-agent.yaml
+├── prometheus/                   # Values-only (uses upstream chart)
+│   ├── values.yaml               # prometheus-community/kube-prometheus-stack
+│   ├── values-minikube.yaml
+│   └── values-aws.yaml
+├── grafana/                      # Values-only (uses upstream chart)
+│   ├── values.yaml               # grafana/grafana
+│   ├── values-minikube.yaml
+│   └── values-aws.yaml
+└── vault/                        # Values-only (uses upstream chart)
+    ├── values.yaml               # hashicorp/vault
+    ├── values-minikube.yaml
+    └── values-aws.yaml
+```
+
+**Important Notes**:
+- ✅ **Prometheus, Grafana, and Vault use upstream Helm charts** from their official repositories
+- ✅ **Only values overrides** are maintained locally in `helm-charts/*/values*.yaml`
+- ✅ **No chart duplication** - reduces maintenance overhead
+- ✅ **Custom web-app chart** - Complete chart maintained for sample application
+- ✅ **Environment-specific values** - Separate overrides for Minikube and AWS
+
+**Upstream Chart References**:
+| Application | Upstream Chart | Repository |
+|------------|----------------|------------|
+| Prometheus | kube-prometheus-stack | prometheus-community/helm-charts |
+| Grafana | grafana | grafana/helm-charts |
+| Vault | vault | hashicorp/vault-helm |
+| Web App | (custom) | N/A - maintained locally |
+
+### `argo-apps/` - ArgoCD GitOps Configuration
+
+**Purpose**: ArgoCD installation and application manifests
+
+```
+argo-apps/
+├── install/                        # Installation & bootstrap manifests
+│   ├── 01-namespaces.yaml         # Namespace definitions with Pod Security labels
+│   ├── 02-argocd-install.yaml     # ArgoCD installation manifest reference
+│   └── 03-bootstrap.yaml          # Bootstrap application manifests
+├── projects/                       # ArgoCD Project definitions
+│   └── prod-apps.yaml             # Production apps project (RBAC, repos)
+└── apps/                          # Application manifests
+    ├── web-app.yaml               # Web application
+    ├── prometheus.yaml            # Prometheus monitoring
+    ├── grafana.yaml               # Grafana dashboards
+    └── vault.yaml                 # HashiCorp Vault
 ```
 
 **Key Features**:
-- ✅ Domain-based organization
-- ✅ Self-contained application stacks
-- ✅ Environment-specific values files
-- ✅ Production-ready configurations
+- ✅ Clear separation of concerns
+- ✅ Numeric prefixes in install/ enforce apply order
+- ✅ All applications managed via GitOps
+- ✅ Projects provide RBAC and repository access control
 
-### `bootstrap/` - Foundation Layer
+### `terraform/` - Infrastructure as Code (Multi-Cloud Ready)
 
-**Purpose**: Initial cluster setup and core infrastructure components
+**Purpose**: Terraform modules for cloud infrastructure
 
 ```
-bootstrap/
-├── 00-namespaces.yaml              # Namespace definitions
-├── 01-pod-security-standards.yaml  # Pod Security Standards
-├── 02-network-policy.yaml          # Default network policies
-├── 03-helm-repos.yaml             # Helm repository configurations
-├── 04-argo-cd-install.yaml        # ArgoCD installation (Helm-based)
-├── 05-vault-policies.yaml         # Vault policies and authentication
-├── 06-etcd-backup.yaml            # etcd backup configuration
-├── helm-values/                   # Helm values for bootstrap components
-│   └── argo-cd-values.yaml       # Production ArgoCD configuration
-└── README.md                     # Bootstrap documentation
+terraform/
+├── environments/                   # Environment-specific configurations
+│   └── aws/                       # AWS-specific Terraform
+│       ├── main.tf                # Main configuration
+│       ├── variables.tf           # Variable definitions
+│       ├── outputs.tf             # Output values
+│       ├── backend.tf             # Remote state configuration
+│       ├── versions.tf            # Provider versions
+│       └── terraform.tfvars.example  # Example variables
+└── modules/                       # Reusable Terraform modules
+    ├── vpc/                       # VPC and networking
+    ├── eks/                       # EKS cluster with autoscaling
+    └── iam/                       # IAM roles, policies, IRSA
 ```
+
+**Multi-Cloud Extensibility**:
+- ✅ `environments/aws/` - AWS-specific configuration
+- ✅ `environments/gcp/` - Future GCP support (add when needed)
+- ✅ `environments/azure/` - Future Azure support (add when needed)
+- ✅ Shared `modules/` across all clouds
 
 **Key Features**:
-- ✅ Numeric prefixes enforce apply order
-- ✅ Self-contained foundational components
-- ✅ No application-specific configurations
-- ✅ Production-ready security configurations
-
-### `infrastructure/` - AWS Infrastructure
-
-**Purpose**: Terraform modules for AWS resources
-
-```
-infrastructure/
-└── terraform/                  # Terraform configuration
-    ├── modules/               # Reusable Terraform modules
-    │   ├── vpc/              # VPC and networking
-    │   ├── eks/              # EKS cluster
-    │   ├── iam/              # IAM roles and policies
-    │   └── backup/           # Backup configurations
-    ├── main.tf               # Main Terraform configuration
-    ├── variables.tf          # Variable definitions
-    ├── outputs.tf            # Output values
-    └── terraform.tfvars      # Variable values
-```
+- ✅ Environment-based organization
+- ✅ Reusable modules
+- ✅ Remote state with S3 backend
+- ✅ DynamoDB state locking
 
 ## 🔄 GitOps Workflow
 

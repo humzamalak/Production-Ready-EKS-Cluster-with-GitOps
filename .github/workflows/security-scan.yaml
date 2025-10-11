@@ -1,0 +1,165 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly scan on Sunday
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  container-scan:
+    name: Container Image Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract image references
+        id: images
+        run: |
+          echo "Extracting container images from Helm charts..."
+          find helm-charts -name "values*.yaml" -exec grep -h "repository:" {} \; | \
+            sed 's/.*repository: *//g' | sort -u > images.txt
+          cat images.txt
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  dependency-check:
+    name: Dependency Vulnerability Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Check for vulnerable dependencies (if package.json exists)
+        run: |
+          if [ -f "package.json" ]; then
+            npm audit --audit-level=moderate || true
+          else
+            echo "No package.json found, skipping npm audit"
+          fi
+
+      - name: Check Python dependencies (if requirements.txt exists)
+        run: |
+          if [ -f "requirements.txt" ]; then
+            pip install safety
+            safety check -r requirements.txt || true
+          else
+            echo "No requirements.txt found, skipping Python checks"
+          fi
+
+  yaml-security:
+    name: YAML Security Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Run yamllint security checks
+        run: |
+          cat > .yamllint << EOF
+          extends: default
+          rules:
+            line-length:
+              max: 200
+            indentation:
+              spaces: 2
+            truthy:
+              allowed-values: ['true', 'false', 'yes', 'no']
+          EOF
+          yamllint -c .yamllint . || true
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Checking for potential hardcoded secrets..."
+          ! grep -r -E '(password|secret|key|token).*=.*["\047][^"\047]{8,}["\047]' \
+            --include="*.yaml" \
+            --include="*.yml" \
+            --exclude-dir=.git \
+            . || echo "⚠️ Potential hardcoded secrets found"
+
+  kubernetes-security:
+    name: Kubernetes Security Best Practices
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kubesec
+        run: |
+          wget https://github.com/controlplaneio/kubesec/releases/latest/download/kubesec_linux_amd64.tar.gz
+          tar -xzf kubesec_linux_amd64.tar.gz
+          sudo mv kubesec /usr/local/bin/
+
+      - name: Run kubesec scan
+        run: |
+          echo "Scanning Kubernetes manifests for security issues..."
+          find helm-charts -name "*.yaml" -exec kubesec scan {} \; || true
+
+      - name: Check for privileged containers
+        run: |
+          echo "Checking for privileged container configurations..."
+          ! grep -r "privileged: true" helm-charts/ || echo "⚠️ Privileged containers found"
+
+      - name: Check for host network usage
+        run: |
+          echo "Checking for hostNetwork usage..."
+          ! grep -r "hostNetwork: true" helm-charts/ || echo "⚠️ hostNetwork enabled"
+
+      - name: Check for host path mounts
+        run: |
+          echo "Checking for hostPath mounts..."
+          ! grep -r "hostPath:" helm-charts/ || echo "⚠️ hostPath mounts found"
+
+  terraform-security:
+    name: Terraform Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform
+          soft_fail: true
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform
+          framework: terraform
+          soft_fail: true
+          output_format: cli
+

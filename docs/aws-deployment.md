@@ -61,7 +61,28 @@ aws sts get-caller-identity
 
 **Required AWS permissions**: EKS, VPC, IAM, EC2, CloudWatch, S3, DynamoDB
 
-## 🚀 Phase 1: AWS Infrastructure
+## 🚀 Quick Start (Automated)
+
+### Single Command Deployment
+
+```bash
+# Run the automated setup script (requires AWS credentials configured)
+./scripts/setup-aws.sh
+```
+
+This script automatically:
+- ✅ Checks prerequisites (AWS CLI, terraform, kubectl, helm)
+- ✅ Provisions AWS infrastructure with Terraform
+- ✅ Configures kubectl for EKS
+- ✅ Deploys ArgoCD
+- ✅ Bootstraps GitOps applications
+- ✅ Provides access credentials
+
+**Skip to Phase 3** for verification if using the automated script.
+
+---
+
+## 🚀 Phase 1: AWS Infrastructure (Manual)
 
 ### Step 1.1: Clone Repository
 
@@ -73,16 +94,19 @@ cd Production-Ready-EKS-Cluster-with-GitOps
 ### Step 1.2: Configure Terraform
 
 ```bash
-cd infrastructure/terraform
+cd terraform/environments/aws
 
-# Create terraform.tfvars
+# Copy example configuration
+cp terraform.tfvars.example terraform.tfvars
+
+# Edit terraform.tfvars with your values
 cat > terraform.tfvars <<EOF
 project_prefix = "my-eks-cluster"
 environment    = "prod"
 aws_region     = "us-west-2"
 
 # EKS Configuration (Kubernetes v1.33.0)
-cluster_version = "1.33"
+kubernetes_version = "1.33"
 node_instance_types = ["t3.medium"]
 min_size = 2
 max_size = 5
@@ -103,22 +127,33 @@ EOF
 terraform init
 
 # Review plan
-terraform plan -var-file="terraform.tfvars"
+terraform plan
 
 # Apply (takes 15-20 minutes)
-terraform apply -var-file="terraform.tfvars" -auto-approve
+terraform apply -auto-approve
 
 # Save outputs
-terraform output > ../infrastructure-outputs.txt
+terraform output > terraform-outputs.txt
+```
+
+**Using Makefile:**
+```bash
+# From repository root
+make init       # Initialize Terraform
+make plan       # Review plan
+make apply      # Deploy infrastructure
 ```
 
 ### Step 1.4: Configure kubectl
 
 ```bash
+# Return to repository root
+cd ../../..
+
 # Update kubeconfig
 aws eks update-kubeconfig \
-  --region $(terraform output -raw aws_region) \
-  --name $(terraform output -raw cluster_name)
+  --region us-west-2 \
+  --name production-cluster
 ```
 
 ### Step 1.5: Verify Infrastructure
@@ -134,327 +169,146 @@ kubectl cluster-info
 
 **✅ Phase 1 Complete**: EKS cluster deployed, kubectl configured
 
-## 🔧 Phase 2: Bootstrap (GitOps Foundation)
+## 🔧 Phase 2: ArgoCD Bootstrap
 
-### Step 2.1: Update Repository URL
+### Step 2.1: (Optional) Update Repository URL
 
 ```bash
-# Navigate back to repo root
-cd ../..
+# If using a fork, update the repository URL in all ArgoCD applications
+# For Linux:
+find argo-apps/ -name "*.yaml" -type f -exec sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/YOUR-ORG/YOUR-REPO|g' {} \;
 
-# Update repo URL in all manifests (replace with your fork)
-# For Linux/Mac:
-find environments/ applications/ bootstrap/ -name "*.yaml" -type f -exec sed -i 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/YOUR-ORG/YOUR-REPO|g' {} \;
-
-# For macOS (requires '' after -i):
-# find environments/ applications/ bootstrap/ -name "*.yaml" -type f -exec sed -i '' 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/YOUR-ORG/YOUR-REPO|g' {} \;
+# For macOS:
+find argo-apps/ -name "*.yaml" -type f -exec sed -i '' 's|https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps|https://github.com/YOUR-ORG/YOUR-REPO|g' {} \;
 ```
 
-> **Note**: If you're using the repository directly without forking, you can skip this step. ArgoCD will pull from the main repository.
+> **Note**: If using the main repository without forking, skip this step.
 
-### Step 2.2: Deploy Core Components
+### Step 2.2: Create Namespaces
 
 ```bash
-# Apply in order (critical for dependencies)
-kubectl apply -f bootstrap/00-namespaces.yaml
-kubectl apply -f bootstrap/01-pod-security-standards.yaml
-kubectl apply -f bootstrap/02-network-policy.yaml
-kubectl apply -f bootstrap/03-helm-repos.yaml
+# Apply namespace definitions
+kubectl apply -f argo-apps/install/01-namespaces.yaml
+
+# Wait for namespaces to be active
+kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/argocd --timeout=60s
 ```
 
 ### Step 2.3: Install ArgoCD
 
 ```bash
-# Ensure namespace exists and is ready
-kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd
-kubectl wait --for=condition=ready ns/argocd --timeout=60s
+# Install ArgoCD using official manifest
+ARGOCD_VERSION="2.13.0"
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v${ARGOCD_VERSION}/manifests/install.yaml
 
-# Add ArgoCD Helm repo
-helm repo add argo https://argoproj.github.io/argo-helm
-helm repo update
+# Wait for ArgoCD to be ready (3-5 minutes on AWS)
+kubectl wait --for=condition=available --timeout=600s \
+  deployment/argocd-server -n argocd
 
-# Install ArgoCD
-helm upgrade --install argo-cd argo/argo-cd \
-  --namespace argocd \
-  --create-namespace \
-  --values bootstrap/helm-values/argo-cd-values.yaml \
-  --wait --timeout=10m
+# Additional wait for full initialization
+sleep 30
 ```
 
-> **Note**: ArgoCD will auto-generate a random admin password and store it in the `argocd-initial-admin-secret` secret on first installation.
-
-### Step 2.4: Create Monitoring Secrets
-
+**Using Makefile:**
 ```bash
-# Create monitoring secrets before deploying apps
-./scripts/secrets.sh create monitoring
+make argo-install  # Installs ArgoCD
 ```
 
-### Step 2.5: Deploy ArgoCD Projects via GitOps
+### Step 2.4: Access ArgoCD UI
 
 ```bash
-# Deploy the projects bootstrap Application (manages all AppProjects via GitOps)
-kubectl apply -f bootstrap/05-argocd-projects.yaml
-
-# Wait for projects to be synced (ArgoCD will create prod-apps and staging-apps)
-sleep 15
-
-# Verify project creation
-kubectl get appprojects -n argocd
-# Expected output:
-#   NAME           AGE
-#   default        Xm
-#   prod-apps      Xs
-#   staging-apps   Xs
-```
-
-> **✅ What Changed**: AppProjects are now managed by Argo CD via GitOps (from `bootstrap/projects/`), eliminating manual kubectl apply steps.
-
-### Step 2.6: Access ArgoCD UI
-
-```bash
-# Get auto-generated admin password
+# Get admin password
 export ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d)
 echo "ArgoCD Password: $ARGOCD_PASSWORD"
 
-# Port forward to access UI
-kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 &
+# Port forward to access UI (temporary)
+kubectl port-forward svc/argocd-server -n argocd 8080:443 &
 echo "ArgoCD: https://localhost:8080"
 echo "Username: admin"
 echo "Password: $ARGOCD_PASSWORD"
 ```
 
-### Step 2.7: Deploy Root Application
+**Alternative**: Use the automated login script:
+```bash
+./scripts/argocd-login.sh
+```
+
+### Step 2.5: Bootstrap Applications
 
 ```bash
-# Deploy the root app-of-apps
-kubectl apply -f environments/prod/app-of-apps.yaml
+# Deploy all applications via GitOps
+kubectl apply -f argo-apps/install/03-bootstrap.yaml
 
-# Wait for root app to sync
-kubectl wait --for=condition=Synced --timeout=300s \
-  application/prod-cluster -n argocd
+# Wait for applications to appear
+sleep 15
 
-# Verify child applications are discovered
-# You should see: prometheus-prod, grafana-prod, k8s-web-app-prod
+# Verify applications
 kubectl get applications -n argocd
+# Expected: grafana, prometheus, vault, web-app
 ```
 
-**✅ Phase 2 Complete**: ArgoCD installed, root application synced
+**Using Makefile:**
+```bash
+make argo-bootstrap  # Deploys all applications
+```
 
-## 📊 Phase 3: Monitoring Stack
+**✅ Phase 2 Complete**: ArgoCD installed and applications bootstrapped
 
-### Step 3.1: Wait for Monitoring Deployment
+## 📊 Phase 3: Applications Deployment
+
+> **Note**: ArgoCD automatically deploys all applications defined in `argo-apps/install/03-bootstrap.yaml`. This includes Prometheus, Grafana, Vault, and the web application. All applications use **upstream Helm charts** (except web-app) with environment-specific values overrides.
+
+### Step 3.1: Update Application Values for AWS
+
+Before syncing, ensure applications use AWS-specific values:
 
 ```bash
-# Wait for Prometheus to deploy
-kubectl wait --for=condition=Synced --timeout=600s \
-  application/prometheus-prod -n argocd
+# Edit each ArgoCD application manifest to use AWS values
+vi argo-apps/apps/web-app.yaml
+# Uncomment the values-aws.yaml line:
+# helm:
+#   valueFiles:
+#     - values.yaml
+#     - values-aws.yaml  # Uncomment this
 
-# Wait for Grafana to deploy
-kubectl wait --for=condition=Synced --timeout=600s \
-  application/grafana-prod -n argocd
+# Repeat for prometheus, grafana, vault
+```
 
-# Check monitoring pods
+Or use sed to update all at once:
+```bash
+# Uncomment values-aws.yaml in all application manifests
+sed -i 's|# *- values-aws.yaml|- values-aws.yaml|g' argo-apps/apps/*.yaml
+```
+
+### Step 3.2: Monitor Application Sync
+
+```bash
+# Watch applications as they sync
+watch kubectl get applications -n argocd
+
+# Check sync status
+kubectl get applications -n argocd -o wide
+```
+
+### Step 3.3: Wait for All Pods
+
+```bash
+# Check all pods are running
+kubectl get pods -A
+
+# Verify monitoring stack
 kubectl get pods -n monitoring
-```
 
-### Step 3.2: Access Monitoring Services
-
-```bash
-# Prometheus
-kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus \
-  -n monitoring 9090:9090 &
-echo "Prometheus: http://localhost:9090"
-
-# Grafana
-export GRAFANA_PASSWORD=$(kubectl get secret grafana-admin -n monitoring \
-  -o jsonpath="{.data.admin-password}" | base64 -d)
-kubectl port-forward svc/grafana -n monitoring 3000:80 &
-echo "Grafana: http://localhost:3000 (admin / $GRAFANA_PASSWORD)"
-```
-
-### Step 3.3: Verify Monitoring
-
-```bash
-# Check ServiceMonitors
-kubectl get servicemonitors -n monitoring
-
-# Check Prometheus targets
-curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length'
-```
-
-**✅ Phase 3 Complete**: Monitoring stack deployed and collecting metrics
-
-## 🔒 Phase 4: Vault Deployment (Optional)
-
-> **⚠️ Important**: Vault is currently disabled in this repository. The `vault` namespace is commented out in `bootstrap/00-namespaces.yaml`. To enable Vault, uncomment the vault namespace section and create a separate Vault Application manifest in `environments/prod/apps/`.
-
-> **💡 Skip This Phase**: Vault integration is not yet implemented. Proceed to Phase 6 to deploy the web application without Vault secrets.
-
-### Step 4.1: Wait for Vault Deployment (Not Currently Available)
-
-```bash
-# Note: Vault is not currently deployed via ArgoCD in this repository
-# If you manually deploy Vault, you can check the pods with:
-# kubectl get pods -n vault
-```
-
-### Step 4.2: Port Forward to Vault
-
-```bash
-# Set up port forward
-kubectl port-forward svc/vault -n vault 8200:8200 &
-export VAULT_ADDR="http://localhost:8200"
-```
-
-**✅ Phase 4 Complete**: Vault deployed and accessible
-
-## 🔧 Phase 5: Vault Configuration (Optional)
-
-> **⚠️ Prerequisites**: Phase 4 must be complete.
-
-### Step 5.1: Initialize Vault
-
-```bash
-# Initialize Vault (SAVE THE OUTPUT!)
-vault operator init -key-shares=1 -key-threshold=1 > vault-keys.txt
-
-# Extract credentials
-export VAULT_TOKEN=$(grep 'Initial Root Token:' vault-keys.txt | awk '{print $NF}')
-export VAULT_UNSEAL_KEY=$(grep 'Unseal Key 1:' vault-keys.txt | awk '{print $NF}')
-
-echo "Root Token: $VAULT_TOKEN"
-echo "Unseal Key: $VAULT_UNSEAL_KEY"
-
-# ⚠️ IMPORTANT: Backup vault-keys.txt securely
-```
-
-### Step 5.2: Unseal and Configure Vault
-
-```bash
-# Unseal Vault
-vault operator unseal $VAULT_UNSEAL_KEY
-
-# Enable secrets engine
-vault secrets enable -path=secret kv-v2
-
-# Enable Kubernetes authentication
-vault auth enable kubernetes
-vault write auth/kubernetes/config \
-  kubernetes_host="https://kubernetes.default.svc.cluster.local"
-```
-
-### Step 5.3: Create Policies and Secrets
-
-```bash
-# Create web app policy
-vault policy write k8s-web-app - <<EOF
-path "secret/data/production/web-app/*" {
-  capabilities = ["read"]
-}
-path "secret/metadata/production/web-app/*" {
-  capabilities = ["read", "list"]
-}
-path "auth/kubernetes/login" {
-  capabilities = ["create", "update"]
-}
-path "auth/token/renew-self" {
-  capabilities = ["update"]
-}
-EOF
-
-# Create Kubernetes role
-vault write auth/kubernetes/role/k8s-web-app \
-  bound_service_account_names=k8s-web-app \
-  bound_service_account_namespaces=production \
-  policies=k8s-web-app \
-  ttl=1h \
-  max_ttl=24h
-
-# Create application secrets
-vault kv put secret/production/web-app/db \
-  host="your-production-db.amazonaws.com" \
-  port="5432" \
-  name="k8s_web_app_prod" \
-  username="k8s_web_app_user" \
-  password="$(openssl rand -base64 32)"
-
-vault kv put secret/production/web-app/api \
-  jwt_secret="$(openssl rand -base64 64)" \
-  encryption_key="$(openssl rand -base64 32)" \
-  api_key="$(openssl rand -base64 32)"
-```
-
-**✅ Phase 5 Complete**: Vault configured with policies and secrets
-
-## 🌐 Phase 6: Web Application Deployment
-
-### Step 6.1: Deploy Web Application
-
-```bash
-# Wait for app to sync (using values without Vault secrets)
-kubectl wait --for=condition=Synced --timeout=600s \
-  application/k8s-web-app-prod -n argocd
-
-# Check pods
+# Verify web application
 kubectl get pods -n production
 ```
 
-### Step 6.2: Access the Web Application
-
+**Using Makefile:**
 ```bash
-# Option A: Ingress (recommended in production)
-kubectl get ingress k8s-web-app -n production
-# Point DNS to the address and browse to the host
-
-# Option B: Port-forward (quick test)
-kubectl port-forward svc/k8s-web-app -n production 8081:80 &
-echo "Web App: http://localhost:8081"
-
-# Test application
-curl -s http://localhost:8081/health
+make argo-sync     # Sync all applications
+make status        # Check deployment status
 ```
-
-**✅ Phase 6 Complete**: Web application deployed and accessible
-
-## 🔐 Phase 7: Vault Integration (Optional)
-
-> **⚠️ Prerequisites**: Phases 4, 5, and 6 must be complete.
-
-### Step 7.1: Enable Vault in Web App
-
-```bash
-# Edit the production values file to enable Vault, then commit
-vi applications/web-app/k8s-web-app/values.yaml
-# Set:
-# vault:
-#   enabled: true
-#   ready: true
-
-git add applications/web-app/k8s-web-app/values.yaml
-git commit -m "Enable Vault for web app (prod)"
-git push
-
-# Argo CD will reconcile automatically; verify status
-kubectl get applications -n argocd
-```
-
-### Step 7.2: Verify Vault Integration
-
-```bash
-# Check pod has 2 containers now (app + vault-agent)
-kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app \
-  -o jsonpath='{.items[0].spec.containers[*].name}'
-
-# Check secrets are injected
-kubectl exec -n production deployment/k8s-web-app -- ls -la /vault/secrets/
-
-# Test application still works
-curl -s http://localhost:8081/health
-```
-
-**✅ Phase 7 Complete**: Vault integration enabled and working
 
 ## ✅ Final Verification
 
@@ -501,64 +355,96 @@ kubectl port-forward svc/k8s-web-app -n production 8081:80 &
 echo "Web App: http://localhost:8081"
 ```
 
+### Access All Services
+
+```bash
+# Get credentials
+export ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d)
+
+# ArgoCD (temporary - use ALB Ingress for production)
+kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+echo "ArgoCD: https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
+
+# Prometheus
+kubectl port-forward svc/prometheus-operated -n monitoring 9090:9090 &
+echo "Prometheus: http://localhost:9090"
+
+# Grafana
+kubectl port-forward svc/grafana -n monitoring 3000:80 &
+echo "Grafana: http://localhost:3000"
+
+# Vault
+kubectl port-forward svc/vault -n vault 8200:8200 &
+echo "Vault: http://localhost:8200"
+
+# Web App
+kubectl port-forward svc/web-app -n production 8081:80 &
+echo "Web App: http://localhost:8081"
+```
+
+**Using Makefile:**
+```bash
+make port-forward-argocd   # Quick access to ArgoCD
+make port-forward-grafana  # Quick access to Grafana
+```
+
 ## 🔧 Configuration Updates
 
 ### Update Application Configuration
 
 ```bash
-# Edit production values
-vi applications/web-app/k8s-web-app/values.yaml
+# Edit AWS-specific values
+vi helm-charts/web-app/values-aws.yaml
 
-# Commit changes (Argo CD auto-sync applies)
-git add applications/web-app/k8s-web-app/values.yaml
-git commit -m "Update application configuration"
+# Commit changes (ArgoCD auto-sync applies)
+git add helm-charts/web-app/values-aws.yaml
+git commit -m "Update web app AWS configuration"
 git push
+
+# Monitor sync
+kubectl get application web-app -n argocd -w
 ```
 
 ### Scale Application
 
 ```bash
-# Manual scaling
-kubectl scale deployment k8s-web-app -n production --replicas=5
+# View current HPA configuration
+kubectl get hpa -n production
 
-# Or update HPA
-kubectl patch hpa k8s-web-app -n production --patch '{"spec":{"maxReplicas":30}}'
+# Manual scaling (bypasses HPA)
+kubectl scale deployment web-app -n production --replicas=5
+
+# Update HPA for automatic scaling
+vi helm-charts/web-app/values-aws.yaml
+# Update autoscaling.minReplicas and maxReplicas
 ```
 
 ## 🚨 Troubleshooting
 
-### Common Issues
+### ArgoCD Application Not Syncing
 
-#### ArgoCD Application Sync Errors
-
-**Secret Reference Errors**:
 ```bash
-# Check application configuration
-kubectl get application k8s-web-app-prod -n argocd -o yaml
+# Check application status
+kubectl describe application web-app -n argocd
 
-# Force refresh
-kubectl patch application k8s-web-app-prod -n argocd \
-  --type merge -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'
+# View sync diff
+kubectl get application web-app -n argocd -o yaml
+
+# Force sync
+kubectl patch application web-app -n argocd --type merge -p '{"operation":{"sync":{}}}'
 ```
 
-#### Vault Issues
+### Terraform Issues
 
-**Vault Not Unsealed**:
+**State Lock Errors**:
 ```bash
-# Check status
-vault status
+# Check DynamoDB lock table
+aws dynamodb scan --table-name terraform-state-lock
 
-# Unseal if needed
-vault operator unseal $VAULT_UNSEAL_KEY
-```
-
-**Authentication Failures**:
-```bash
-# Check service account
-kubectl get sa k8s-web-app -n production -o yaml
-
-# Verify Vault role
-vault read auth/kubernetes/role/k8s-web-app
+# Force unlock (use with caution)
+cd terraform/environments/aws
+terraform force-unlock <lock-id>
 ```
 
 ### Infrastructure Issues
@@ -569,65 +455,112 @@ vault read auth/kubernetes/role/k8s-web-app
 kubectl describe nodes
 
 # Check EKS cluster
-aws eks describe-cluster --name $(terraform output -raw cluster_name) --region $(terraform output -raw aws_region)
+aws eks describe-cluster --name production-cluster --region us-west-2
+
+# Check node group
+aws eks describe-nodegroup \
+  --cluster-name production-cluster \
+  --nodegroup-name production-node-group \
+  --region us-west-2
 ```
+
+**For more troubleshooting**: See [Troubleshooting Guide](troubleshooting.md)
 
 ## 🧹 Cleanup
 
 ### Destroy Everything
 
 ```bash
-# Delete applications
-kubectl delete -f environments/prod/app-of-apps.yaml
+# Delete all applications
+kubectl delete -f argo-apps/install/03-bootstrap.yaml
+
+# Wait for applications to be removed
+sleep 30
 
 # Delete ArgoCD
-helm uninstall argo-cd -n argocd
+kubectl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.0/manifests/install.yaml
 
 # Delete namespaces
-kubectl delete namespace argocd monitoring vault production
+kubectl delete -f argo-apps/install/01-namespaces.yaml
 
-# Destroy infrastructure
-cd infrastructure/terraform
-terraform destroy -var-file="terraform.tfvars" -auto-approve
+# Destroy AWS infrastructure
+cd terraform/environments/aws
+terraform destroy -auto-approve
+```
+
+**Using Makefile:**
+```bash
+make destroy  # Destroy Terraform infrastructure
 ```
 
 ### Cleanup Specific Components
 
 ```bash
-# Remove application only
-kubectl delete application k8s-web-app-prod -n argocd
+# Remove single application
+kubectl delete application web-app -n argocd
 
-# Remove Prometheus
-kubectl delete application prometheus-prod -n argocd
+# Remove monitoring stack
+kubectl delete application prometheus -n argocd
+kubectl delete application grafana -n argocd
 
-# Remove Grafana
-kubectl delete application grafana-prod -n argocd
+# Remove vault
+kubectl delete application vault -n argocd
 ```
 
-## 🔐 Adding Vault Later
+## 📚 Additional Resources
 
-If you skipped Phases 4-5-7 and want to add Vault later:
+### Documentation
+- **[Architecture Guide](architecture.md)** - Repository structure and GitOps flow
+- **[Troubleshooting Guide](troubleshooting.md)** - Common issues and solutions
+- **[ArgoCD CLI Setup](argocd-cli-setup.md)** - Cross-platform ArgoCD CLI
+- **[Scripts Documentation](scripts.md)** - Detailed script usage
+- **[CI/CD Pipeline](ci_cd_pipeline.md)** - GitHub Actions automation
+- **[Vault Setup Guide](vault-setup.md)** - Vault integration details
 
-### Prerequisites
-Your deployment should have:
-- ✅ Infrastructure (Phase 1)
-- ✅ ArgoCD (Phase 2)
-- ✅ Monitoring (Phase 3)
-- ✅ Web App running without secrets (Phase 6)
+### Makefile Commands
 
-### Steps
-1. **Deploy Vault**: The security-stack should auto-appear from your root app
-2. **Configure Vault**: Follow Phase 5 steps to initialize and configure
-3. **Enable Vault in Web App**: Follow Phase 7 steps to integrate
+```bash
+# Show all available commands
+make help
 
-## 📚 Next Steps
+# Common AWS deployment commands
+make deploy-aws              # Full automated AWS deployment
+make deploy-infra ENV=prod   # Deploy infrastructure only
+make deploy-bootstrap ENV=prod # Bootstrap ArgoCD
+make validate-all            # Validate everything
+make version                 # Show version information
+```
 
-1. **Configure SSL/TLS**: Set up cert-manager for automatic certificate management
-2. **Set up CI/CD**: Integrate with GitHub Actions for automated deployments
-3. **Configure Backups**: Set up automated backups for etcd and Vault
-4. **Set up Alerts**: Configure AlertManager rules for production monitoring
-5. **Security Hardening**: Review and implement security best practices
-6. **Add More Applications**: Deploy additional services using the same pattern
+### GitHub Actions CI/CD
+
+This repository includes automated workflows for:
+- **Validation**: YAML, Helm, Terraform syntax on every PR
+- **Documentation**: Link checking and markdown linting
+- **Terraform Plan**: Automatic plan comments on PRs
+- **Terraform Apply**: Automated deployment on merge to main
+- **ArgoCD Deploy**: Application sync on changes
+- **Security Scan**: Weekly security scans and vulnerability checks
+
+See [CI/CD Pipeline Documentation](ci_cd_pipeline.md) for details.
+
+### Helm Chart Information
+
+This repository uses **upstream Helm charts** with local values overrides:
+- **Prometheus**: prometheus-community/kube-prometheus-stack (values in `helm-charts/prometheus/`)
+- **Grafana**: grafana/grafana (values in `helm-charts/grafana/`)
+- **Vault**: hashicorp/vault (values in `helm-charts/vault/`)
+- **Web App**: Custom chart (complete chart in `helm-charts/web-app/`)
+
+Only values files are maintained locally - no chart duplication.
+
+## 📝 Next Steps
+
+1. **Configure ALB Ingress Controller**: For production access without port-forwarding
+2. **Set up Route53 DNS**: Point domains to application load balancers
+3. **Enable GitHub Actions**: Configure secrets and enable CI/CD workflows
+4. **Configure Monitoring Alerts**: Set up AlertManager rules
+5. **Implement Backup Strategy**: Automated backups for Vault and etcd
+6. **Security Hardening**: Review and implement additional security measures
 
 ---
 

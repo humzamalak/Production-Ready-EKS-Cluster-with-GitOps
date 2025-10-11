@@ -1,0 +1,133 @@
+name: Validate
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  yaml-validation:
+    name: YAML Syntax Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Validate YAML files
+        run: |
+          echo "Validating YAML syntax..."
+          find . -name "*.yaml" -o -name "*.yml" | while read file; do
+            echo "Checking $file"
+            yq eval '.' "$file" > /dev/null || exit 1
+          done
+
+  helm-lint:
+    name: Helm Chart Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.13.0'
+
+      - name: Lint Helm charts
+        run: |
+          echo "Linting Helm charts..."
+          for chart in helm-charts/*/; do
+            if [ -f "$chart/Chart.yaml" ]; then
+              echo "Linting $chart"
+              helm lint "$chart"
+              helm template test "$chart" --dry-run
+            fi
+          done
+
+  terraform-validation:
+    name: Terraform Format & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.5.0'
+
+      - name: Terraform Format Check
+        run: |
+          cd terraform
+          terraform fmt -check -recursive
+
+      - name: Terraform Init
+        run: |
+          cd terraform/environments/aws
+          terraform init -backend=false
+
+      - name: Terraform Validate
+        run: |
+          cd terraform/environments/aws
+          terraform validate
+
+  argocd-validation:
+    name: ArgoCD Application Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Validate ArgoCD Applications
+        run: |
+          echo "Validating ArgoCD applications..."
+          for app in argo-apps/apps/*.yaml; do
+            echo "Validating $app"
+            kubectl apply --dry-run=client -f "$app" || exit 1
+          done
+
+      - name: Check Application Annotation Size
+        run: |
+          echo "Checking annotation sizes..."
+          for app in argo-apps/apps/*.yaml; do
+            size=$(wc -c < "$app")
+            if [ "$size" -gt 262144 ]; then
+              echo "ERROR: $app exceeds 256KB annotation limit ($size bytes)"
+              exit 1
+            fi
+            echo "✓ $app: $size bytes (OK)"
+          done
+
+  script-validation:
+    name: Script Syntax Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Shell Scripts
+        run: |
+          echo "Validating shell scripts..."
+          for script in scripts/*.sh; do
+            echo "Checking $script"
+            bash -n "$script" || exit 1
+          done
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          find scripts -name "*.sh" -exec shellcheck {} \; || true
+

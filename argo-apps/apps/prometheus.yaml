@@ -1,0 +1,93 @@
+# =============================================================================
+# ArgoCD Application - Prometheus Stack
+# =============================================================================
+#
+# Deploys kube-prometheus-stack (Prometheus + Alertmanager + Grafana + exporters).
+# This is the primary monitoring solution for the cluster.
+#
+# Chart: prometheus-community/kube-prometheus-stack
+# Version: 61.6.0
+# Namespace: monitoring
+#
+# Components:
+#   - Prometheus Operator
+#   - Prometheus Server
+#   - Alertmanager
+#   - Node Exporter
+#   - Kube State Metrics
+#   - Grafana (managed separately via grafana.yaml)
+#
+# Values Files:
+#   - Default: apps/prometheus/values.yaml
+#   - Minikube: apps/prometheus/values-minikube.yaml
+#   - AWS: apps/prometheus/values-aws.yaml
+#
+# Sync Wave: 3 (deploys before Grafana and apps)
+# Compatibility: Kubernetes 1.33+
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: monitoring-stack
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    description: "Prometheus monitoring stack"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: prod-apps
+  
+  # Multi-source pattern: chart from Helm repo, values from Git
+  sources:
+    # Prometheus Helm chart
+    - repoURL: 'https://prometheus-community.github.io/helm-charts'
+      chart: kube-prometheus-stack
+      targetRevision: 61.6.0
+      helm:
+        valueFiles:
+          - $values/apps/prometheus/values.yaml
+          # Environment-specific values (uncomment as needed)
+          # - $values/apps/prometheus/values-minikube.yaml
+          # - $values/apps/prometheus/values-aws.yaml
+    
+    # Values from Git repository
+    - repoURL: 'https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps'
+      targetRevision: main
+      ref: values
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+      - ServerSideApply=true  # Required for CRDs
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Ignore replicas managed by HPA and other dynamic fields
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/replicas
+  
+  revisionHistoryLimit: 3
+
+
+

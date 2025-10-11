@@ -60,25 +60,42 @@ Choose your deployment path based on your target environment:
 ## 📁 Repository Structure
 
 ```
-├── argocd/                  # ArgoCD GitOps Configuration
+├── argo-apps/               # ArgoCD GitOps Configuration
 │   ├── install/            # ArgoCD installation manifests
 │   ├── projects/           # ArgoCD Projects (RBAC, repos, destinations)
 │   └── apps/               # ArgoCD Applications (web-app, prometheus, grafana, vault)
-├── apps/                    # Application Helm Charts & Values
+├── helm-charts/             # Helm Charts & Values
 │   ├── web-app/            # Custom web app Helm chart
-│   ├── prometheus/         # Prometheus values (default, minikube, AWS)
-│   ├── grafana/            # Grafana values (default, minikube, AWS)
-│   └── vault/              # Vault values (default, minikube, AWS)
-├── infrastructure/          # Terraform for AWS EKS
-│   └── terraform/          # Terraform modules (VPC, EKS, IAM)
-├── scripts/                 # Deployment & management scripts
+│   ├── prometheus/         # Prometheus values (upstream chart: prometheus-community)
+│   ├── grafana/            # Grafana values (upstream chart: grafana)
+│   └── vault/              # Vault values (upstream chart: hashicorp)
+├── terraform/               # Infrastructure as Code (Multi-Cloud Ready)
+│   ├── environments/
+│   │   └── aws/            # AWS-specific Terraform configuration
+│   └── modules/            # Reusable Terraform modules (VPC, EKS, IAM)
+├── .github/workflows/       # CI/CD Automation
+│   ├── validate.yaml       # Validation on PR/push
+│   ├── docs-lint.yaml      # Documentation quality checks
+│   ├── terraform-plan.yaml # Infrastructure planning
+│   ├── terraform-apply.yaml# Infrastructure deployment
+│   ├── deploy-argocd.yaml  # Application deployment
+│   └── security-scan.yaml  # Security scanning
+├── scripts/                 # Deployment & Management Scripts
+│   ├── deploy.sh           # Unified deployment interface
 │   ├── setup-minikube.sh   # Minikube deployment
 │   ├── setup-aws.sh        # AWS EKS deployment
-│   ├── deploy.sh           # Unified deployment interface
-│   ├── validate.sh         # Validation script
-│   ├── secrets.sh          # Secrets management
-│   └── argocd-login.sh     # ArgoCD CLI login automation (Windows)
-└── docs/                    # Comprehensive documentation
+│   ├── argocd-login.sh     # ArgoCD CLI login (cross-platform)
+│   ├── validate.sh         # Comprehensive validation
+│   └── cleanup.sh          # Safe file cleanup with backup
+├── docs/                    # Comprehensive Documentation
+│   ├── deployment.md       # Consolidated deployment guide
+│   ├── architecture.md     # System architecture
+│   ├── ci_cd_pipeline.md   # GitHub Actions documentation
+│   ├── scripts.md          # Scripts usage guide
+│   └── troubleshooting.md  # Common issues & solutions
+└── reports/                 # Audit & Cleanup Reports
+    ├── AUDIT_SUMMARY.md    # Repository audit summary
+    └── CLEANUP_MANIFEST.md # File removal tracking
 ```
 
 ## 🚦 Getting Started
@@ -90,10 +107,24 @@ Choose your deployment path based on your target environment:
 
 ## 🔧 Management Scripts
 
-This repository includes consolidated management scripts for common operations:
+This repository includes streamlined scripts and Makefile targets for common operations:
 
-### **Deployment Script** (`scripts/deploy.sh`)
-Unified interface for deploying and managing infrastructure:
+### **Quick Commands via Makefile**
+
+```bash
+make help                    # Show all available commands (auto-generated)
+make deploy-minikube         # Deploy complete stack to Minikube
+make deploy-aws              # Deploy complete stack to AWS EKS
+make validate-all            # Validate all components
+make argo-login              # Login to ArgoCD CLI
+make port-forward-argocd     # Access ArgoCD UI
+make version                 # Show version information
+```
+
+### **Core Scripts**
+
+**Deployment Script** (`scripts/deploy.sh`)
+Unified interface for infrastructure and application deployment:
 ```bash
 ./scripts/deploy.sh terraform prod          # Deploy infrastructure
 ./scripts/deploy.sh bootstrap prod          # Bootstrap ArgoCD
@@ -102,7 +133,14 @@ Unified interface for deploying and managing infrastructure:
 ./scripts/deploy.sh sync prod               # Sync applications
 ```
 
-### **Validation Script** (`scripts/validate.sh`)
+**Setup Scripts**
+Environment-specific automated deployment:
+```bash
+./scripts/setup-minikube.sh                 # Complete Minikube setup
+./scripts/setup-aws.sh                      # Complete AWS EKS setup
+```
+
+**Validation Script** (`scripts/validate.sh`)
 Comprehensive validation across all components:
 ```bash
 ./scripts/validate.sh all                   # Validate everything
@@ -111,36 +149,34 @@ Comprehensive validation across all components:
 ./scripts/validate.sh security              # Validate security configs
 ```
 
-### **Secrets Management** (`scripts/secrets.sh`)
-Complete secrets lifecycle management:
+**ArgoCD CLI Login** (`scripts/argocd-login.sh`)
+Automated ArgoCD CLI setup with cross-platform support:
 ```bash
-./scripts/secrets.sh create monitoring      # Create secrets
-./scripts/secrets.sh rotate web-app         # Rotate secrets
-./scripts/secrets.sh verify all             # Verify secrets
-./scripts/secrets.sh backup vault           # Backup secrets
+./scripts/argocd-login.sh                   # Setup port-forward, login, and list apps
+./scripts/argocd-login.sh --verbose         # Run with detailed logging
 ```
 
-### **ArgoCD CLI Login** (`scripts/argocd-login.sh`)
-Automated ArgoCD CLI setup with port-forwarding and login (Windows Git Bash):
-```bash
-./scripts/argocd-login.sh                   # Setup port-forward, login, and sync apps
-```
+**Cross-Platform Support:**
+- ✅ **Linux** - Native `argocd` binary
+- ✅ **macOS** - Native `argocd` binary  
+- ✅ **Windows Git Bash** - Automatic `argocd.exe` detection with intelligent wrapper
+  - Auto-detects using `where.exe`
+  - Tests direct execution and `cmd.exe` wrapper
+  - Converts Windows paths to Git Bash format
+  - See [ArgoCD CLI Setup](docs/argocd-cli-setup.md) for details
 
-### **ArgoCD Diagnostics** (`scripts/argo-diagnose.sh`)
-ArgoCD connection and diagnostic tool:
-```bash
-./scripts/argo-diagnose.sh                  # Connect to ArgoCD and list apps
-```
+## 🤖 CI/CD Automation
 
-### **Makefile Targets**
-Convenient Make targets for common operations:
-```bash
-make validate-all                           # Validate all components
-make create-secrets                         # Create all secrets
-make deploy-infra ENV=prod                  # Deploy infrastructure
-make bootstrap-cluster ENV=prod             # Bootstrap cluster
-make generate-config ENV=prod               # Generate configurations
-```
+This repository includes **6 GitHub Actions workflows** for automated validation and deployment:
+
+- **validate.yaml** - YAML, Helm, Terraform, and ArgoCD validation on every PR
+- **docs-lint.yaml** - Markdown linting and broken link detection
+- **terraform-plan.yaml** - Automatic Terraform plan on PRs with policy checks
+- **terraform-apply.yaml** - Automated infrastructure deployment with version tagging
+- **deploy-argocd.yaml** - Application deployment and sync automation
+- **security-scan.yaml** - Container scanning, dependency checks, and security linting
+
+See [CI/CD Pipeline Documentation](docs/ci_cd_pipeline.md) for details.
 
 ## 🔧 Maintenance
 

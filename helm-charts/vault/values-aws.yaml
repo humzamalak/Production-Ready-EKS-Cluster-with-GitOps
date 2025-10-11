@@ -1,0 +1,134 @@
+# =============================================================================
+# HashiCorp Vault - AWS EKS Values
+# =============================================================================
+# Production HA configuration
+# =============================================================================
+
+# Vault server in HA mode
+server:
+  # Disable dev mode
+  dev:
+    enabled: false
+  
+  # Service account with IAM role for KMS access
+  serviceAccount:
+    create: true
+    name: vault-server
+    annotations:
+      eks.amazonaws.com/role-arn: ""  # Add your IAM role ARN for KMS access
+  
+  # HA mode with Raft storage
+  ha:
+    enabled: true
+    replicas: 3
+    
+    raft:
+      enabled: true
+      setNodeId: true
+      
+      config: |
+        ui = true
+        
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+        
+        storage "raft" {
+          path = "/vault/data"
+          
+          retry_join {
+            leader_api_addr = "http://vault-0.vault-internal:8200"
+          }
+          
+          retry_join {
+            leader_api_addr = "http://vault-1.vault-internal:8200"
+          }
+          
+          retry_join {
+            leader_api_addr = "http://vault-2.vault-internal:8200"
+          }
+        }
+        
+        seal "awskms" {
+          region     = "us-west-2"
+          kms_key_id = "alias/vault-kms-key"
+        }
+        
+        service_registration "kubernetes" {}
+        
+        telemetry {
+          prometheus_retention_time = "30s"
+          disable_hostname = true
+        }
+  
+  # Production resources
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 500m
+    limits:
+      memory: 1Gi
+      cpu: 1000m
+  
+  # Persistent storage
+  dataStorage:
+    enabled: true
+    size: 50Gi
+    storageClass: gp3
+    accessMode: ReadWriteOnce
+  
+  # Ingress with ALB
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: '443'
+      alb.ingress.kubernetes.io/certificate-arn: ""  # Add ACM certificate ARN
+    hosts:
+      - host: vault.example.com
+        paths: [/]
+    tls:
+      - secretName: vault-tls
+        hosts:
+          - vault.example.com
+  
+  # Pod anti-affinity for HA
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: vault
+              app.kubernetes.io/instance: vault
+              component: server
+          topologyKey: kubernetes.io/hostname
+
+# Injector with HA
+injector:
+  replicas: 2
+  
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 1Gi
+      cpu: 500m
+  
+  affinity: |
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: vault-agent-injector
+            topologyKey: kubernetes.io/hostname
+
+
+
