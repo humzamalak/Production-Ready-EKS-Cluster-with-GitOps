@@ -146,6 +146,10 @@ spec:
     - group: 'autoscaling'
       kind: HorizontalPodAutoscaler
     
+    # Policy
+    - group: 'policy'
+      kind: PodDisruptionBudget
+    
     # RBAC
     - group: 'rbac.authorization.k8s.io'
       kind: Role
