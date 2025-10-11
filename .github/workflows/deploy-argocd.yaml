@@ -1,0 +1,107 @@
+name: Deploy ArgoCD Applications
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'argo-apps/**'
+      - 'helm-charts/**'
+      - '.github/workflows/deploy-argocd.yaml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+          - development
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'production' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    env:
+      AWS_REGION: us-east-1
+      ARGOCD_SERVER: localhost:8080
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update Kubeconfig
+        run: |
+          aws eks update-kubeconfig --name production-cluster --region $AWS_REGION
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/
+
+      - name: Wait for ArgoCD Server
+        run: |
+          kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd || true
+
+      - name: Port Forward ArgoCD
+        run: |
+          kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+          sleep 10
+
+      - name: Login to ArgoCD
+        env:
+          ARGOCD_PASSWORD: ${{ secrets.ARGOCD_PASSWORD }}
+        run: |
+          argocd login localhost:8080 \
+            --username admin \
+            --password $ARGOCD_PASSWORD \
+            --insecure
+
+      - name: Sync Applications
+        run: |
+          echo "Syncing ArgoCD applications..."
+          for app in argo-apps/apps/*.yaml; do
+            app_name=$(yq eval '.metadata.name' "$app")
+            echo "Syncing $app_name..."
+            argocd app sync "$app_name" --prune --force || echo "Failed to sync $app_name"
+          done
+
+      - name: Wait for Sync
+        run: |
+          echo "Waiting for applications to be healthy..."
+          for app in argo-apps/apps/*.yaml; do
+            app_name=$(yq eval '.metadata.name' "$app")
+            argocd app wait "$app_name" --health --timeout 600 || echo "Timeout waiting for $app_name"
+          done
+
+      - name: Get Application Status
+        run: |
+          echo "Application Status:"
+          argocd app list
+
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Applications Deployed" >> $GITHUB_STEP_SUMMARY
+          argocd app list -o json | jq -r '.[] | "- **\(.metadata.name)**: \(.status.health.status) / \(.status.sync.status)"' >> $GITHUB_STEP_SUMMARY
+

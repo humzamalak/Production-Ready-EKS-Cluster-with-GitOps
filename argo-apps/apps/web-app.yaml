@@ -1,0 +1,85 @@
+# =============================================================================
+# ArgoCD Application - Web App
+# =============================================================================
+#
+# Deploys the sample web application using Helm chart.
+# Supports both Minikube and AWS EKS via values files.
+#
+# Chart: Custom Helm chart in apps/web-app
+# Namespace: production
+# Values:
+#   - Default: apps/web-app/values.yaml
+#   - Minikube: apps/web-app/values-minikube.yaml
+#   - AWS: apps/web-app/values-aws.yaml
+#
+# Features:
+#   - HorizontalPodAutoscaler
+#   - NetworkPolicy
+#   - ServiceMonitor (Prometheus integration)
+#   - Vault integration (optional)
+#
+# Sync Wave: 5 (deploys after monitoring stack)
+# Compatibility: Kubernetes 1.33+
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: web-app
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: web-app
+    app.kubernetes.io/part-of: production-workloads
+    app.kubernetes.io/managed-by: argocd
+    environment: production
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    description: "Sample web application deployment"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: prod-apps
+  
+  source:
+    repoURL: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
+    targetRevision: main
+    path: apps/web-app
+    helm:
+      # Use default values, override with environment-specific as needed
+      valueFiles:
+        - values.yaml
+        # Uncomment for Minikube:
+        # - values-minikube.yaml
+        # Uncomment for AWS:
+        # - values-aws.yaml
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Ignore replicas changes (managed by HPA)
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+  
+  revisionHistoryLimit: 3
+
+
+

@@ -35,6 +35,7 @@ NC='\033[0m' # No Color
 REPO_URL="https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps"
 CLUSTER_NAME="${CLUSTER_NAME:-production-cluster}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
+ARGOCD_VERSION="2.13.0"
 SKIP_TERRAFORM=false
 
 # Parse arguments
@@ -108,7 +109,7 @@ provision_infrastructure() {
     
     log_step "Provisioning AWS infrastructure with Terraform..."
     
-    cd infrastructure/terraform
+    cd terraform/environments/aws
     
     # Initialize Terraform
     log_info "Initializing Terraform..."
@@ -122,7 +123,7 @@ provision_infrastructure() {
     log_info "Applying Terraform configuration..."
     terraform apply tfplan
     
-    cd ../..
+    cd ../../..
     
     log_info "Infrastructure provisioned successfully!"
 }
@@ -147,18 +148,26 @@ deploy_argocd() {
     log_step "Deploying ArgoCD on EKS..."
     
     # Apply namespaces
-    kubectl apply -f argocd/install/01-namespaces.yaml
+    kubectl apply -f argo-apps/install/01-namespaces.yaml
     
     # Wait for namespaces
     kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/argocd --timeout=60s
     
-    # Apply ArgoCD installation
-    kubectl apply -f argocd/install/02-argocd-install.yaml
+    # Install ArgoCD using official manifest
+    log_info "Installing ArgoCD v${ARGOCD_VERSION}..."
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v${ARGOCD_VERSION}/manifests/install.yaml
     
     # Wait for ArgoCD to be ready
     log_info "Waiting for ArgoCD to be ready (this may take 3-5 minutes)..."
     kubectl wait --for=condition=available --timeout=600s \
-        deployment/argocd-server -n argocd || true
+        deployment/argocd-server -n argocd 2>/dev/null || {
+        log_warn "Timeout waiting for argocd-server, checking status..."
+        kubectl get pods -n argocd
+    }
+    
+    # Wait a bit more for all components
+    log_info "Waiting for all ArgoCD components to stabilize..."
+    sleep 30
     
     # Get admin password
     log_info "Retrieving ArgoCD admin password..."
@@ -168,6 +177,9 @@ deploy_argocd() {
     if [ -n "$ARGOCD_PASSWORD" ]; then
         log_info "ArgoCD admin password: $ARGOCD_PASSWORD"
         log_warn "Save this password securely!"
+    else
+        log_warn "Could not retrieve ArgoCD password yet. It may not be ready."
+        log_warn "Try again in a minute with: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
     fi
 }
 
@@ -175,7 +187,7 @@ deploy_applications() {
     log_step "Deploying GitOps applications..."
     
     # Apply projects and root app
-    kubectl apply -f argocd/install/03-bootstrap.yaml
+    kubectl apply -f argo-apps/install/03-bootstrap.yaml
     
     # Wait for projects to sync
     log_info "Waiting for projects to sync..."
@@ -192,8 +204,8 @@ configure_ingress() {
     log_warn "https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html"
     echo ""
     log_info "After installing, update Ingress annotations in application values:"
-    log_info "  - argocd/apps/*.yaml - uncomment values-aws.yaml"
-    log_info "  - Configure ALB annotations"
+    log_info "  - argo-apps/apps/*.yaml - uncomment values-aws.yaml"
+    log_info "  - Configure ALB annotations in helm-charts/*/values-aws.yaml"
     log_info "  - Add ACM certificate ARNs"
 }
 
@@ -267,4 +279,6 @@ main() {
 }
 
 main "$@"
+
+
 

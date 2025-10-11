@@ -46,36 +46,62 @@ This GitOps repository provides a complete, production-ready Kubernetes stack wi
 
 ```
 /
-├── argocd/                    # ArgoCD installation and apps
-│   ├── install/              # Bootstrap manifests
+├── argo-apps/                 # ArgoCD GitOps Configuration
+│   ├── install/              # ArgoCD installation manifests
 │   │   ├── 01-namespaces.yaml
 │   │   ├── 02-argocd-install.yaml
 │   │   └── 03-bootstrap.yaml
-│   ├── projects/             # AppProject definitions
+│   ├── projects/             # ArgoCD Projects (RBAC, repos)
 │   │   └── prod-apps.yaml
-│   └── apps/                 # Application manifests
+│   └── apps/                 # ArgoCD Applications (app manifests)
 │       ├── web-app.yaml
 │       ├── prometheus.yaml
 │       ├── grafana.yaml
 │       └── vault.yaml
 │
-├── apps/                      # Helm charts and values
-│   ├── web-app/
-│   ├── prometheus/
-│   ├── grafana/
-│   └── vault/
+├── helm-charts/               # Helm Charts & Values
+│   ├── web-app/              # Custom web app Helm chart
+│   ├── prometheus/           # Prometheus values (uses upstream chart)
+│   ├── grafana/              # Grafana values (uses upstream chart)
+│   └── vault/                # Vault values (uses upstream chart)
 │
-├── environments/              # Environment configs
-│   ├── minikube/
-│   └── aws/
+├── terraform/                 # Infrastructure as Code (Multi-Cloud Ready)
+│   ├── environments/
+│   │   └── aws/              # AWS-specific Terraform
+│   └── modules/              # Reusable Terraform modules
+│       ├── vpc/
+│       ├── eks/
+│       └── iam/
 │
-├── infrastructure/            # Terraform for AWS
-│   └── terraform/
+├── .github/workflows/         # CI/CD Automation
+│   ├── validate.yaml
+│   ├── docs-lint.yaml
+│   ├── terraform-plan.yaml
+│   ├── terraform-apply.yaml
+│   ├── deploy-argocd.yaml
+│   └── security-scan.yaml
 │
-└── scripts/                   # Setup scripts
-    ├── setup-minikube.sh
-    └── setup-aws.sh
+├── scripts/                   # Deployment & Management Scripts
+│   ├── deploy.sh             # Unified deployment interface
+│   ├── setup-minikube.sh     # Minikube setup
+│   ├── setup-aws.sh          # AWS EKS setup
+│   ├── argocd-login.sh       # ArgoCD CLI authentication
+│   └── validate.sh           # Validation script
+│
+└── docs/                      # Documentation
+    ├── architecture.md
+    ├── deployment.md
+    ├── ci_cd_pipeline.md
+    ├── scripts.md
+    └── troubleshooting.md
 ```
+
+**Key Differences from Standard GitOps Repos:**
+- ✅ Multi-cloud ready Terraform structure (`environments/aws`, future GCP/Azure)
+- ✅ Clear separation: `argo-apps` for GitOps, `helm-charts` for Helm
+- ✅ Upstream Helm charts with values-only overrides (no chart duplication)
+- ✅ Comprehensive CI/CD with GitHub Actions
+- ✅ Enterprise-grade tooling (Makefile with help, validation scripts)
 
 ### GitOps Flow
 
@@ -153,16 +179,21 @@ minikube addons enable metrics-server
 ### Step 3: Run Setup Script
 
 ```bash
-chmod +x scripts/setup-minikube.sh
 ./scripts/setup-minikube.sh
 ```
 
-The script will:
-1. ✅ Check prerequisites
-2. ✅ Deploy ArgoCD
-3. ✅ Create AppProject
-4. ✅ Deploy root App-of-Apps
-5. ✅ Sync all applications
+Or using Makefile:
+```bash
+make deploy-minikube
+```
+
+The script automatically:
+1. ✅ Checks prerequisites (kubectl, helm, minikube)
+2. ✅ Starts/verifies Minikube
+3. ✅ Enables required addons
+4. ✅ Deploys ArgoCD
+5. ✅ Bootstraps applications via GitOps
+6. ✅ Provides access credentials
 
 ### Step 4: Verify Deployment
 
@@ -247,7 +278,7 @@ export CLUSTER_NAME=production-cluster
 ### Step 3: Provision Infrastructure
 
 ```bash
-cd infrastructure/terraform
+cd terraform/environments/aws
 
 # Initialize Terraform
 terraform init
@@ -255,16 +286,25 @@ terraform init
 # Review plan
 terraform plan
 
-# Apply infrastructure
+# Apply infrastructure (15-20 minutes)
 terraform apply
 ```
 
+Or using Makefile from repository root:
+```bash
+make init   # Initialize Terraform
+make plan   # Review plan
+make apply  # Deploy infrastructure
+```
+
 This creates:
-- VPC with public/private subnets
-- EKS cluster
-- Node groups
-- IAM roles and policies
-- Security groups
+- VPC with public/private subnets across multiple AZs
+- EKS cluster (Kubernetes v1.33)
+- Managed node groups with autoscaling
+- IAM roles and policies (including IRSA)
+- Security groups and network policies
+- CloudWatch logging
+- Cost monitoring tags
 
 ### Step 4: Configure kubectl
 
@@ -275,9 +315,13 @@ aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_REGION
 ### Step 5: Run Setup Script
 
 ```bash
-cd ../..
-chmod +x scripts/setup-aws.sh
+cd ../../..  # Return to repository root
 ./scripts/setup-aws.sh
+```
+
+Or using Makefile:
+```bash
+make deploy-aws
 ```
 
 ### Step 6: Install AWS Load Balancer Controller
@@ -307,22 +351,29 @@ annotations:
   alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:123456789012:certificate/xxx
 ```
 
-### Step 8: Update Application Values
+### Step 8: Update Application Values for AWS
 
-Update ArgoCD applications to use AWS values:
+Update ArgoCD applications to use AWS-specific values:
 
 ```bash
-# Edit argocd/apps/*.yaml
-# Change valueFiles to include values-aws.yaml
+# Uncomment values-aws.yaml in all application manifests
+sed -i 's|# *- values-aws.yaml|- values-aws.yaml|g' argo-apps/apps/*.yaml
+
+# Commit changes
+git add argo-apps/apps/
+git commit -m "Enable AWS values for production deployment"
+git push
 ```
 
-Example:
+Example configuration in `argo-apps/apps/web-app.yaml`:
 ```yaml
 helm:
   valueFiles:
     - values.yaml
-    - values-aws.yaml  # Add this
+    - values-aws.yaml  # Uncommented for AWS
 ```
+
+ArgoCD will automatically sync the updated configuration.
 
 ### Step 9: Create Secrets
 
@@ -468,14 +519,22 @@ vault read auth/kubernetes/role/<role-name>
 ### Updating Applications
 
 ```bash
-# Update values in Git repository
-git add apps/<app-name>/values.yaml
+# Update Helm values in Git repository
+git add helm-charts/<app-name>/values-aws.yaml
 git commit -m "Update <app-name> configuration"
 git push
 
-# ArgoCD will auto-sync (if enabled)
-# Or manual sync:
+# ArgoCD will auto-sync automatically
+# Or force sync:
+kubectl patch application <app-name> -n argocd --type merge -p '{"operation":{"sync":{}}}'
+
+# Using ArgoCD CLI:
 argocd app sync <app-name>
+```
+
+**Using Makefile:**
+```bash
+make argo-sync  # Sync all applications
 ```
 
 ### Scaling Applications
@@ -539,4 +598,6 @@ vault operator raft snapshot save backup.snap
 **Last Updated:** 2025-10-08  
 **Version:** 1.0.0  
 **Kubernetes Compatibility:** 1.33+
+
+
 

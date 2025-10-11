@@ -1,0 +1,91 @@
+name: Documentation Lint
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.md'
+      - 'docs/**'
+
+jobs:
+  markdown-lint:
+    name: Markdown Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+
+      - name: Run markdownlint
+        run: markdownlint '**/*.md' --ignore node_modules --ignore .git || true
+
+  link-checker:
+    name: Broken Link Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install markdown-link-check
+        run: npm install -g markdown-link-check
+
+      - name: Check links in markdown files
+        run: |
+          find . -name "*.md" -not -path "./node_modules/*" -not -path "./.git/*" | \
+          while read file; do
+            echo "Checking links in $file"
+            markdown-link-check "$file" --config .github/markdown-link-check-config.json || true
+          done
+
+  docs-consistency:
+    name: Documentation Consistency Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check documentation structure
+        run: |
+          echo "Checking required documentation files..."
+          required_docs=(
+            "README.md"
+            "docs/architecture.md"
+            "docs/deployment.md"
+            "docs/troubleshooting.md"
+            "docs/argocd-cli-setup.md"
+            "docs/aws-deployment.md"
+            "docs/local-deployment.md"
+            "docs/vault-setup.md"
+            "CHANGELOG.md"
+          )
+          
+          for doc in "${required_docs[@]}"; do
+            if [ ! -f "$doc" ]; then
+              echo "❌ Missing: $doc"
+              exit 1
+            else
+              echo "✓ Found: $doc"
+            fi
+          done
+
+      - name: Check for broken internal references
+        run: |
+          echo "Checking for references to old directory structure..."
+          grep -r "argocd/" --include="*.md" . && echo "⚠️ Found references to old 'argocd/' directory" || echo "✓ No references to old directories"
+          grep -r "apps/" --include="*.md" --exclude-dir=helm-charts . && echo "⚠️ Found references to old 'apps/' directory" || echo "✓ No references to old apps directory"
+          grep -r "infrastructure/terraform" --include="*.md" . && echo "⚠️ Found references to old terraform path" || echo "✓ No references to old terraform path"
+

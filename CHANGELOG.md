@@ -5,6 +5,146 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-10-11
+
+### BREAKING CHANGES - Repository Audit & Restructure
+
+This major release represents a comprehensive audit, cleanup, and restructuring of the entire repository to production-ready, enterprise-grade standards.
+
+### Major Changes
+
+#### Directory Restructure (Multi-Cloud Ready)
+- **BREAKING**: `argocd/` → `argo-apps/` - Clearer naming, industry standard
+- **BREAKING**: `apps/` → `helm-charts/` - Explicit Helm chart organization
+- **BREAKING**: `infrastructure/terraform/` → `terraform/environments/aws/` - Multi-cloud extensibility
+- **NEW**: `terraform/modules/` - Reusable Terraform modules
+- **NEW**: `reports/` - Audit trails and cleanup manifests
+- **NEW**: `.github/workflows/` - CI/CD automation
+
+#### GitHub Actions CI/CD (6 Workflows Created)
+- **NEW**: `validate.yaml` - Comprehensive validation (YAML, Helm, Terraform, ArgoCD, scripts)
+- **NEW**: `docs-lint.yaml` - Documentation quality (markdown linting, broken links)
+- **NEW**: `terraform-plan.yaml` - Infrastructure planning with policy checks
+- **NEW**: `terraform-apply.yaml` - Automated deployment with version tagging
+- **NEW**: `deploy-argocd.yaml` - Application deployment automation
+- **NEW**: `security-scan.yaml` - Security scanning (Trivy, tfsec, Checkov, kubesec)
+
+#### Scripts Consolidation
+- **REMOVED**: `argo-diagnose.sh` → Merged into `argocd-login.sh`
+- **REMOVED**: `debug-monitoring-sync.sh` → Integrated into `validate.sh apps`
+- **REMOVED**: `setup-vault-minikube.sh` → Automated via Helm values
+- **REMOVED**: `test-argocd-windows.sh` → Functionality in main scripts
+- **REMOVED**: `verify-vault.sh` → Integrated into `validate.sh vault`
+- **NEW**: `cleanup.sh` - Safe file cleanup with dry-run mode and backup
+- **ENHANCED**: All remaining scripts updated for new directory structure
+
+#### Documentation Rationalization
+- **REMOVED**: 13 root troubleshooting MD files → Consolidated into 6 core docs
+- **REMOVED**: `DEPLOYMENT.md` → Merged into `docs/deployment.md`
+- **REMOVED**: `docs/MONITORING_SYNC_TROUBLESHOOTING.md` → Consolidated
+- **REMOVED**: `docs/vault-minikube-setup.md` → Merged into `docs/vault-setup.md`
+- **NEW**: `docs/ci_cd_pipeline.md` - GitHub Actions documentation
+- **NEW**: `docs/scripts.md` - Comprehensive scripts guide
+- **ENHANCED**: All deployment guides updated with new paths
+- **ENHANCED**: `docs/architecture.md` - Multi-cloud structure, upstream Helm chart usage
+
+#### Makefile Enhancement
+- **NEW**: Auto-generated `help` target (standard DevOps UX)
+- **NEW**: 45+ organized targets across categories
+- **UPDATED**: All paths for new directory structure
+- **REMOVED**: Invalid targets referencing non-existent `config.sh`
+- **NEW**: `test-actions`, `docs-lint`, `cleanup-*` targets
+- **NEW**: `version` target showing tool and infrastructure versions
+
+### Added
+- **VERSION file**: Infrastructure version tracking
+- **reports/AUDIT_SUMMARY.md**: Comprehensive audit documentation
+- **reports/CLEANUP_MANIFEST.md**: File removal tracking and content mapping
+- **.github/markdown-link-check-config.json**: Link checker configuration
+- **Multi-cloud extensibility**: Terraform organized for future GCP/Azure support
+
+### Changed
+- **Helm Chart Documentation**: Explicitly documented that Prometheus/Grafana/Vault use upstream charts
+- **Cross-platform Support**: Enhanced Windows Git Bash compatibility
+- **Script Paths**: All scripts updated to new directory structure
+- **Makefile Targets**: Complete reorganization with help system
+- **Documentation Structure**: Consolidated from 23+ files to 6 core documents
+
+### Removed
+- **22 obsolete files**: Troubleshooting summaries, implementation notes, fix guides
+- **Space saved**: ~500KB
+- **Scripts reduced**: From 12 to 8 core scripts (33% reduction)
+- **Documentation**: From 23+ to 6 files (74% reduction)
+
+### Infrastructure
+- **Terraform**: Organized for multi-cloud with `environments/aws/` pattern
+- **Modules**: eks, iam, vpc modules properly organized under `terraform/modules/`
+- **Validation**: All modules validated and formatted
+- **Policy Checks**: Added to CI/CD for IAM and S3
+
+### Security
+- ✅ All security configurations validated
+- ✅ GitHub Actions security scanning enabled
+- ✅ Weekly automated security scans
+- ✅ Policy checks for Terraform
+- ✅ Secret detection in YAML files
+
+### Developer Experience
+- ✅ `make help` - Auto-generated command documentation
+- ✅ Comprehensive script documentation
+- ✅ Clear deployment guides
+- ✅ Better discoverability
+- ✅ Consistent naming and structure
+
+### Metrics
+- **Files Removed**: 22 files
+- **Documentation Files**: 23 → 6 (74% reduction)
+- **Scripts**: 12 → 8 (33% reduction)
+- **GitHub Actions**: 0 → 6 workflows
+- **Makefile Targets**: 23 → 45+ (96% increase)
+
+### Migration Guide from 1.x to 2.0
+
+**IMPORTANT**: This is a breaking change. Follow these steps to migrate:
+
+1. **Backup your current deployment**:
+   ```bash
+   git checkout -b backup-before-2.0
+   git push origin backup-before-2.0
+   ```
+
+2. **Update local repository**:
+   ```bash
+   git pull origin main
+   ```
+
+3. **Update all references**:
+   - ArgoCD Applications: Update `repoURL` paths in all application manifests
+   - Scripts: Use new directory names (argo-apps, helm-charts, terraform/environments/aws)
+   - Makefile: Use new targets (run `make help` to see all commands)
+
+4. **Update CI/CD**:
+   - Configure GitHub secrets (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, ARGOCD_PASSWORD)
+   - Enable GitHub Actions workflows
+   - Set up branch protection rules
+
+5. **Redeploy** (if necessary):
+   - For Minikube: `./scripts/setup-minikube.sh`
+   - For AWS: `./scripts/setup-aws.sh`
+
+6. **Verify**:
+   ```bash
+   make validate-all
+   ```
+
+### Audit Details
+
+See comprehensive audit reports:
+- **reports/AUDIT_SUMMARY.md** - Complete audit documentation
+- **reports/CLEANUP_MANIFEST.md** - File removal tracking
+
+---
+
 ## [1.3.0] - 2025-10-07
 
 ### Fixed - Security & Critical Issues

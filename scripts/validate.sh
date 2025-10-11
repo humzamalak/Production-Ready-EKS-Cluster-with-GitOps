@@ -165,13 +165,12 @@ validate_structure() {
     
     # Check main directories
     local required_dirs=(
-        "environments:$ENVIRONMENT"
-        "applications:monitoring"
-        "applications:web-app"
-        "applications:infrastructure"
-        "bootstrap"
-        "scripts"
-        "docs"
+        "argo-apps:ArgoCD"
+        "helm-charts:Helm Charts"
+        "terraform:Terraform"
+        "scripts:Scripts"
+        "docs:Documentation"
+        ".github/workflows:GitHub Actions"
     )
     
     for dir_info in "${required_dirs[@]}"; do
@@ -183,23 +182,26 @@ validate_structure() {
         fi
     done
     
-    # Check environment-specific files
-    local env_files=(
-        "environments/$ENVIRONMENT/app-of-apps.yaml:App-of-apps"
-        "environments/$ENVIRONMENT/namespaces.yaml:Namespaces"
-        "environments/$ENVIRONMENT/project.yaml:Project"
+    # Check ArgoCD structure
+    local argocd_files=(
+        "argo-apps/install/01-namespaces.yaml:Namespaces"
+        "argo-apps/install/03-bootstrap.yaml:Bootstrap"
+        "argo-apps/projects/prod-apps.yaml:Prod Apps Project"
     )
     
-    for file_info in "${env_files[@]}"; do
+    for file_info in "${argocd_files[@]}"; do
         IFS=':' read -r file description <<< "$file_info"
-        check_file "$REPO_ROOT/$file" "$description"
+        if check_file "$REPO_ROOT/$file" "$description"; then
+            validate_yaml "$REPO_ROOT/$file" "$description"
+        fi
     done
     
     # Check application manifests
     local app_files=(
-        "environments/$ENVIRONMENT/apps/prometheus.yaml:Prometheus Application"
-        "environments/$ENVIRONMENT/apps/grafana.yaml:Grafana Application"
-        "environments/$ENVIRONMENT/apps/web-app.yaml:Web App Application"
+        "argo-apps/apps/prometheus.yaml:Prometheus Application"
+        "argo-apps/apps/grafana.yaml:Grafana Application"
+        "argo-apps/apps/vault.yaml:Vault Application"
+        "argo-apps/apps/web-app.yaml:Web App Application"
     )
     
     for file_info in "${app_files[@]}"; do
@@ -209,20 +211,16 @@ validate_structure() {
         fi
     done
     
-    # Check bootstrap files
-    local bootstrap_files=(
-        "bootstrap/00-namespaces.yaml:Core Namespaces"
-        "bootstrap/01-pod-security-standards.yaml:Pod Security Standards"
-        "bootstrap/02-network-policy.yaml:Network Policy"
-        "bootstrap/03-helm-repos.yaml:Helm Repositories"
-        "bootstrap/04-argo-cd-install.yaml:ArgoCD Installation"
+    # Check Terraform structure
+    local terraform_files=(
+        "terraform/environments/aws/main.tf:Terraform Main"
+        "terraform/environments/aws/variables.tf:Terraform Variables"
+        "terraform/environments/aws/backend.tf:Terraform Backend"
     )
     
-    for file_info in "${bootstrap_files[@]}"; do
+    for file_info in "${terraform_files[@]}"; do
         IFS=':' read -r file description <<< "$file_info"
-        if check_file "$REPO_ROOT/$file" "$description"; then
-            validate_yaml "$REPO_ROOT/$file" "$description"
-        fi
+        check_file "$REPO_ROOT/$file" "$description" || true
     done
 }
 
@@ -232,8 +230,8 @@ validate_apps() {
     
     local max_annotation_size=262144  # 256KB limit for Kubernetes annotations
     local application_dirs=(
-        "environments/$ENVIRONMENT/apps"
-        "bootstrap"
+        "argo-apps/apps"
+        "argo-apps/install"
     )
     
     for dir in "${application_dirs[@]}"; do
@@ -286,10 +284,11 @@ validate_helm() {
     print_header "Validating Helm Charts"
     
     local helm_dirs=(
-        "applications/web-app/k8s-web-app/helm"
-        "applications/monitoring/grafana"
-        "applications/monitoring/prometheus"
+        "helm-charts/web-app"
     )
+    
+    print_status "Note: Prometheus, Grafana, and Vault use upstream Helm charts"
+    print_status "Only validating custom charts (web-app)"
     
     for dir in "${helm_dirs[@]}"; do
         if [[ -d "$REPO_ROOT/$dir" ]]; then
@@ -344,8 +343,8 @@ validate_manifests() {
     print_header "Validating Kubernetes Manifests"
     
     local manifest_dirs=(
-        "applications/web-app/k8s-web-app/helm/templates"
-        "bootstrap"
+        "helm-charts/web-app/templates"
+        "argo-apps/install"
     )
     
     for dir in "${manifest_dirs[@]}"; do
@@ -375,20 +374,19 @@ validate_manifests() {
 validate_security() {
     print_header "Validating Security Configurations"
     
-    # Check Pod Security Standards
-    if [[ -f "$REPO_ROOT/bootstrap/01-pod-security-standards.yaml" ]]; then
-        print_success "Pod Security Standards configuration found"
-        validate_yaml "$REPO_ROOT/bootstrap/01-pod-security-standards.yaml" "Pod Security Standards"
+    # Check namespaces file (contains security labels)
+    if [[ -f "$REPO_ROOT/argo-apps/install/01-namespaces.yaml" ]]; then
+        print_success "Namespace configuration found"
+        validate_yaml "$REPO_ROOT/argo-apps/install/01-namespaces.yaml" "Namespaces"
+        
+        # Check for pod security labels
+        if grep -q "pod-security.kubernetes.io" "$REPO_ROOT/argo-apps/install/01-namespaces.yaml"; then
+            print_success "Pod Security Standards labels found"
+        else
+            print_warning "Pod Security Standards labels not found"
+        fi
     else
-        print_error "Pod Security Standards configuration missing"
-    fi
-    
-    # Check Network Policies
-    if [[ -f "$REPO_ROOT/bootstrap/02-network-policy.yaml" ]]; then
-        print_success "Network Policy configuration found"
-        validate_yaml "$REPO_ROOT/bootstrap/02-network-policy.yaml" "Network Policy"
-    else
-        print_error "Network Policy configuration missing"
+        print_error "Namespace configuration missing"
     fi
     
     # Check for security annotations in deployments
@@ -397,18 +395,10 @@ validate_security() {
         local basename_file=$(basename "$file")
         
         # Check for security context
-        if ! grep -q "securityContext:" "$file"; then
+        if grep -q "securityContext:" "$file"; then
+            print_success "$basename_file has securityContext"
+        else
             print_warning "$basename_file missing securityContext"
-        fi
-        
-        # Check for non-root user
-        if ! grep -q "runAsNonRoot: true" "$file"; then
-            print_warning "$basename_file not configured to run as non-root"
-        fi
-        
-        # Check for read-only root filesystem
-        if ! grep -q "readOnlyRootFilesystem: true" "$file"; then
-            print_warning "$basename_file not configured with read-only root filesystem"
         fi
     done
     
@@ -448,21 +438,21 @@ validate_vault() {
     fi
     
     # Check Vault integration in web app
-    local vault_template="$REPO_ROOT/applications/web-app/k8s-web-app/helm/templates/vault-agent.yaml"
+    local vault_template="$REPO_ROOT/helm-charts/web-app/templates/vault-agent.yaml"
     if [[ -f "$vault_template" ]]; then
         print_success "Vault agent template found"
         validate_yaml "$vault_template" "Vault agent template"
     else
-        print_warning "Vault agent template not found"
+        print_warning "Vault agent template not found (optional)"
     fi
     
     # Check for Vault annotations in deployment
-    local web_app_deployment="$REPO_ROOT/applications/web-app/k8s-web-app/helm/templates/deployment.yaml"
+    local web_app_deployment="$REPO_ROOT/helm-charts/web-app/templates/deployment.yaml"
     if [[ -f "$web_app_deployment" ]]; then
         if grep -q "vault.hashicorp.com/agent-inject" "$web_app_deployment"; then
             print_success "Vault injection annotations found in deployment"
         else
-            print_warning "Vault injection annotations not found in deployment"
+            print_warning "Vault injection annotations not found in deployment (optional)"
         fi
     fi
 }

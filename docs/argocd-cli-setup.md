@@ -1,100 +1,174 @@
-# ArgoCD CLI Setup Guide (Windows Git Bash)
-
-This guide explains how to use the automated ArgoCD CLI setup script for Windows Git Bash environments.
+# ArgoCD CLI Setup for Windows Git Bash
 
 ## Overview
 
-The `argocd-login.sh` script automates the complete setup process for accessing ArgoCD via CLI, including:
+This document explains how the ArgoCD login script (`scripts/argocd-login.sh`) has been enhanced to work seamlessly in Git Bash on Windows, even when the ArgoCD CLI is installed as `argocd.exe` in `C:\Windows\System32`.
 
-- Killing any process using port 8080
-- Starting port-forward to the ArgoCD server
-- Retrieving the admin password
-- Logging in via ArgoCD CLI
-- Syncing Prometheus and Vault applications
-- Verifying the connection
+## Problem Statement
 
-## Prerequisites
+When running bash scripts in Git Bash on Windows, the following issues commonly occur with Windows executables:
 
-Before running the script, ensure you have:
+1. **PATH Resolution**: Git Bash may not automatically include Windows System32 in its PATH
+2. **Extension Handling**: The `.exe` extension may not be automatically resolved when calling `argocd`
+3. **Command Detection**: Standard `command -v argocd` checks may fail even when `argocd.exe` is installed
 
-1. **Git Bash for Windows** installed
-2. **kubectl** installed and configured
-   ```bash
-   kubectl version --client
-   ```
+## Solution Implemented
 
-3. **ArgoCD CLI** installed
-   ```bash
-   argocd version --client
-   ```
-   
-   If not installed, download from: https://argo-cd.readthedocs.io/en/stable/cli_installation/
+The script now includes intelligent environment detection and CLI path resolution:
 
-4. **Kubernetes cluster** with ArgoCD deployed
-   - Use `setup-minikube.sh` for local deployment
-   - Use `setup-aws.sh` for AWS EKS deployment
-
-5. **kubectl context** configured for your cluster
-   ```bash
-   kubectl config current-context
-   kubectl get pods -n argocd
-   ```
-
-## Installation
-
-### Installing ArgoCD CLI on Windows
-
-Download the latest Windows binary:
+### 1. Environment Detection
 
 ```bash
-# Using PowerShell
-$version = (Invoke-RestMethod https://api.github.com/repos/argoproj/argo-cd/releases/latest).tag_name
-$url = "https://github.com/argoproj/argo-cd/releases/download/" + $version + "/argocd-windows-amd64.exe"
-Invoke-WebRequest -Uri $url -OutFile "$env:USERPROFILE\bin\argocd.exe"
-
-# Add to PATH if needed
+is_git_bash_windows() {
+    # Check for MSYSTEM environment variable (set by Git Bash)
+    # and verify we're on Windows by checking for common Windows paths
+    if [[ -n "${MSYSTEM}" ]] || [[ "$(uname -s)" == MINGW* ]] || [[ "$(uname -s)" == MSYS* ]]; then
+        return 0
+    fi
+    return 1
+}
 ```
 
-Or using Git Bash:
+**How it works:**
+- Checks for `MSYSTEM` environment variable (unique to Git Bash/MSYS2)
+- Validates against `uname -s` output for MINGW/MSYS patterns
+- Returns success (0) if running in Git Bash on Windows
+
+### 2. ArgoCD CLI Detection
 
 ```bash
-# Download and install to /usr/local/bin
-VERSION=$(curl --silent "https://api.github.com/repos/argoproj/argo-cd/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-curl -sSL -o /usr/local/bin/argocd.exe "https://github.com/argoproj/argo-cd/releases/download/${VERSION}/argocd-windows-amd64.exe"
-chmod +x /usr/local/bin/argocd.exe
+find_argocd_cli() {
+    # 1. Try standard PATH lookup
+    # 2. Try with .exe extension explicitly
+    # 3. Search common Windows installation paths
+    # 4. Use Windows 'where.exe' command to locate argocd.exe
+    # 5. Convert Windows paths to Git Bash compatible Unix-style paths
+}
 ```
 
-Verify installation:
+**Search Strategy:**
+1. **PATH Check**: `command -v argocd` - works if already in PATH
+2. **Extension Check**: `command -v argocd.exe` - explicitly includes .exe
+3. **Path Search**: Searches common Windows locations:
+   - `/c/Windows/System32/argocd.exe`
+   - `/c/Program Files/argocd/argocd.exe`
+   - `/c/Program Files (x86)/argocd/argocd.exe`
+   - `$HOME/bin/argocd.exe`
+   - `/usr/local/bin/argocd.exe`
+4. **Windows Command**: Uses `where.exe argocd.exe` to find the executable
+5. **Path Conversion**: Converts Windows paths like `C:\Windows\System32\argocd.exe` to Git Bash paths like `/c/Windows/System32/argocd.exe`
+
+### 3. Wrapper Function
 
 ```bash
-argocd version --client
+setup_argocd_cli() {
+    # Find the ArgoCD CLI
+    ARGOCD_CMD=$(find_argocd_cli)
+    
+    # Create a wrapper function
+    argocd() {
+        "$ARGOCD_CMD" "$@"
+    }
+    
+    # Export for use in subshells
+    export -f argocd 2>/dev/null || true
+}
+```
+
+**Benefits:**
+- Creates a shell function named `argocd` that calls the found executable
+- All subsequent `argocd` commands in the script work transparently
+- No need to modify existing script logic
+- Works regardless of where `argocd.exe` is located
+
+### 4. Enhanced Error Handling
+
+The script now provides clear error messages if ArgoCD CLI is not found:
+
+```
+[ERROR] ArgoCD CLI not found!
+[ERROR] 
+[ERROR] Installation instructions:
+[ERROR]   1. Download from: https://github.com/argoproj/argo-cd/releases
+[ERROR]   2. Place argocd.exe in C:\Windows\System32 or add to PATH
+[ERROR]   3. Or use: choco install argocd-cli (if using Chocolatey)
 ```
 
 ## Usage
 
-### Basic Usage
+### Prerequisites
 
-Simply run the script from the repository root:
+1. **Install ArgoCD CLI** using one of these methods:
+
+   **Option A: Manual Installation**
+   ```bash
+   # Download the latest Windows binary
+   curl -sSL -o argocd.exe https://github.com/argoproj/argo-cd/releases/latest/download/argocd-windows-amd64.exe
+   
+   # Move to System32 (requires admin privileges)
+   mv argocd.exe /c/Windows/System32/
+   ```
+
+   **Option B: Chocolatey**
+   ```bash
+   choco install argocd-cli
+   ```
+
+   **Option C: Custom Location**
+   ```bash
+   # Download to a custom location
+   mkdir -p ~/bin
+   curl -sSL -o ~/bin/argocd.exe https://github.com/argoproj/argo-cd/releases/latest/download/argocd-windows-amd64.exe
+   
+   # Add to PATH in ~/.bashrc
+   echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+2. **Install kubectl** and configure it to connect to your Kubernetes cluster
+
+3. **Deploy ArgoCD** to your cluster using:
+   ```bash
+   ./scripts/setup-minikube.sh  # For Minikube
+   # OR
+   ./scripts/setup-aws.sh       # For AWS EKS
+   ```
+
+### Running the Script
+
+Simply execute the script from Git Bash:
 
 ```bash
 ./scripts/argocd-login.sh
 ```
 
-The script will:
+### Script Workflow
 
-1. ✅ Check prerequisites (kubectl, argocd CLI, cluster connection)
-2. ✅ Kill any process using port 8080
-3. ✅ Start port-forward to ArgoCD server (port 8080 → 443)
-4. ✅ Retrieve ArgoCD admin password from Kubernetes secret
-5. ✅ Login to ArgoCD CLI with automatic retry (3 attempts)
-6. ✅ Sync Prometheus and Vault applications
-7. ✅ Verify connection and list all applications
-8. ✅ Display access information and helpful commands
+The script performs the following steps:
 
-### Output Example
+1. **Environment Detection**: Identifies if running in Git Bash on Windows
+2. **CLI Setup**: Locates and configures ArgoCD CLI
+3. **Prerequisites Check**: Verifies kubectl and cluster connectivity
+4. **Port Cleanup**: Kills any processes using port 8080
+5. **ArgoCD Health Check**: Ensures ArgoCD server is ready
+6. **Port-Forward**: Establishes connection to ArgoCD server on localhost:8080
+7. **Password Retrieval**: Gets admin password from Kubernetes secret
+8. **Login**: Authenticates to ArgoCD CLI (with 3 retries)
+9. **App Sync**: Synchronizes Prometheus and Vault applications
+10. **Verification**: Lists all ArgoCD applications
+11. **Access Info**: Displays UI and CLI access information
+
+### Expected Output
 
 ```
+[INFO] Starting ArgoCD CLI Login & Sync Script...
+[INFO] Environment: Git Bash on Windows (MINGW64_NT-10.0-26100)
+
 [STEP] Checking prerequisites...
+[STEP] Setting up ArgoCD CLI...
+[INFO] Detected Git Bash on Windows, searching for argocd.exe...
+[SUCCESS] Found argocd.exe using where.exe: /c/Windows/System32/argocd.exe
+[SUCCESS] ArgoCD CLI configured: /c/Windows/System32/argocd.exe
 [SUCCESS] All prerequisites met!
 
 [STEP] Checking for processes using port 8080...
@@ -116,11 +190,9 @@ The script will:
 
 [STEP] Syncing applications...
 [STEP] Syncing ArgoCD application: prometheus...
-[INFO] Application 'prometheus' found, starting sync...
 [SUCCESS] Successfully synced 'prometheus'
 
 [STEP] Syncing ArgoCD application: vault...
-[INFO] Application 'vault' found, starting sync...
 [SUCCESS] Successfully synced 'vault'
 
 [SUCCESS] All applications synced successfully!
@@ -130,24 +202,23 @@ The script will:
 Logged In: true
 Username: admin
 
-[SUCCESS] Connection verified!
-
 [INFO] ArgoCD Applications:
-NAME          CLUSTER                         NAMESPACE   PROJECT     STATUS  HEALTH   SYNCPOLICY  CONDITIONS
-prometheus    https://kubernetes.default.svc  monitoring  prod-apps   Synced  Healthy  Auto        <none>
-vault         https://kubernetes.default.svc  vault       prod-apps   Synced  Healthy  Auto        <none>
-web-app       https://kubernetes.default.svc  production  prod-apps   Synced  Healthy  Auto        <none>
+NAME         CLUSTER                         NAMESPACE    PROJECT     STATUS  HEALTH   SYNCPOLICY  CONDITIONS  REPO
+grafana      https://kubernetes.default.svc  monitoring   prod-apps   Synced  Healthy  Auto        <none>      https://github.com/...
+prometheus   https://kubernetes.default.svc  monitoring   prod-apps   Synced  Healthy  Auto        <none>      https://github.com/...
+vault        https://kubernetes.default.svc  vault        prod-apps   Synced  Healthy  Auto        <none>      https://github.com/...
+web-app      https://kubernetes.default.svc  default      prod-apps   Synced  Healthy  Auto        <none>      https://github.com/...
 
 ===================================================================
-[INFO] ArgoCD CLI Setup Complete!
+ArgoCD CLI Setup Complete!
 ===================================================================
 
-[INFO] Access Information:
+Access Information:
 
   ArgoCD UI:
     URL: https://localhost:8080
     Username: admin
-    Password: xxxxxxxxxxx
+    Password: <your-password-here>
 
   CLI Commands:
     List apps:        argocd app list
@@ -163,333 +234,135 @@ web-app       https://kubernetes.default.svc  production  prod-apps   Synced  He
 [SUCCESS] Setup complete!
 ```
 
-## Common Use Cases
-
-### 1. Initial Setup After Deploying ArgoCD
-
-After deploying ArgoCD with `setup-minikube.sh` or `setup-aws.sh`:
-
-```bash
-./scripts/argocd-login.sh
-```
-
-This sets up CLI access and syncs monitoring applications.
-
-### 2. Re-establishing Connection
-
-If your port-forward session ended or you restarted your terminal:
-
-```bash
-./scripts/argocd-login.sh
-```
-
-The script is idempotent - it safely kills old port-forwards and establishes new ones.
-
-### 3. Syncing Applications
-
-The script automatically syncs Prometheus and Vault. To manually sync other apps:
-
-```bash
-# After running argocd-login.sh
-argocd app sync web-app
-argocd app sync grafana
-```
-
-### 4. Accessing ArgoCD UI
-
-After running the script, access the UI at:
-
-```
-URL: https://localhost:8080
-Username: admin
-Password: (displayed in script output)
-```
-
-## Useful ArgoCD CLI Commands
-
-After logging in, you can use these commands:
-
-### Application Management
-
-```bash
-# List all applications
-argocd app list
-
-# Get detailed app status
-argocd app get prometheus
-
-# Sync an application
-argocd app sync prometheus --force --prune
-
-# Watch sync status
-argocd app sync prometheus --watch
-
-# Delete an application
-argocd app delete web-app
-
-# Get application logs
-argocd app logs prometheus -f
-```
-
-### Application Status
-
-```bash
-# Get sync status
-argocd app get prometheus --show-operation
-
-# Get health status
-argocd app get prometheus --refresh
-
-# View diff before sync
-argocd app diff prometheus
-```
-
-### Project Management
-
-```bash
-# List projects
-argocd proj list
-
-# Get project details
-argocd proj get prod-apps
-
-# Create new project
-argocd proj create my-project
-```
-
-### Repository Management
-
-```bash
-# List repositories
-argocd repo list
-
-# Add new repository
-argocd repo add https://github.com/your-org/your-repo
-```
-
-### Account Management
-
-```bash
-# Get current user info
-argocd account get-user-info
-
-# Update password
-argocd account update-password
-```
-
 ## Troubleshooting
 
-### Port 8080 Already in Use
+### Issue: "ArgoCD CLI not found"
 
-**Problem**: Another process is using port 8080
+**Solution:**
+1. Verify installation:
+   ```bash
+   where.exe argocd.exe
+   ```
+2. Check if file exists:
+   ```bash
+   ls /c/Windows/System32/argocd.exe
+   ```
+3. Install if missing (see Prerequisites above)
 
-**Solution**: The script automatically kills processes on port 8080. If issues persist:
+### Issue: "Login failed after 3 attempts"
 
-```bash
-# Manually find and kill the process
-netstat -ano | grep :8080
-taskkill //PID <PID> //F
-
-# Or use a different port (edit script LOCAL_PORT variable)
-```
-
-### ArgoCD Server Pod Not Found
-
-**Problem**: `ArgoCD server pod not found in namespace 'argocd'`
-
-**Solution**: Verify ArgoCD is deployed:
-
-```bash
-kubectl get pods -n argocd
-kubectl get deployment argocd-server -n argocd
-
-# If not deployed, run setup script first
-./scripts/setup-minikube.sh  # or setup-aws.sh
-```
-
-### Login Failed After 3 Attempts
-
-**Problem**: `Failed to login to ArgoCD after 3 attempts`
-
-**Solution**:
-
+**Solution:**
 1. Verify port-forward is working:
    ```bash
    curl -k https://localhost:8080
    ```
-
 2. Check ArgoCD server logs:
    ```bash
-   kubectl logs -n argocd deployment/argocd-server
+   kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server
    ```
-
-3. Verify the password secret exists:
+3. Manually verify password:
    ```bash
-   kubectl get secret argocd-initial-admin-secret -n argocd
+   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
    ```
 
-### Application Not Found
+### Issue: "Port 8080 already in use"
 
-**Problem**: `Application 'prometheus' not found in ArgoCD`
-
-**Solution**: Deploy the ArgoCD applications:
-
+**Solution:**
+The script automatically kills processes using port 8080. If it persists:
 ```bash
-# Apply ArgoCD bootstrap
-kubectl apply -f argocd/install/03-bootstrap.yaml
+# Find the process
+netstat -ano | grep ":8080"
 
-# Verify apps exist
-kubectl get applications -n argocd
+# Kill it manually
+taskkill.exe //PID <PID> //F
 ```
 
-### kubectl Not Connected
+### Issue: Script hangs during port-forward
 
-**Problem**: `kubectl not connected to a cluster`
-
-**Solution**:
-
-For Minikube:
-```bash
-minikube status
-minikube start
-kubectl config use-context minikube
-```
-
-For AWS EKS:
-```bash
-aws eks update-kubeconfig --name production-cluster --region us-east-1
-kubectl cluster-info
-```
-
-### ArgoCD CLI Not Found
-
-**Problem**: `argocd CLI not found`
-
-**Solution**: Install ArgoCD CLI (see Installation section above)
-
-## Script Customization
-
-### Changing Default Port
-
-Edit `scripts/argocd-login.sh` and modify:
-
-```bash
-LOCAL_PORT="8080"  # Change to desired port, e.g., "9090"
-```
-
-### Adding More Applications to Sync
-
-Edit the `sync_apps()` function:
-
-```bash
-sync_apps() {
-    log_step "Syncing applications..."
-    
-    local apps=("prometheus" "vault" "grafana" "web-app")  # Add more apps
-    # ... rest of function
-}
-```
-
-### Adjusting Retry Settings
-
-Modify retry configuration:
-
-```bash
-LOGIN_RETRIES=3      # Number of login attempts
-RETRY_DELAY=5        # Seconds between retries
-```
-
-## Background Port-Forward Management
-
-The script runs port-forward in the background. To manage it:
-
-### Check if Port-Forward is Running
-
-```bash
-ps aux | grep "kubectl port-forward.*argocd-server"
-netstat -ano | grep :8080
-```
-
-### Stop Port-Forward
-
-```bash
-# Kill all ArgoCD port-forwards
-pkill -f "kubectl port-forward.*argocd-server"
-
-# Or kill specific PID (shown in script output)
-kill -9 <PID>
-```
-
-### Restart Port-Forward Only
-
-```bash
-# Kill existing
-pkill -f "kubectl port-forward.*argocd-server"
-
-# Start new port-forward
-kubectl port-forward -n argocd svc/argocd-server 8080:443 &
-```
-
-## Security Considerations
-
-1. **Password Security**: The script displays the admin password. Consider:
-   - Changing the default password after first login
-   - Using SSO/OIDC for production environments
-   - Deleting the initial admin secret after setting up SSO
-
-2. **Insecure Connection**: The script uses `--insecure` flag for local development. For production:
-   - Configure proper TLS certificates
-   - Use secure ingress
-   - Remove `--insecure` flag
-
-3. **Background Processes**: Port-forward runs in background. Remember to stop it when done:
+**Solution:**
+1. Check if ArgoCD server pod is running:
    ```bash
-   pkill -f "kubectl port-forward.*argocd-server"
+   kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server
    ```
+2. Verify pod is ready:
+   ```bash
+   kubectl describe pod -n argocd -l app.kubernetes.io/name=argocd-server
+   ```
+3. Restart the script
 
-## Integration with CI/CD
+## Compatibility
 
-### GitHub Actions Example
+✅ **Supported Environments:**
+- Git Bash on Windows 10/11
+- MSYS2 on Windows
+- MinGW on Windows
+- PowerShell (graceful fallback)
+- Linux (native bash)
+- macOS (native bash)
 
-```yaml
-- name: Setup ArgoCD CLI
-  run: |
-    ./scripts/argocd-login.sh
-    
-- name: Sync Applications
-  run: |
-    argocd app sync prometheus --force
-    argocd app wait prometheus --health
+✅ **ArgoCD CLI Locations:**
+- `C:\Windows\System32\argocd.exe`
+- `C:\Program Files\argocd\argocd.exe`
+- Any directory in system PATH
+- Custom user directories (~/bin, etc.)
+
+## Technical Details
+
+### Path Conversion Logic
+
+Windows paths are converted to Git Bash compatible Unix-style paths:
+
+```bash
+# Input:  C:\Windows\System32\argocd.exe
+# Step 1: Replace backslashes: C:/Windows/System32/argocd.exe
+# Step 2: Convert drive letter: /c/Windows/System32/argocd.exe
 ```
 
-### Jenkins Pipeline Example
-
-```groovy
-stage('ArgoCD Sync') {
-    steps {
-        sh './scripts/argocd-login.sh'
-        sh 'argocd app sync prometheus --force'
-    }
-}
+The conversion is handled by:
+```bash
+echo "$windows_path" | sed 's/\\/\//g' | sed 's/^\([A-Za-z]\):/\/\L\1/'
 ```
+
+### Function Export Behavior
+
+The wrapper function is exported to make it available in subshells:
+```bash
+export -f argocd 2>/dev/null || true
+```
+
+- The `2>/dev/null` suppresses errors on systems that don't support function export
+- The `|| true` ensures the script continues even if export fails
+- Function export works in bash but may not work in all shells (hence the error suppression)
+
+## Key Improvements
+
+1. **No Manual PATH Modification**: Script handles path resolution internally
+2. **Automatic Detection**: Intelligently finds ArgoCD CLI without user intervention
+3. **Cross-Platform**: Works on Windows, Linux, and macOS
+4. **Robust Error Handling**: Clear error messages with actionable instructions
+5. **Idempotent**: Safe to run multiple times
+6. **Transparent**: All argocd commands work as expected after setup
 
 ## Related Documentation
 
-- [Local Deployment Guide](local-deployment.md) - Deploy ArgoCD on Minikube
-- [AWS Deployment Guide](aws-deployment.md) - Deploy ArgoCD on EKS
-- [Troubleshooting Guide](troubleshooting.md) - Common issues and solutions
-- [ArgoCD Official Docs](https://argo-cd.readthedocs.io/) - Comprehensive ArgoCD documentation
+- [ArgoCD Official Documentation](https://argo-cd.readthedocs.io/)
+- [ArgoCD CLI Installation](https://argo-cd.readthedocs.io/en/stable/cli_installation/)
+- [Local Deployment Guide](./local-deployment.md)
+- [AWS Deployment Guide](./aws-deployment.md)
+- [General Deployment Guide](./DEPLOYMENT_GUIDE.md)
 
-## Support
+## Contributing
 
-If you encounter issues:
+If you encounter issues or have suggestions for improving the script:
 
-1. Check the [Troubleshooting](#troubleshooting) section above
-2. Review [ArgoCD logs](#troubleshooting)
-3. Consult the main [Troubleshooting Guide](troubleshooting.md)
-4. Open a GitHub issue with detailed error messages
+1. Check existing issues in the repository
+2. Create a new issue with:
+   - Your environment details (Windows version, Git Bash version)
+   - Complete error output
+   - Steps to reproduce
+3. Submit a pull request with fixes or improvements
 
----
+## License
 
-**Ready to start?** Run `./scripts/argocd-login.sh` to begin!
-
+This script is part of the Production-Ready EKS Cluster with GitOps project.
+See the LICENSE file in the repository root for details.

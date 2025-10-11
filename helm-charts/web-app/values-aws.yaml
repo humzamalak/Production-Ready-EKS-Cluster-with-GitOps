@@ -1,0 +1,74 @@
+# =============================================================================
+# Web App - AWS EKS Values
+# =============================================================================
+# Production configuration for AWS EKS deployment
+# =============================================================================
+
+replicaCount: 3
+
+serviceAccount:
+  create: true
+  annotations:
+    # Replace with your IAM role ARN for IRSA
+    # eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/web-app-role
+  name: ""
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: true
+  className: "alb"  # Use AWS ALB Ingress Controller
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: ""  # Add ACM certificate ARN
+  hosts:
+    - host: web-app.example.com  # Replace with your domain
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: web-app-tls
+      hosts:
+        - web-app.example.com
+
+networkPolicy:
+  enabled: true
+
+serviceMonitor:
+  enabled: true  # Enable Prometheus monitoring
+
+vault:
+  enabled: true
+  ready: true  # Assumes Vault is configured and ready
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - web-app
+          topologyKey: "kubernetes.io/hostname"
+
+
+

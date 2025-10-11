@@ -6,19 +6,18 @@ Complete guide for deploying this GitOps repository on **Minikube** or similar l
 
 ## 🎯 Overview
 
-This deployment follows a **7-phase approach** optimized for local development:
+This deployment provides a **complete GitOps stack** optimized for local development:
 
-| Phase | Component | Duration | Optional |
-|-------|-----------|----------|----------|
-| **Phase 1** | Local Infrastructure | 5 min | Required |
-| **Phase 2** | Bootstrap | 5-10 min | Required |
-| **Phase 3** | Monitoring | 5 min | Required |
-| **Phase 4** | Vault Deployment | 5 min | ⚠️ **Optional** |
-| **Phase 5** | Vault Configuration | 10 min | ⚠️ **Optional** |
-| **Phase 6** | Web App Deployment | 5 min | Required |
-| **Phase 7** | Vault Integration | 10 min | ⚠️ **Optional** |
+| Phase | Component | Duration | Description |
+|-------|-----------|----------|-------------|
+| **Phase 1** | Local Infrastructure | 5 min | Start Minikube with required addons |
+| **Phase 2** | ArgoCD Bootstrap | 5-10 min | Install ArgoCD and GitOps foundation |
+| **Phase 3** | Applications | 10-15 min | Deploy monitoring, vault, and web app via GitOps |
+| **Phase 4** | Verification | 5 min | Validate deployment and access services |
 
-**Total Time**: ~25 minutes (without Vault) or ~45 minutes (with Vault)
+**Total Time**: ~25-35 minutes
+
+**Note**: This guide uses the **automated setup script** for simplicity. For manual step-by-step deployment, see the detailed sections below.
 
 ## 📋 Prerequisites
 
@@ -51,7 +50,28 @@ sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(l
 sudo apt-get update && sudo apt-get install vault
 ```
 
-## 🚀 Phase 1: Local Infrastructure
+## 🚀 Quick Start (Automated)
+
+### Single Command Deployment
+
+```bash
+# Run the automated setup script
+./scripts/setup-minikube.sh
+```
+
+This script automatically:
+- ✅ Checks prerequisites (kubectl, helm, minikube)
+- ✅ Starts Minikube with optimized resources
+- ✅ Enables required addons (ingress, metrics-server)
+- ✅ Deploys ArgoCD
+- ✅ Bootstraps GitOps applications
+- ✅ Provides access credentials
+
+**Skip to Phase 4** for verification if using the automated script.
+
+---
+
+## 🚀 Phase 1: Local Infrastructure (Manual)
 
 ### Step 1.1: Start Minikube
 
@@ -75,330 +95,129 @@ minikube addons enable storage-provisioner
 minikube addons enable default-storageclass
 ```
 
-### Step 1.3: Build Application Image
+**✅ Phase 1 Complete**: Minikube running with required addons
+
+## 🔧 Phase 2: ArgoCD Bootstrap (Manual)
+
+### Step 2.1: Create Namespaces
 
 ```bash
-# Navigate to example app
-cd examples/web-app
+# Apply namespace definitions
+kubectl apply -f argo-apps/install/01-namespaces.yaml
 
-# Build Docker image (use Minikube's Docker daemon)
-eval $(minikube docker-env)
-docker build -t k8s-web-app:latest .
-
-# Navigate back to root
-cd ../..
-
-```
-
-**✅ Phase 1 Complete**: Minikube running, addons enabled, application image built
-
-## 🔧 Phase 2: Bootstrap (GitOps Foundation)
-
-### Step 2.1: Deploy Core Components
-
-```bash
-# Apply in order (critical for dependencies)
-kubectl apply -f bootstrap/00-namespaces.yaml
-kubectl apply -f bootstrap/01-pod-security-standards.yaml
-kubectl apply -f bootstrap/02-network-policy.yaml
-kubectl apply -f bootstrap/03-helm-repos.yaml
+# Wait for namespaces to be active
+kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/argocd --timeout=60s
 ```
 
 ### Step 2.2: Install ArgoCD
 
 ```bash
-# Ensure namespace exists and is ready
-kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd
-kubectl wait --for=condition=ready ns/argocd --timeout=60s
+# Install ArgoCD using official manifest
+ARGOCD_VERSION="2.13.0"
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v${ARGOCD_VERSION}/manifests/install.yaml
 
-# Add ArgoCD Helm repo
-helm repo add argo https://argoproj.github.io/argo-helm
-helm repo update
+# Wait for ArgoCD to be ready (3-5 minutes)
+kubectl wait --for=condition=available --timeout=300s \
+  deployment/argocd-server -n argocd
 
-# Install ArgoCD with local-optimized values
-helm upgrade --install argo-cd argo/argo-cd \
-  --namespace argocd \
-  --create-namespace \
-  --values bootstrap/helm-values/argo-cd-values.yaml \
-  --set server.resources.requests.cpu=50m \
-  --set server.resources.requests.memory=128Mi \
-  --wait --timeout=10m
+# Additional wait for all pods to stabilize
+sleep 30
 ```
 
-> **Note**: ArgoCD will auto-generate a random admin password and store it in the `argocd-initial-admin-secret` secret on first installation.
+> **Note**: ArgoCD auto-generates an admin password stored in the `argocd-initial-admin-secret` secret.
 
-### Step 2.3: Create Required Secrets
-
-```bash
-# Create monitoring secrets (consolidated secrets script)
-./scripts/secrets.sh create monitoring
-```
-
-### Step 2.4: Deploy ArgoCD Projects via GitOps
+### Step 2.3: Access ArgoCD UI
 
 ```bash
-# Deploy the projects bootstrap Application (manages all AppProjects via GitOps)
-kubectl apply -f bootstrap/05-argocd-projects.yaml
-
-# Wait for projects to be synced (ArgoCD will create prod-apps and staging-apps)
-sleep 15
-
-# Verify project creation
-kubectl get appprojects -n argocd
-# Expected output:
-#   NAME           AGE
-#   default        Xm
-#   prod-apps      Xs
-#   staging-apps   Xs
-```
-
-> **✅ What Changed**: AppProjects are now managed by Argo CD via GitOps (from `bootstrap/projects/`), eliminating manual kubectl apply steps.
-
-### Step 2.5: Access ArgoCD UI
-
-```bash
-# Get auto-generated admin password
+# Get admin password
 export ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d)
 echo "ArgoCD Password: $ARGOCD_PASSWORD"
 
 # Port forward to access UI
-kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 &
+kubectl port-forward svc/argocd-server -n argocd 8080:443 &
 echo "ArgoCD UI: https://localhost:8080"
 echo "Username: admin"
 echo "Password: $ARGOCD_PASSWORD"
 ```
 
-### Step 2.6: Deploy Root Application (prod)
+**Alternative**: Use the automated login script:
+```bash
+./scripts/argocd-login.sh
+```
+
+### Step 2.4: Deploy Applications via GitOps
 
 ```bash
-# Deploy the root app-of-apps for the prod environment
-kubectl apply -f environments/prod/app-of-apps.yaml
+# Deploy the bootstrap manifest which includes all applications
+kubectl apply -f argo-apps/install/03-bootstrap.yaml
 
-# Wait for root app to sync
-kubectl wait --for=condition=Synced --timeout=300s \
-  application/prod-cluster -n argocd
+# Wait for applications to sync
+sleep 30
 
-# Verify discovery (view child apps in Argo CD)
-# You should see: prometheus-prod, grafana-prod, k8s-web-app-prod
+# Verify all applications are syncing
 kubectl get applications -n argocd
+# Expected: grafana, prometheus, vault, web-app
 ```
 
-## 📊 Phase 3: Monitoring Stack
+> **Note**: The bootstrap file contains ArgoCD Application manifests that reference Helm charts. ArgoCD will automatically sync and deploy all applications.
 
-### Step 3.1: Wait for Monitoring Deployment
+## 📊 Phase 3: Applications Deployment
+
+> **Note**: ArgoCD automatically deploys all applications defined in `argo-apps/install/03-bootstrap.yaml`. This includes Prometheus, Grafana, Vault, and the sample web application. All applications use **upstream Helm charts** with custom values overrides.
+
+### Step 3.1: Monitor Application Sync
 
 ```bash
-# Wait for Prometheus to deploy
-kubectl wait --for=condition=Synced --timeout=600s \
-  application/prometheus-prod -n argocd
+# Watch applications as they sync
+watch kubectl get applications -n argocd
 
-# Wait for Grafana to deploy
-kubectl wait --for=condition=Synced --timeout=600s \
-  application/grafana-prod -n argocd
-
-# Check monitoring pods
-kubectl get pods -n monitoring
+# Check individual application status
+kubectl get application prometheus -n argocd
+kubectl get application grafana -n argocd
+kubectl get application vault -n argocd
+kubectl get application web-app -n argocd
 ```
 
-### Step 3.2: Access Monitoring Services
+### Step 3.2: Wait for All Pods
 
 ```bash
-# Prometheus
-kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus \
-  -n monitoring 9090:9090 &
-echo "Prometheus: http://localhost:9090"
+# Wait for monitoring namespace pods
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus -n monitoring --timeout=300s
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana -n monitoring --timeout=300s
 
-# Grafana
-export GRAFANA_PASSWORD=$(kubectl get secret grafana-admin -n monitoring \
-  -o jsonpath="{.data.admin-password}" | base64 -d)
-kubectl port-forward svc/grafana -n monitoring 3000:80 &
-echo "Grafana: http://localhost:3000 (admin / $GRAFANA_PASSWORD)"
+# Wait for vault namespace pods
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=vault -n vault --timeout=300s
+
+# Wait for production namespace pods
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=web-app -n production --timeout=300s
 ```
 
-**✅ Phase 3 Complete**: Monitoring stack deployed and accessible
+**✅ Phase 3 Complete**: All applications deployed via GitOps
 
-## 🔒 Phase 4: Vault Deployment (Optional)
-
-> **⚠️ Important**: Vault is currently disabled in this repository. The `vault` namespace is commented out in `bootstrap/00-namespaces.yaml`. To enable Vault, uncomment the vault namespace section and create a separate Vault Application manifest in `environments/prod/apps/`.
-
-> **💡 Skip This Phase**: Vault integration is not yet implemented. Proceed to Phase 6 to deploy the web application without Vault secrets.
-
-### Step 4.1: Wait for Vault Deployment (Not Currently Available)
-
-```bash
-# Note: Vault is not currently deployed via ArgoCD in this repository
-# If you manually deploy Vault, you can check the pods with:
-# kubectl get pods -n vault
-```
-
-### Step 4.2: Port Forward to Vault
-
-```bash
-# Set up port forward
-kubectl port-forward svc/vault -n vault 8200:8200 &
-export VAULT_ADDR="http://localhost:8200"
-```
-
-**✅ Phase 4 Complete**: Vault deployed and accessible
-
-## 🔧 Phase 5: Vault Configuration (Optional)
-
-> **⚠️ Prerequisites**: Phase 4 must be complete.
-
-### Step 5.1: Initialize Vault
-
-```bash
-# Initialize Vault with single key for local development
-vault operator init -key-shares=1 -key-threshold=1 > vault-keys-local.txt
-
-# Extract credentials
-export VAULT_TOKEN=$(grep 'Initial Root Token:' vault-keys-local.txt | awk '{print $NF}')
-export VAULT_UNSEAL_KEY=$(grep 'Unseal Key 1:' vault-keys-local.txt | awk '{print $NF}')
-
-# Save for later use
-echo "export VAULT_TOKEN=$VAULT_TOKEN" >> ~/.vault-local-env
-echo "export VAULT_UNSEAL_KEY=$VAULT_UNSEAL_KEY" >> ~/.vault-local-env
-```
-
-### Step 5.2: Unseal and Configure Vault
-
-```bash
-# Unseal Vault
-vault operator unseal $VAULT_UNSEAL_KEY
-
-# Enable secrets engine
-vault secrets enable -path=secret kv-v2
-
-# Enable Kubernetes authentication
-vault auth enable kubernetes
-vault write auth/kubernetes/config \
-  kubernetes_host="https://$(kubectl config view --raw -o jsonpath='{.clusters[0].cluster.server}' | sed 's|https://||')" \
-  kubernetes_ca_cert="$(kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' | base64 -d)" \
-  token_reviewer_jwt="$(kubectl get secret -n vault $(kubectl get sa vault -n vault -o jsonpath='{.secrets[0].name}') -o jsonpath='{.data.token}' | base64 -d)"
-```
-
-### Step 5.3: Create Policies and Secrets
-
-```bash
-# Create web app policy
-vault policy write k8s-web-app - <<EOF
-path "secret/data/production/web-app/*" {
-  capabilities = ["read"]
-}
-path "secret/metadata/production/web-app/*" {
-  capabilities = ["read", "list"]
-}
-path "auth/kubernetes/login" {
-  capabilities = ["create", "update"]
-}
-EOF
-
-# Create Kubernetes role
-vault write auth/kubernetes/role/k8s-web-app \
-  bound_service_account_names=k8s-web-app \
-  bound_service_account_namespaces=production \
-  policies=k8s-web-app \
-  ttl=1h \
-  max_ttl=24h
-
-# Create application secrets
-vault kv put secret/production/web-app/db \
-  host="localhost" \
-  port="5432" \
-  name="k8s_web_app_dev" \
-  username="dev_user" \
-  password="dev_password_123"
-
-vault kv put secret/production/web-app/api \
-  jwt_secret="dev-jwt-secret-$(openssl rand -hex 16)" \
-  encryption_key="dev-encryption-key-$(openssl rand -hex 16)" \
-  api_key="dev-api-key-$(openssl rand -hex 8)"
-```
-
-**✅ Phase 5 Complete**: Vault configured with policies and secrets
-
-## 🌐 Phase 6: Web Application Deployment
-
-### Step 6.1: Deploy Web Application
-
-```bash
-# Wait for app to sync (using values without Vault secrets)
-kubectl wait --for=condition=Synced --timeout=600s \
-  application/k8s-web-app-prod -n argocd
-
-# Check pods
-kubectl get pods -n production
-```
-
-### Step 6.2: Access the Web Application
-
-```bash
-# Port-forward to web app
-kubectl port-forward svc/k8s-web-app -n production 8081:80 &
-echo "Web App: http://localhost:8081"
-
-# Test application
-curl -s http://localhost:8081/health
-```
-
-**✅ Phase 6 Complete**: Web application deployed and accessible
-
-## 🔐 Phase 7: Vault Integration (Optional)
-
-> ⚠️ Prerequisites: Vault is deployed and initialized.
-
-### Step 7.1: Enable Vault in Web App
-
-```bash
-# Toggle Vault in the production values file and commit
-vi applications/web-app/k8s-web-app/values.yaml
-# Set:
-# vault:
-#   enabled: true
-#   ready: true
-
-git add applications/web-app/k8s-web-app/values.yaml
-git commit -m "Enable Vault for web app (prod)"
-git push
-
-# Argo CD will reconcile automatically; verify status
-kubectl get applications -n argocd
-```
-
-### Step 7.2: Verify Vault Integration
-
-```bash
-# Check pod has 2 containers now (app + vault-agent)
-kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app \
-  -o jsonpath='{.items[0].spec.containers[*].name}'
-
-# Check secrets are injected
-kubectl exec -n production deployment/k8s-web-app -- ls -la /vault/secrets/
-
-# Test application still works
-curl -s http://localhost:8081/health
-```
-
-**✅ Phase 7 Complete**: Vault integration enabled and working
-
-## ✅ Final Verification
+## ✅ Phase 4: Verification & Access
 
 ### System Health Check
 
 ```bash
-# Check all applications
+# Use the Makefile helper
+make dev-status
+
+# Or manually check each component
 kubectl get applications -n argocd
-
-# Check all pods
 kubectl get pods -A | grep -v "Running\|Completed"
-
-# Verify web app has correct number of containers
-kubectl get pods -n production -l app.kubernetes.io/name=k8s-web-app
+kubectl top nodes
 ```
 
 ### Access All Services
 
+**Using Automated Script:**
+```bash
+# This script handles port-forwarding and provides all access info
+./scripts/argocd-login.sh
+```
+
+**Manual Access:**
 ```bash
 # Stop any existing port-forwards
 pkill -f "kubectl port-forward"
@@ -406,22 +225,32 @@ pkill -f "kubectl port-forward"
 # Get passwords
 export ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d)
-export GRAFANA_PASSWORD=$(kubectl get secret grafana-admin -n monitoring \
-  -o jsonpath="{.data.admin-password}" | base64 -d)
 
-# Start all port-forwards
-kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 > /dev/null 2>&1 &
-kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090 > /dev/null 2>&1 &
+# ArgoCD UI
+kubectl port-forward svc/argocd-server -n argocd 8080:443 > /dev/null 2>&1 &
+echo "ArgoCD: https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
+
+# Prometheus
+kubectl port-forward svc/prometheus-operated -n monitoring 9090:9090 > /dev/null 2>&1 &
+echo "Prometheus: http://localhost:9090"
+
+# Grafana
 kubectl port-forward svc/grafana -n monitoring 3000:80 > /dev/null 2>&1 &
-kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
-kubectl port-forward svc/k8s-web-app -n production 8081:80 > /dev/null 2>&1 &
+echo "Grafana: http://localhost:3000 (admin / admin)"
 
-echo "✅ All services accessible:"
-echo "   ArgoCD:      https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
-echo "   Prometheus:  http://localhost:9090"
-echo "   Grafana:     http://localhost:3000 (admin / $GRAFANA_PASSWORD)"
-echo "   Vault:       http://localhost:8200"
-echo "   Web App:     http://localhost:8081"
+# Vault
+kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
+echo "Vault: http://localhost:8200"
+
+# Web App
+kubectl port-forward svc/web-app -n production 8081:80 > /dev/null 2>&1 &
+echo "Web App: http://localhost:8081"
+```
+
+**Quick Access via Makefile:**
+```bash
+make port-forward-argocd   # ArgoCD UI
+make port-forward-grafana  # Grafana
 ```
 
 ## 🚨 Troubleshooting
@@ -491,24 +320,68 @@ kubectl delete namespace argocd monitoring production
 # Start Minikube
 minikube start
 
-# Unseal Vault (if using Vault)
-source ~/.vault-local-env
-kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
-vault operator unseal $VAULT_UNSEAL_KEY
+# Access services
+./scripts/argocd-login.sh
 
-# Start port forwards (create a script with the port-forward commands above)
+# Or use Makefile
+make argo-login
 ```
 
-### Updating Application
+### Updating Application Configuration
+
 ```bash
-# Rebuild image
-cd examples/web-app
-eval $(minikube docker-env)
-docker build -t k8s-web-app:latest .
+# Edit Helm values
+vi helm-charts/web-app/values-minikube.yaml
 
-# Restart deployment
-kubectl rollout restart deployment k8s-web-app -n production
+# Commit changes (ArgoCD will auto-sync)
+git add helm-charts/web-app/values-minikube.yaml
+git commit -m "Update web app configuration for Minikube"
+git push
+
+# Force sync if needed
+kubectl patch application web-app -n argocd --type merge -p '{"operation":{"sync":{}}}'
 ```
+
+### Scaling Applications
+
+```bash
+# View current HPA status
+kubectl get hpa -n production
+
+# Manual scaling for testing
+kubectl scale deployment web-app -n production --replicas=3
+```
+
+## 📚 Additional Resources
+
+### Documentation
+- **[Architecture Guide](architecture.md)** - Understand the repository structure
+- **[Troubleshooting Guide](troubleshooting.md)** - Common issues and solutions
+- **[ArgoCD CLI Setup](argocd-cli-setup.md)** - Windows/cross-platform setup
+- **[Scripts Documentation](scripts.md)** - Detailed script usage
+- **[CI/CD Pipeline](ci_cd_pipeline.md)** - GitHub Actions workflows
+
+### Makefile Commands
+
+```bash
+# Show all available commands
+make help
+
+# Common commands
+make deploy-minikube      # Full automated deployment
+make validate-all         # Validate everything
+make argo-login          # Login to ArgoCD
+make port-forward-argocd # Access ArgoCD UI
+```
+
+### Helm Chart Information
+
+This repository uses **upstream Helm charts** for Prometheus, Grafana, and Vault:
+- **Prometheus**: prometheus-community/kube-prometheus-stack
+- **Grafana**: grafana/grafana
+- **Vault**: hashicorp/vault
+
+Only **values overrides** are maintained locally in `helm-charts/*/values*.yaml` files. The web-app uses a custom Helm chart in `helm-charts/web-app/`.
 
 ---
 

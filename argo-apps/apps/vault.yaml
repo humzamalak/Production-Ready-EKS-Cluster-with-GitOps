@@ -1,0 +1,111 @@
+# =============================================================================
+# ArgoCD Application - HashiCorp Vault
+# =============================================================================
+#
+# Deploys HashiCorp Vault for secrets management.
+# Includes Vault Agent Injector for automatic secret injection into pods.
+#
+# Chart: hashicorp/vault
+# Version: 0.28.1
+# Namespace: vault
+#
+# Components:
+#   - Vault Server (dev mode for Minikube, HA for AWS)
+#   - Vault Agent Injector (mutating webhook)
+#   - Vault UI
+#
+# Features:
+#   - Kubernetes authentication
+#   - KV v2 secrets engine
+#   - Policy-based access control
+#   - Automatic secret injection via annotations
+#
+# Values Files:
+#   - Default: apps/vault/values.yaml
+#   - Minikube: apps/vault/values-minikube.yaml (dev mode)
+#   - AWS: apps/vault/values-aws.yaml (HA with persistent storage)
+#
+# Post-Installation:
+#   1. Initialize Vault (if not dev mode)
+#   2. Configure Kubernetes auth
+#   3. Create policies and roles
+#   4. Enable KV v2 engine
+#
+# Access:
+#   kubectl port-forward -n vault svc/vault 8200:8200
+#   export VAULT_ADDR=http://localhost:8200
+#
+# Sync Wave: 2 (deploys before apps that need secrets)
+# Compatibility: Kubernetes 1.33+, Vault 1.17+
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/part-of: security
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    description: "HashiCorp Vault for secrets management"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: prod-apps
+  
+  # Multi-source pattern: chart from Helm repo, values from Git
+  sources:
+    # Vault Helm chart
+    - repoURL: 'https://helm.releases.hashicorp.com'
+      chart: vault
+      targetRevision: 0.28.1
+      helm:
+        valueFiles:
+          - $values/apps/vault/values.yaml
+          # Environment-specific values (uncomment as needed)
+          # - $values/apps/vault/values-minikube.yaml
+          - $values/apps/vault/values-aws.yaml
+    
+    # Values from Git repository
+    - repoURL: 'https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps'
+      targetRevision: main
+      ref: values
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Ignore StatefulSet replicas (managed by operator in HA mode)
+  # Ignore webhook caBundle (dynamically managed by Kubernetes)
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/replicas
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+        - /webhooks/1/clientConfig/caBundle
+  
+  revisionHistoryLimit: 3
+
+
+

@@ -1,0 +1,101 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform-apply.yaml'
+
+permissions:
+  contents: write
+
+jobs:
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      AWS_REGION: us-east-1
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.5.0'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        run: |
+          cd terraform/environments/aws
+          terraform init
+
+      - name: Terraform Plan
+        run: |
+          cd terraform/environments/aws
+          terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        run: |
+          cd terraform/environments/aws
+          terraform apply -auto-approve tfplan
+
+      - name: Update Kubeconfig
+        run: |
+          cd terraform/environments/aws
+          CLUSTER_NAME=$(terraform output -raw cluster_name || echo "production-cluster")
+          aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_REGION
+
+      - name: Get Infrastructure Version
+        id: infra-version
+        run: |
+          if [ -f VERSION ]; then
+            VERSION=$(grep "INFRASTRUCTURE_VERSION" VERSION | cut -d'=' -f2)
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "version=1.0.0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Tag Infrastructure Version
+        run: |
+          VERSION=${{ steps.infra-version.outputs.version }}
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "infra-v${VERSION}" -m "Infrastructure deployment v${VERSION}"
+          git push origin "infra-v${VERSION}" || echo "Tag already exists"
+
+      - name: Update VERSION file
+        run: |
+          CURRENT_DATE=$(date +%Y-%m-%d)
+          sed -i "s/^LAST_UPDATED=.*/LAST_UPDATED=$CURRENT_DATE/" VERSION
+          
+      - name: Commit VERSION update
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add VERSION
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: Update infrastructure deployment date [skip ci]"
+          git push || echo "No changes to commit"
+
+      - name: Terraform Output
+        run: |
+          cd terraform/environments/aws
+          terraform output -json > terraform-outputs.json
+          echo "Terraform outputs saved"
+
+      - name: Upload Terraform Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs
+          path: terraform/environments/aws/terraform-outputs.json
+          retention-days: 30
+
