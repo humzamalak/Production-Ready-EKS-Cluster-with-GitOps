@@ -45,7 +45,7 @@ spec:
   source:
     repoURL: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
     targetRevision: main
-    path: argocd/projects
+    path: argo-apps/projects
     directory:
       recurse: false
   
@@ -94,7 +94,7 @@ spec:
   source:
     repoURL: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
     targetRevision: main
-    path: argocd/apps
+    path: argo-apps/apps
     directory:
       recurse: false
       # Only sync Application resources
