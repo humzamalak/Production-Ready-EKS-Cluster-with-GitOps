@@ -42,7 +42,7 @@ spec:
   source:
     repoURL: https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps
     targetRevision: main
-    path: apps/web-app
+    path: helm-charts/web-app
     helm:
       # Use default values, override with environment-specific as needed
       valueFiles:

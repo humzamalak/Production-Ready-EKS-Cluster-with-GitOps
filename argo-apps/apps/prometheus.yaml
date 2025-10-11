@@ -50,10 +50,10 @@ spec:
       targetRevision: 61.6.0
       helm:
         valueFiles:
-          - $values/apps/prometheus/values.yaml
+          - $values/helm-charts/prometheus/values.yaml
           # Environment-specific values (uncomment as needed)
-          # - $values/apps/prometheus/values-minikube.yaml
-          # - $values/apps/prometheus/values-aws.yaml
+          # - $values/helm-charts/prometheus/values-minikube.yaml
+          # - $values/helm-charts/prometheus/values-aws.yaml
     
     # Values from Git repository
     - repoURL: 'https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps'

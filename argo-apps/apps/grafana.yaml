@@ -52,10 +52,10 @@ spec:
       targetRevision: 7.3.7
       helm:
         valueFiles:
-          - $values/apps/grafana/values.yaml
+          - $values/helm-charts/grafana/values.yaml
           # Environment-specific values (uncomment as needed)
-          # - $values/apps/grafana/values-minikube.yaml
-          # - $values/apps/grafana/values-aws.yaml
+          # - $values/helm-charts/grafana/values-minikube.yaml
+          # - $values/helm-charts/grafana/values-aws.yaml
     
     # Values from Git repository
     - repoURL: 'https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps'
