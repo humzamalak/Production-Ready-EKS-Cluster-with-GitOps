@@ -35,7 +35,7 @@ NC='\033[0m' # No Color
 REPO_URL="https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps"
 CLUSTER_NAME="${CLUSTER_NAME:-production-cluster}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
-ARGOCD_VERSION="2.13.0"
+ARGOCD_VERSION="3.1.0"
 SKIP_TERRAFORM=false
 
 # Parse arguments

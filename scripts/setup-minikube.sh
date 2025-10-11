@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Configuration
-ARGOCD_VERSION="2.13.0"
+ARGOCD_VERSION="3.1.0"
 
 # Helper functions
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }

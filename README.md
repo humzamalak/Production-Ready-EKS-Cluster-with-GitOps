@@ -28,7 +28,7 @@ Choose your deployment path based on your target environment:
 ## 🏗️ What's Included
 
 ### Core Infrastructure Components
-- **🚀 ArgoCD** - GitOps continuous delivery with automated synchronization
+- **🚀 ArgoCD v3.1.0** - GitOps continuous delivery with automated synchronization
 - **📊 Prometheus & Grafana** - Comprehensive monitoring, metrics, and alerting
 - **🔐 Vault** - HashiCorp Vault for secrets management (optional, documented for future integration)
 - **📦 Sample Web Application** - Production-ready Node.js app with complete Helm charts
@@ -49,11 +49,12 @@ Choose your deployment path based on your target environment:
 
 ### For Local Deployment
 - Minikube or similar local Kubernetes (k8s v1.33.0)
-- kubectl, helm, and ArgoCD CLI
+- kubectl (v1.33+), helm (v3.x), ArgoCD CLI (v3.1+)
 - yq for YAML processing
 
 ### For AWS Deployment
-- AWS CLI v2, Terraform, kubectl (>=1.33)
+- AWS CLI v2, Terraform (v1.5+), kubectl (v1.33+)
+- ArgoCD CLI (v3.1+)
 - AWS account with appropriate permissions
 - yq for configuration management
 

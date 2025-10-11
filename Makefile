@@ -259,6 +259,14 @@ version:
 	@echo "Helm: $$(helm version --short 2>/dev/null || echo 'not installed')"
 	@echo "ArgoCD: $$(argocd version --client --short 2>/dev/null || echo 'not installed')"
 
+## validate-argocd: Validate ArgoCD version availability
+validate-argocd:
+	./scripts/validate-argocd-version.sh
+
+## rollback-argocd: Rollback ArgoCD to previous version
+rollback-argocd:
+	./scripts/rollback-argocd.sh
+
 # ============================================================================
 # Notes
 # ============================================================================

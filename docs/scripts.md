@@ -126,6 +126,7 @@ make deploy-sync ENV=prod
 - Disk: 20GB
 - Driver: docker (auto-detected)
 - Kubernetes: v1.33.0
+- ArgoCD: v3.1.0
 
 **Functions:**
 - `check_prerequisites()` - Tool validation
@@ -186,7 +187,8 @@ Next Steps:
 **Configuration:**
 - Cluster Name: From environment variable or default
 - AWS Region: From environment variable or us-east-1
-- ArgoCD Version: 2.13.0
+- ArgoCD Version: 3.1.0
+- Kubernetes: v1.33.0
 
 **Functions:**
 - `check_prerequisites()` - Tool and AWS credential validation

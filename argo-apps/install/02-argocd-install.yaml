@@ -18,10 +18,12 @@
 #   kubectl port-forward svc/argocd-server -n argocd 8080:443
 #   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 #
-# Compatibility: Kubernetes 1.33+, ArgoCD 2.13+
+# Compatibility: Kubernetes 1.21+ (tested with 1.33), ArgoCD 3.1+
 #
 # NOTE: This file is a placeholder. The actual installation is done via:
-#   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.0/manifests/install.yaml
+#   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.1.0/manifests/install.yaml
+#
+# Release Notes: https://github.com/argoproj/argo-cd/releases/tag/v3.1.0
 # =============================================================================
 
 # This file intentionally contains only this comment.
