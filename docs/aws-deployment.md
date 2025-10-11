@@ -1,8 +1,10 @@
-# AWS Deployment Guide
+# AWS Deployment Guide (Advanced)
 
-> Compatibility: Kubernetes v1.33.0 (EKS cluster version 1.33)
+> 🚀 **Advanced: Production Deployment on AWS EKS**  
+> **New to this repository?** Start with [Local Deployment Guide](local-deployment.md) first  
+> **Compatibility**: Kubernetes v1.33.0 (EKS cluster version 1.33)
 
-Complete guide for deploying this GitOps repository on **AWS EKS** for production environments.
+Complete guide for deploying this GitOps repository on **AWS EKS** for production environments with high availability, auto-scaling, and enterprise features.
 
 ## 🎯 Overview
 
@@ -19,6 +21,21 @@ This deployment follows a **7-phase approach** with built-in verification:
 | **Phase 7** | Vault Integration | 10 min | ⚠️ **Optional** |
 
 **Total Time**: ~40 minutes (without Vault) or ~65 minutes (with Vault)
+
+## 🔀 Local vs AWS Comparison
+
+| Feature | Local (Minikube) | AWS EKS (This Guide) |
+|---------|------------------|----------------------|
+| **Infrastructure** | Single-node Minikube | Multi-AZ EKS cluster with managed nodes |
+| **Vault** | Single replica, manual unseal | HA (3 replicas), KMS auto-unseal |
+| **Storage** | Local `standard` StorageClass | AWS EBS `gp3` with encryption |
+| **Networking** | Port-forward access | ALB Ingress with TLS |
+| **Cost** | Free (local resources) | AWS charges apply (~$150-300/month) |
+| **Complexity** | ⭐ Easy | ⭐⭐⭐ Advanced |
+| **Setup Time** | ~30 minutes | ~60 minutes |
+| **Best For** | Learning, development | Production workloads |
+
+**Prerequisites**: Familiarity with local deployment recommended. See [Local Deployment Guide](local-deployment.md).
 
 ## 📋 Prerequisites
 

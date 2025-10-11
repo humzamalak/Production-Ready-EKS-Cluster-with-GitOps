@@ -1,8 +1,9 @@
 # Local Deployment Guide
 
+> **Primary deployment path for this repository**  
 > Compatibility: Kubernetes v1.33.0 (Minikube or compatible local cluster)
 
-Complete guide for deploying this GitOps repository on **Minikube** or similar local Kubernetes clusters.
+Complete guide for deploying a GitOps stack on **Minikube** with ArgoCD, Vault (manual unseal), Prometheus, and Grafana.
 
 ## 🎯 Overview
 
@@ -10,14 +11,26 @@ This deployment provides a **complete GitOps stack** optimized for local develop
 
 | Phase | Component | Duration | Description |
 |-------|-----------|----------|-------------|
+| **Phase 0** | Prerequisites Check | 2 min | Verify tools and system resources |
 | **Phase 1** | Local Infrastructure | 5 min | Start Minikube with required addons |
 | **Phase 2** | ArgoCD Bootstrap | 5-10 min | Install ArgoCD and GitOps foundation |
 | **Phase 3** | Applications | 10-15 min | Deploy monitoring, vault, and web app via GitOps |
+| **Phase 3.5** | Vault Unseal | 2-3 min | Manually unseal Vault (required) |
 | **Phase 4** | Verification | 5 min | Validate deployment and access services |
 
-**Total Time**: ~25-35 minutes
+**Total Time**: ~30-40 minutes
 
 **Note**: This guide uses the **automated setup script** for simplicity. For manual step-by-step deployment, see the detailed sections below.
+
+## ⚠️ Important: Vault Configuration
+
+This local setup uses **single-replica Vault with file storage** and **manual unseal**:
+- **NOT dev mode** - Proper initialization required
+- **Manual unseal** - Required after each Vault restart
+- **File storage** - Data persists in PVC at `/vault/data`
+- **Minikube storageClass** - Uses `standard` (not `gp3`)
+
+For production AWS deployment with HA and KMS auto-unseal, see [Vault AWS Setup](vault-setup.md).
 
 ## 📋 Prerequisites
 
@@ -67,7 +80,45 @@ This script automatically:
 - ✅ Bootstraps GitOps applications
 - ✅ Provides access credentials
 
-**Skip to Phase 4** for verification if using the automated script.
+**⚠️ Important**: After script completes, you must **manually unseal Vault** (see Phase 3.5 below).
+
+**Skip to Phase 3.5** for Vault unseal if using the automated script.
+
+---
+
+## 🛠️ Phase 0: Prerequisites Check (Manual)
+
+### Step 0.1: Verify Required Tools
+
+```bash
+# Check Minikube
+minikube version
+# Expected: v1.30+
+
+# Check kubectl
+kubectl version --client
+# Expected: v1.33+
+
+# Check Helm
+helm version
+# Expected: v3.x
+
+# Check Docker
+docker --version
+# Expected: 20.x+
+```
+
+### Step 0.2: Verify System Resources
+
+```bash
+# Check available memory (Linux/macOS)
+free -h  # Should show at least 4GB available
+
+# Check available disk space
+df -h .  # Should show at least 30GB free
+```
+
+**✅ Phase 0 Complete**: All prerequisites verified
 
 ---
 
@@ -195,6 +246,79 @@ kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=web-app -n prod
 
 **✅ Phase 3 Complete**: All applications deployed via GitOps
 
+---
+
+## 🔐 Phase 3.5: Vault Manual Unseal (REQUIRED)
+
+> **Critical**: Vault will not be ready until manually unsealed. This is normal for non-dev mode Vault.
+
+### Step 3.5.1: Check Vault Status
+
+```bash
+# Check Vault pod status
+kubectl get pods -n vault
+
+# Expected output:
+# NAME      READY   STATUS    RESTARTS   AGE
+# vault-0   0/1     Running   0          2m
+# Note: 0/1 Ready is normal - Vault is sealed
+```
+
+### Step 3.5.2: Initialize Vault (First Time Only)
+
+**Only run this if Vault has never been initialized:**
+
+```bash
+# Port-forward to Vault
+kubectl port-forward svc/vault -n vault 8200:8200 &
+
+# Initialize Vault
+kubectl exec -n vault vault-0 -- vault operator init -key-shares=1 -key-threshold=1
+
+# Save the output! You'll see:
+# Unseal Key 1: <UNSEAL_KEY>
+# Initial Root Token: <ROOT_TOKEN>
+
+# Save these to a local file (KEEP SECURE)
+cat > ~/.vault-local-env <<EOF
+export VAULT_UNSEAL_KEY="<paste-unseal-key-here>"
+export VAULT_ROOT_TOKEN="<paste-root-token-here>"
+export VAULT_ADDR="http://localhost:8200"
+EOF
+
+chmod 600 ~/.vault-local-env
+```
+
+### Step 3.5.3: Unseal Vault
+
+```bash
+# Load saved keys
+source ~/.vault-local-env
+
+# Unseal Vault
+kubectl exec -n vault vault-0 -- vault operator unseal $VAULT_UNSEAL_KEY
+
+# Verify Vault is unsealed
+kubectl exec -n vault vault-0 -- vault status
+
+# Expected: Sealed: false
+```
+
+### Step 3.5.4: Verify Vault Pod Ready
+
+```bash
+# Check pod status (should now show 1/1 Ready)
+kubectl get pods -n vault
+
+# Expected output:
+# NAME      READY   STATUS    RESTARTS   AGE
+# vault-0   1/1     Running   0          5m
+```
+
+**✅ Phase 3.5 Complete**: Vault unsealed and ready
+
+---
+
 ## ✅ Phase 4: Verification & Access
 
 ### System Health Check
@@ -255,6 +379,159 @@ make port-forward-grafana  # Grafana
 
 ## 🚨 Troubleshooting
 
+### Vault Issues
+
+#### Vault Pod Not Ready (0/1)
+
+**Symptom**: Vault pod shows `0/1 Ready` even after deployment
+
+**Cause**: Vault is sealed (normal for non-dev mode)
+
+**Solution**: Unseal Vault following [Phase 3.5](#-phase-35-vault-manual-unseal-required)
+
+#### Vault PVC Binding Issues
+
+**Symptom**: Vault PVC stuck in `Pending` state
+
+```bash
+kubectl get pvc -n vault
+# NAME                   STATUS    VOLUME   CAPACITY
+# data-vault-0           Pending
+```
+
+**Cause**: Wrong storageClass specified (e.g., `gp3` instead of `standard` for Minikube)
+
+**Solution**:
+
+```bash
+# 1. Verify Minikube storageClass exists
+kubectl get storageclass
+# Should see 'standard' storageClass
+
+# 2. Delete the stuck PVC
+kubectl delete pvc data-vault-0 -n vault
+
+# 3. Delete the Vault pod to trigger recreation
+kubectl delete pod vault-0 -n vault
+
+# 4. Or resync the Argo CD application
+kubectl patch application vault -n argocd --type merge -p '{"operation":{"sync":{}}}'
+
+# 5. Verify new PVC binds correctly
+kubectl get pvc -n vault
+# Should show 'Bound' status
+```
+
+**Helm values check** (ensure `values-minikube.yaml` uses `standard`):
+```yaml
+# helm-charts/vault/values-minikube.yaml
+server:
+  dataStorage:
+    storageClass: standard  # NOT gp3
+```
+
+#### Vault Permission Errors (`/vault/data`)
+
+**Symptom**: Vault pod logs show permission denied for `/vault/data`
+
+```bash
+kubectl logs vault-0 -n vault
+# Error: permission denied: /vault/data
+```
+
+**Cause**: Init container or security context issues with PVC ownership
+
+**Solution**:
+
+```bash
+# 1. Check init container logs
+kubectl logs vault-0 -n vault -c vault-init
+
+# 2. Verify security context in Helm values
+# helm-charts/vault/values-minikube.yaml should have:
+# server:
+#   securityContext:
+#     fsGroup: 1000
+#     runAsUser: 100
+#     runAsNonRoot: true
+
+# 3. Delete pod and PVC to start fresh
+kubectl delete pod vault-0 -n vault
+kubectl delete pvc data-vault-0 -n vault
+
+# 4. Resync Argo CD application
+kubectl patch application vault -n argocd --type merge -p '{"operation":{"sync":{}}}'
+```
+
+#### Vault Sealed After Restart
+
+**Symptom**: Vault becomes sealed after Minikube restart or pod restart
+
+**Cause**: Manual unseal required (expected behavior for non-KMS Vault)
+
+**Solution**:
+```bash
+# Load saved keys
+source ~/.vault-local-env
+
+# Port-forward to Vault
+kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
+
+# Unseal Vault
+kubectl exec -n vault vault-0 -- vault operator unseal $VAULT_UNSEAL_KEY
+
+# Verify unsealed
+kubectl exec -n vault vault-0 -- vault status
+```
+
+### Argo CD Issues
+
+#### Application Stuck Syncing
+
+**Symptom**: Argo CD application shows "Progressing" or "OutOfSync" indefinitely
+
+**Solution**:
+
+```bash
+# 1. Hard refresh the application
+kubectl patch application <app-name> -n argocd \
+  --type merge \
+  -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'
+
+# 2. Force sync
+kubectl patch application <app-name> -n argocd --type merge -p '{"operation":{"sync":{}}}'
+
+# 3. Check application status
+kubectl get application <app-name> -n argocd
+kubectl describe application <app-name> -n argocd
+```
+
+#### PVC Cleanup and Resync Workflow
+
+**When to use**: Application has persistent issues, need fresh start
+
+```bash
+# Example: Reset Vault completely
+
+# 1. Delete the Argo CD application (stops management)
+kubectl delete application vault -n argocd
+
+# 2. Delete the namespace (removes all resources)
+kubectl delete namespace vault
+
+# 3. Delete any stuck PVCs
+kubectl get pvc -A | grep vault
+kubectl delete pvc <pvc-name> -n vault
+
+# 4. Recreate the application (Argo CD will resync)
+kubectl apply -f argo-apps/apps/vault.yaml
+
+# 5. Wait for deployment
+kubectl wait --for=condition=available deployment/vault -n vault --timeout=300s
+
+# 6. Unseal Vault (see Phase 3.5)
+```
+
 ### Common Issues
 
 #### Minikube Not Starting
@@ -276,14 +553,6 @@ kubectl top pods -A
 
 # Reduce monitoring resources or stop temporarily
 kubectl scale statefulset prometheus-kube-prometheus-stack-prometheus -n monitoring --replicas=0
-```
-
-#### Vault Sealed After Restart
-```bash
-# Load keys and unseal
-source ~/.vault-local-env
-kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
-vault operator unseal $VAULT_UNSEAL_KEY
 ```
 
 ## 🧹 Cleanup
@@ -315,16 +584,36 @@ kubectl delete namespace argocd monitoring production
 
 ## 🔧 Daily Operations
 
-### Starting Your Environment
+### Daily Startup Workflow
+
+**Complete workflow for starting your local environment:**
+
 ```bash
-# Start Minikube
+# 1. Start Minikube
 minikube start
 
-# Access services
-./scripts/argocd-login.sh
+# 2. Wait for all pods (except Vault)
+kubectl get pods -A
+# Most pods should show Running, Vault will be 0/1 (sealed)
 
-# Or use Makefile
-make argo-login
+# 3. Unseal Vault
+source ~/.vault-local-env
+kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
+kubectl exec -n vault vault-0 -- vault operator unseal $VAULT_UNSEAL_KEY
+
+# 4. Verify Vault is ready
+kubectl get pods -n vault
+# Should show vault-0 as 1/1 Running
+
+# 5. Access services
+./scripts/argocd-login.sh
+```
+
+**Quick check - All services healthy:**
+```bash
+# Check all pods are running
+kubectl get pods -A | grep -v "Running\|Completed"
+# Should show no output (or only Completed jobs)
 ```
 
 ### Updating Application Configuration

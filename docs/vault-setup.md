@@ -1,6 +1,22 @@
-# HashiCorp Vault Setup Guide
+# HashiCorp Vault Setup Guide (AWS Production)
 
-Complete guide for deploying and configuring HashiCorp Vault in EKS with ArgoCD, Raft storage, and AWS KMS auto-unseal.
+> ⚠️ **AWS/Production Deployment Only**  
+> **For local Minikube setup**, see [Vault Local Setup Guide](vault-local-setup.md)
+
+Complete guide for deploying production-grade HashiCorp Vault on **AWS EKS** with HA, Raft storage, and KMS auto-unseal.
+
+## 🔀 Vault Deployment Options
+
+| Feature | [Local (Minikube)](vault-local-setup.md) | AWS Production (This Guide) |
+|---------|------------------------------------------|------------------------------|
+| **Replicas** | Single (1) | High Availability (3) |
+| **Storage** | File backend | Raft consensus |
+| **Unseal** | Manual | AWS KMS auto-unseal |
+| **TLS** | Disabled | Enabled |
+| **StorageClass** | `standard` | AWS EBS `gp3` |
+| **Best For** | Development, Learning | Production workloads |
+
+**Starting out?** Use [Vault Local Setup](vault-local-setup.md) for learning and testing.
 
 ## Table of Contents
 
@@ -16,11 +32,11 @@ Complete guide for deploying and configuring HashiCorp Vault in EKS with ArgoCD,
 
 ## Overview
 
-This deployment configures HashiCorp Vault with:
+This deployment configures **production-grade** HashiCorp Vault with:
 
 - **High Availability (HA)**: 3 replicas with Raft consensus
 - **Persistent Storage**: AWS EBS volumes (gp3) for each replica
-- **Auto-Unseal**: AWS KMS for automatic unsealing
+- **Auto-Unseal**: AWS KMS for automatic unsealing (no manual intervention)
 - **Service Account**: IRSA (IAM Roles for Service Accounts) for KMS access
 - **Agent Injector**: Automatic secret injection into pods
 - **GitOps**: ArgoCD management with automatic sync

@@ -1,14 +1,26 @@
 # Architecture Guide
 
-Comprehensive overview of the repository structure, GitOps flow, environment overlays, and ArgoCD application layout.
+Comprehensive overview of the repository structure, GitOps flow, and deployment configurations with a **Minikube-first approach**.
 
 ## 🚀 Quick Start
 
 - **New to this repository?** Start with the [Main README](../README.md) for an overview
-- **Want to deploy locally?** Follow the [Local Deployment Guide](local-deployment.md)
-- **Deploying to AWS?** Use the [AWS Deployment Guide](aws-deployment.md)
+- **Primary path**: Follow the [Local Deployment Guide](local-deployment.md) for Minikube setup
+- **Vault setup**: See [Vault Local Setup](vault-local-setup.md) for manual unseal workflow
+- **Advanced**: Use the [AWS Deployment Guide](aws-deployment.md) for production
 - **Having issues?** Check the [Troubleshooting Guide](troubleshooting.md)
-- **Need to understand the structure?** Continue reading this guide
+
+## 🎯 Repository Philosophy
+
+This repository prioritizes **local development first**, with production deployment as an optional advanced path:
+
+| Aspect | Approach | Rationale |
+|--------|----------|-----------|
+| **Primary Target** | Minikube (local) | Easy learning, rapid iteration |
+| **Documentation** | 80% local, 20% AWS | Match common workflow |
+| **Vault Config** | Single replica, manual unseal | Balance simplicity and production-like behavior |
+| **Storage** | File backend (local), Raft (AWS) | Appropriate for each environment |
+| **Values Files** | `values-minikube.yaml` first | Local as default, AWS as override |
 
 ## 🏗️ Repository Structure
 
@@ -91,8 +103,8 @@ helm-charts/
 │   └── values-aws.yaml
 └── vault/                        # Values-only (uses upstream chart)
     ├── values.yaml               # hashicorp/vault
-    ├── values-minikube.yaml
-    └── values-aws.yaml
+    ├── values-minikube.yaml      # Local: single replica, file storage
+    └── values-aws.yaml           # AWS: HA, Raft storage, KMS
 ```
 
 **Important Notes**:
@@ -109,6 +121,61 @@ helm-charts/
 | Grafana | grafana | grafana/helm-charts |
 | Vault | vault | hashicorp/vault-helm |
 | Web App | (custom) | N/A - maintained locally |
+
+#### Vault Configuration Deep Dive
+
+Vault is configured differently for local vs production:
+
+**Local (Minikube)** - `values-minikube.yaml`:
+```yaml
+server:
+  replicas: 1                    # Single instance
+  standalone:
+    enabled: true                # Standalone mode
+    config: |
+      storage "file" {           # File backend
+        path = "/vault/data"
+      }
+  dataStorage:
+    storageClass: standard       # Minikube storageClass
+    size: 1Gi
+  ha:
+    enabled: false               # No HA
+```
+
+**AWS (Production)** - `values-aws.yaml`:
+```yaml
+server:
+  replicas: 3                    # High availability
+  ha:
+    enabled: true                # HA enabled
+    raft:
+      enabled: true              # Raft consensus
+      config: |
+        storage "raft" {
+          path = "/vault/data"
+        }
+  seal:
+    awskms:
+      enabled: true              # KMS auto-unseal
+      region: us-west-2
+      kms_key_id: alias/vault-kms-key
+  dataStorage:
+    storageClass: gp3            # AWS EBS
+    size: 10Gi
+```
+
+**Key Differences**:
+| Feature | Local (Minikube) | AWS (Production) |
+|---------|------------------|------------------|
+| Replicas | 1 | 3 |
+| Storage Backend | File | Raft consensus |
+| Unseal | Manual | AWS KMS auto-unseal |
+| StorageClass | `standard` | `gp3` |
+| HA | Disabled | Enabled |
+| Best For | Development | Production |
+
+See [Vault Local Setup](vault-local-setup.md) and [Vault AWS Setup](vault-setup.md) for detailed configuration guides.
 
 ### `argo-apps/` - ArgoCD GitOps Configuration
 
