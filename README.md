@@ -1,62 +1,117 @@
-<!-- Docs Update: 2025-10-05 — Verified structure, scripts, and cross-links. Keep high-level only. -->
-# Production-Ready EKS Cluster with GitOps
+<!-- Docs Update: 2025-10-11 — Minikube-first documentation overhaul. -->
+# Production-Ready Kubernetes with GitOps
 
-> Compatibility: Kubernetes v1.33.0 (validated). See section below for notes.
+> **Primary Focus**: Local development with Minikube  
+> **Production Ready**: AWS EKS deployment available for advanced users  
+> **Compatibility**: Kubernetes v1.33.0 (validated)
 
-A comprehensive GitOps repository for deploying production-ready Kubernetes clusters on AWS EKS with ArgoCD, monitoring, and security best practices.
+A comprehensive GitOps repository for learning and deploying Kubernetes with ArgoCD, Vault, and observability. Start locally with Minikube, scale to production on AWS EKS.
 
-## 🚀 Quick Start
+## 🚀 Quick Start: Local Development (Recommended)
 
-Choose your deployment path based on your target environment:
+**Get a complete stack running locally in ~25 minutes:**
 
-- **[Local Deployment](docs/local-deployment.md)** - Deploy on Minikube for development and testing
-- **[AWS Deployment](docs/aws-deployment.md)** - Deploy on AWS EKS for production environments
-- **[Architecture Guide](docs/architecture.md)** - Understand the repository structure and GitOps patterns
+```bash
+# 1. Clone repository
+git clone https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps.git
+cd Production-Ready-EKS-Cluster-with-GitOps
+
+# 2. Start Minikube
+minikube start --memory=4096 --cpus=2 --disk-size=30g
+
+# 3. Deploy everything
+./scripts/setup-minikube.sh
+
+# 4. Access services
+# Follow the output for URLs and credentials
+```
+
+**What you get:**
+- ✅ ArgoCD for GitOps
+- ✅ Prometheus & Grafana for monitoring
+- ✅ HashiCorp Vault for secrets
+- ✅ Sample web application
+- ✅ Complete local development environment
+
+**Next Steps**: [Complete Local Deployment Guide](docs/local-deployment.md)
+
+---
+
+## 🎯 Deployment Paths
+
+| Path | Best For | Time | Complexity |
+|------|----------|------|------------|
+| **[🖥️ Local (Minikube)](docs/local-deployment.md)** | Learning, Development, Testing | ~25 min | ⭐ Easy |
+| **[☁️ AWS EKS (Production)](docs/aws-deployment.md)** | Production Workloads | ~60 min | ⭐⭐⭐ Advanced |
+
+### Development vs Production Comparison
+
+| Feature | Local (Minikube) | Production (AWS EKS) |
+|---------|------------------|----------------------|
+| **Infrastructure** | Single-node Minikube | Multi-AZ EKS cluster |
+| **Vault** | Single replica, file storage, manual unseal | HA with Raft, AWS KMS auto-unseal |
+| **Storage** | Local `standard` StorageClass | AWS EBS with `gp3` |
+| **High Availability** | Single instance | Multi-replica with load balancing |
+| **Cost** | Free (local resources) | AWS resource charges apply |
+| **Setup Time** | ~25 minutes | ~60 minutes |
+| **Best For** | Learning, testing, development | Production workloads |
+
+---
 
 ## 📚 Documentation
 
 | Document | Purpose |
 |----------|---------|
-| [**Architecture Guide**](docs/architecture.md) | Repository structure, GitOps flow, and environment overlays |
-| [**Local Deployment**](docs/local-deployment.md) | Step-by-step instructions for Minikube/local clusters |
-| [**AWS Deployment**](docs/aws-deployment.md) | Complete AWS EKS deployment guide with Terraform |
-| [**ArgoCD CLI Setup**](docs/argocd-cli-setup.md) | Automated ArgoCD CLI access for Windows Git Bash |
-| [**Troubleshooting**](docs/troubleshooting.md) | Common issues and solutions with detailed diagnostics |
-| [**K8s Version Policy**](docs/K8S_VERSION_POLICY.md) | Kubernetes version compatibility and upgrade guidelines |
-| [**Changelog**](CHANGELOG.md) | Complete version history and migration guides |
+| **[Local Deployment](docs/local-deployment.md)** | Complete Minikube setup guide (⭐ START HERE) |
+| **[Vault Local Setup](docs/vault-local-setup.md)** | Local Vault configuration and manual unseal |
+| **[Troubleshooting](docs/troubleshooting.md)** | Common issues: Vault, PVCs, Argo CD sync |
+| **[Architecture Guide](docs/architecture.md)** | Repository structure and GitOps patterns |
+| **[AWS Deployment](docs/aws-deployment.md)** | Advanced: Production EKS deployment |
+| **[Vault AWS Setup](docs/vault-setup.md)** | Advanced: AWS Vault with HA and KMS |
+| **[ArgoCD CLI Setup](docs/argocd-cli-setup.md)** | Cross-platform ArgoCD CLI access |
+| **[K8s Version Policy](docs/K8S_VERSION_POLICY.md)** | Kubernetes version compatibility |
+| **[Changelog](CHANGELOG.md)** | Version history and migration guides |
 
 ## 🏗️ What's Included
 
-### Core Infrastructure Components
-- **🚀 ArgoCD v3.1.0** - GitOps continuous delivery with automated synchronization
-- **📊 Prometheus & Grafana** - Comprehensive monitoring, metrics, and alerting
-- **🔐 Vault** - HashiCorp Vault for secrets management (optional, documented for future integration)
-- **📦 Sample Web Application** - Production-ready Node.js app with complete Helm charts
+### Core Stack
+- **🚀 ArgoCD v3.1.0** - GitOps continuous delivery with automated sync
+- **📊 Prometheus & Grafana** - Complete observability stack with dashboards
+- **🔐 HashiCorp Vault** - Secrets management
+  - **Local**: Single replica, file storage, manual unseal
+  - **AWS**: HA with Raft storage, KMS auto-unseal
+- **📦 Sample Web App** - Production-ready Helm chart with ServiceMonitor
 
-### Multi-Environment Support
-- **Development** - Local Kubernetes (Minikube) for rapid iteration and testing
-- **Staging** - Pre-production environment for validation and integration testing
-- **Production** - AWS EKS with enterprise-grade security and high availability
+### Environment Support
+- **Local Development (Minikube)** - PRIMARY: Single-node setup for learning and testing
+- **Production (AWS EKS)** - OPTIONAL: Multi-AZ cluster with enterprise features
 
-### Security & Compliance
-- **Pod Security Standards** - Enforced at namespace level (baseline/restricted policies)
-- **Network Policies** - Default-deny with explicit allow rules for zero-trust networking
-- **RBAC** - Role-based access control with least-privilege principles
-- **Secrets Management** - Documentation and integration points for Vault
-- **Encryption** - KMS-based encryption for EKS secrets and EBS volumes
+### Security Features
+- **Pod Security Standards** - Namespace-level enforcement (baseline/restricted)
+- **Network Policies** - Zero-trust networking with explicit allow rules
+- **RBAC** - Least-privilege access control
+- **Vault Integration** - Manual unseal (local) or KMS auto-unseal (AWS)
 
 ## 🛠️ Prerequisites
 
-### For Local Deployment
-- Minikube or similar local Kubernetes (k8s v1.33.0)
-- kubectl (v1.33+), helm (v3.x), ArgoCD CLI (v3.1+)
-- yq for YAML processing
+### For Local Development (Minikube)
+**System Requirements:**
+- RAM: 4GB minimum (8GB recommended)
+- CPU: 2 cores minimum (4 cores recommended)
+- Disk: 30GB free space
 
-### For AWS Deployment
-- AWS CLI v2, Terraform (v1.5+), kubectl (v1.33+)
-- ArgoCD CLI (v3.1+)
-- AWS account with appropriate permissions
-- yq for configuration management
+**Required Tools:**
+- [Minikube](https://minikube.sigs.k8s.io/docs/start/) (v1.30+)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) (v1.33+)
+- [Helm](https://helm.sh/docs/intro/install/) (v3.x)
+- [Docker](https://docs.docker.com/get-docker/) (for Minikube driver)
+
+**Optional:**
+- ArgoCD CLI (v3.1+) - for CLI management
+- Vault CLI - for Vault operations
+
+### For AWS Deployment (Advanced)
+See [AWS Deployment Guide](docs/aws-deployment.md) for complete requirements including AWS CLI, Terraform, and IAM permissions.
 
 ## 📁 Repository Structure
 
@@ -99,12 +154,23 @@ Choose your deployment path based on your target environment:
     └── CLEANUP_MANIFEST.md # File removal tracking
 ```
 
+## 🚨 Common Issues Quick Reference
+
+| Issue | Solution | Guide Link |
+|-------|----------|------------|
+| Vault pod not ready | Unseal Vault manually | [Vault Local Setup](docs/vault-local-setup.md#unsealing-vault) |
+| PVC binding failed | Use `standard` storageClass | [Troubleshooting: PVC](docs/troubleshooting.md#vault-pvc-binding-issues) |
+| Argo CD app stuck syncing | Hard refresh application | [Troubleshooting: Sync](docs/troubleshooting.md#application-not-syncing) |
+| `/vault/data` permission error | Check init container logs | [Troubleshooting: Vault](docs/troubleshooting.md#vault-permission-errors) |
+
+**More help:** See complete [Troubleshooting Guide](docs/troubleshooting.md)
+
 ## 🚦 Getting Started
 
-1. **Choose your deployment target** from the documentation above
-2. **Follow the step-by-step guide** for your chosen environment
-3. **Verify deployment** using the provided validation scripts
-4. **Access applications** through the provided URLs
+1. **Start here**: [Local Deployment Guide](docs/local-deployment.md) - Get Minikube stack running
+2. **Learn Vault**: [Vault Local Setup](docs/vault-local-setup.md) - Understand manual unsealing
+3. **Troubleshoot**: [Troubleshooting Guide](docs/troubleshooting.md) - Fix common issues
+4. **Advanced**: [AWS Deployment](docs/aws-deployment.md) - Deploy to production
 
 ## 🔧 Management Scripts
 
@@ -168,16 +234,18 @@ Automated ArgoCD CLI setup with cross-platform support:
 
 ## 🤖 CI/CD Automation
 
-This repository includes **6 GitHub Actions workflows** for automated validation and deployment:
+**Status**: ⚠️ AWS workflows currently inactive (local development focus)
 
-- **validate.yaml** - YAML, Helm, Terraform, and ArgoCD validation on every PR
-- **docs-lint.yaml** - Markdown linting and broken link detection
-- **terraform-plan.yaml** - Automatic Terraform plan on PRs with policy checks
-- **terraform-apply.yaml** - Automated infrastructure deployment with version tagging
-- **deploy-argocd.yaml** - Application deployment and sync automation
-- **security-scan.yaml** - Container scanning, dependency checks, and security linting
+This repository includes **6 GitHub Actions workflows**:
 
-See [CI/CD Pipeline Documentation](docs/ci_cd_pipeline.md) for details.
+- **validate.yaml** - YAML, Helm, Terraform validation
+- **docs-lint.yaml** - Markdown linting and link checking
+- **terraform-plan.yaml** - Infrastructure planning (AWS only)
+- **terraform-apply.yaml** - Infrastructure deployment (AWS only)
+- **deploy-argocd.yaml** - Application deployment automation
+- **security-scan.yaml** - Security scanning and vulnerability checks
+
+**Reactivation**: To use AWS workflows, configure GitHub secrets (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY). See [CI/CD Pipeline Documentation](docs/ci_cd_pipeline.md) for details.
 
 ## 🔧 Maintenance
 
@@ -200,15 +268,17 @@ See [CI/CD Pipeline Documentation](docs/ci_cd_pipeline.md) for details.
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🆘 Support & Help
 
-- **Documentation**: Check the [docs/](docs/) directory
+- **Quick Start**: [Local Deployment Guide](docs/local-deployment.md) - 25 minute setup
+- **Troubleshooting**: [Common Issues & Solutions](docs/troubleshooting.md)
+- **Vault Help**: [Local Vault Setup](docs/vault-local-setup.md) - Manual unseal guide
+- **Architecture**: [Repository Structure](docs/architecture.md)
 - **Issues**: Use GitHub issues for bug reports
-- **Troubleshooting**: See [troubleshooting guide](docs/troubleshooting.md)
 
 ---
 
-**Ready to deploy?** Start with [Local Deployment](docs/local-deployment.md) or [AWS Deployment](docs/aws-deployment.md).
+**Ready to start?** Follow the [Local Deployment Guide](docs/local-deployment.md) to get your stack running in ~25 minutes.
 
 ## Kubernetes v1.33.0 Compatibility Notes
 

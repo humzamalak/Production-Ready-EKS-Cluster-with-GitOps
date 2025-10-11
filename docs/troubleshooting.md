@@ -15,12 +15,17 @@ Comprehensive guide for diagnosing and resolving common issues in GitOps deploym
 
 ## 🚨 Quick Reference
 
-### Most Common Issues
+### Most Common Issues (Minikube)
+1. **Vault pod not ready (0/1)** → [Unseal Vault manually](#vault-sealed-minikube)
+2. **Vault PVC binding failed** → [Use `standard` storageClass](#vault-pvc-binding-issues)
+3. **`/vault/data` permission error** → [Check security context](#vault-permission-errors)
+4. **Argo CD app stuck syncing** → [Hard refresh & resync](#application-not-syncing)
+5. **Port forward issues** → [Kill and restart](#port-forward-issues)
+
+### Other Common Issues
 1. **ArgoCD Applications not syncing** → [Force refresh](#force-refresh)
 2. **Pods stuck in Pending** → [Check resources](#pods-stuck-in-pending)
-3. **Vault sealed** → [Unseal Vault](#vault-sealed)
-4. **CRD annotation size errors** → [Use external values](#crd-annotation-size-issues)
-5. **Port forward issues** → [Kill and restart](#port-forward-issues)
+3. **CRD annotation size errors** → [Use external values](#crd-annotation-size-issues)
 
 ### Quick Diagnostic Commands
 
@@ -361,6 +366,121 @@ kubectl get pv
 
 ## 🔐 Vault Issues
 
+### Vault Sealed (Minikube)
+
+#### Symptoms
+- Vault pod shows `0/1 Ready` status
+- Vault returns "Vault is sealed" error
+- Cannot access secrets
+
+**Cause**: Manual unseal required for non-dev mode Vault (normal behavior)
+
+**Solutions**:
+```bash
+# Load saved keys
+source ~/.vault-local-env
+
+# Port-forward to Vault
+kubectl port-forward svc/vault -n vault 8200:8200 > /dev/null 2>&1 &
+
+# Unseal Vault
+kubectl exec -n vault vault-0 -- vault operator unseal $VAULT_UNSEAL_KEY
+
+# Verify unsealed
+kubectl exec -n vault vault-0 -- vault status
+# Should show: Sealed: false
+
+# Check pod is ready
+kubectl get pods -n vault
+# Should show: vault-0  1/1  Running
+```
+
+**See also**: [Vault Local Setup Guide](vault-local-setup.md#unsealing-vault) for detailed unsealing procedures.
+
+### Vault PVC Binding Issues
+
+#### Symptoms
+- Vault PVC stuck in `Pending` state
+- Vault pod cannot start due to volume mount issues
+
+```bash
+kubectl get pvc -n vault
+# NAME            STATUS    VOLUME   CAPACITY
+# data-vault-0    Pending
+```
+
+**Cause**: Wrong storageClass (e.g., `gp3` instead of `standard` for Minikube)
+
+**Solutions**:
+
+```bash
+# 1. Verify Minikube storageClass exists
+kubectl get storageclass
+# Should see 'standard' storageClass with (default) annotation
+
+# 2. Check Helm values
+# helm-charts/vault/values-minikube.yaml should have:
+# server:
+#   dataStorage:
+#     storageClass: standard  # NOT gp3
+
+# 3. Delete stuck PVC
+kubectl delete pvc data-vault-0 -n vault
+
+# 4. Delete Vault pod to trigger recreation
+kubectl delete pod vault-0 -n vault
+
+# 5. Or resync via Argo CD
+kubectl patch application vault -n argocd --type merge -p '{"operation":{"sync":{}}}'
+
+# 6. Verify new PVC binds correctly
+kubectl get pvc -n vault
+# Should show 'Bound' status within 30 seconds
+```
+
+### Vault Permission Errors
+
+#### Symptoms
+- Vault pod logs show permission denied for `/vault/data`
+- Init container fails with permission errors
+
+```bash
+kubectl logs vault-0 -n vault
+# Error: permission denied: /vault/data
+
+# Or check init container
+kubectl logs vault-0 -n vault -c vault-init
+# mkdir: can't create directory '/vault/data': Permission denied
+```
+
+**Cause**: Security context or PVC ownership issues
+
+**Solutions**:
+
+```bash
+# 1. Verify security context in Helm values
+# helm-charts/vault/values-minikube.yaml should have:
+# server:
+#   securityContext:
+#     fsGroup: 1000        # Group ID for /vault/data
+#     runAsUser: 100       # Vault user ID
+#     runAsNonRoot: true
+
+# 2. Delete pod and PVC to start fresh
+kubectl delete pod vault-0 -n vault
+kubectl delete pvc data-vault-0 -n vault
+
+# 3. Resync Argo CD application
+kubectl patch application vault -n argocd --type merge -p '{"operation":{"sync":{}}}'
+
+# 4. Wait for new pod
+kubectl wait --for=condition=PodScheduled pod/vault-0 -n vault --timeout=120s
+
+# 5. Check logs for successful mount
+kubectl logs vault-0 -n vault -c vault-init
+# Should show successful directory creation
+```
+
 ### Vault Not Starting
 
 #### Symptoms
@@ -382,10 +502,10 @@ kubectl get svc -n vault
 kubectl get storageclass
 ```
 
-### Vault Sealed
+### Vault Sealed (AWS/Production)
 
 #### Symptoms
-- Vault returns "Vault is sealed" error
+- Vault returns "Vault is sealed" error in production
 - Cannot access secrets
 
 **Solutions**:
@@ -393,10 +513,10 @@ kubectl get storageclass
 # Check Vault status
 vault status
 
-# Unseal Vault
-vault operator unseal <unseal-key>
+# For AWS KMS auto-unseal, check KMS permissions
+kubectl logs vault-0 -n vault | grep -i kms
 
-# For multiple keys (production)
+# For manual unseal (multiple keys)
 vault operator unseal <unseal-key-1>
 vault operator unseal <unseal-key-2>
 vault operator unseal <unseal-key-3>
