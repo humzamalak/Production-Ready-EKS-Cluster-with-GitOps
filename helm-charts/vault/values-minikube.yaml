@@ -15,9 +15,9 @@ server:
   dev:
     enabled: false
   
-  # Disable standalone mode
+  # Enable standalone mode for Minikube
   standalone:
-    enabled: false
+    enabled: true
   
   # Service account (for AWS KMS if credentials are provided)
   serviceAccount:
@@ -27,7 +27,7 @@ server:
       # Add AWS IAM role if using IRSA for KMS access
       # eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT:role/vault-kms-role"
   
-  # HA mode with Raft storage
+  # HA mode with Raft storage (disabled for Minikube)
   ha:
     enabled: false
     replicas: 1  # Single replica for resource efficiency on local machine
