@@ -710,7 +710,7 @@ flowchart LR
 
 1. **Clone Repository**: Developer obtains the GitOps source of truth locally
 2. **Choose Environment**: Select Local (Minikube) or AWS (EKS) deployment path
-3. **Infrastructure Setup**: 
+3. **Infrastructure Setup**:
    - Local: Start Minikube with required addons
    - AWS: Provision EKS cluster using Terraform
 4. **Bootstrap Phase**: Apply core namespaces, security policies, Helm repos, and ArgoCD installation

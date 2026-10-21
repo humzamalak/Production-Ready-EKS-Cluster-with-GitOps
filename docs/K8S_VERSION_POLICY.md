@@ -224,4 +224,3 @@ For version-related questions:
 ---
 
 **Note**: This repository maintains Kubernetes v1.33.0 as the target version. All API versions are stable and validated. No deprecated APIs are in use.
-

@@ -386,4 +386,3 @@ ArgoCD has been successfully upgraded to v3.1.0 with:
 **Upgrade Completed**: 2025-10-11  
 **Version**: v3.1.0-upgrade  
 **Related**: See CHANGELOG.md [v3.1.0-upgrade]
-
