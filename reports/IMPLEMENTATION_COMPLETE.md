@@ -520,4 +520,3 @@ This comprehensive audit has successfully transformed the GitOps repository into
 ---
 
 *Thank you for using this GitOps repository. For questions or feedback, please consult the documentation or create an issue.*
-

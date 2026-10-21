@@ -5,3 +5,13 @@ config:
   MD031: false # Allow missing blank lines around fences
   MD032: false # Allow missing blank lines around lists
   MD058: false # Allow missing blank lines around tables
+  MD024: false # Allow duplicate headings (repeated per-section headings in guides)
+  MD026: false # Allow trailing punctuation in headings
+  MD029: false # Allow any ordered list numbering
+  MD034: false # Allow bare URLs
+  MD036: false # Allow emphasis used as headings
+  MD040: false # Allow fenced code blocks without a language
+  MD051: false # Don't validate in-page link fragments
+  MD060: false # Don't enforce table column alignment style
+  MD010:
+    code_blocks: false # Makefile examples need literal tabs
