@@ -22,7 +22,8 @@ jobs:
       - name: Validate YAML files
         run: |
           echo "Validating YAML syntax..."
-          find . -name "*.yaml" -o -name "*.yml" | while read file; do
+          # Helm templates are Go templates, not plain YAML; they are checked by helm lint
+          find . \( -name "*.yaml" -o -name "*.yml" \) -not -path "./helm-charts/*/templates/*" | while read file; do
             echo "Checking $file"
             yq eval '.' "$file" > /dev/null || exit 1
           done
@@ -84,19 +85,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install kubectl
+      - name: Install kubeconform
         run: |
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz | tar -xz kubeconform
+          sudo mv kubeconform /usr/local/bin/
 
+      # kubectl --dry-run=client needs a live API server to resolve the Argo CD CRDs,
+      # so validate offline against the Kubernetes and CRDs-catalog schemas instead.
       - name: Validate ArgoCD Applications
         run: |
-          echo "Validating ArgoCD applications..."
-          for app in argo-apps/apps/*.yaml; do
-            echo "Validating $app"
-            kubectl apply --dry-run=client -f "$app" || exit 1
-          done
+          echo "Validating ArgoCD manifests..."
+          kubeconform -summary -strict -kubernetes-version 1.33.0 \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            argo-apps/
 
       - name: Check Application Annotation Size
         run: |

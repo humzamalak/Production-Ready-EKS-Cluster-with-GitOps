@@ -64,7 +64,7 @@ jobs:
           required_docs=(
             "README.md"
             "docs/architecture.md"
-            "docs/deployment.md"
+            "docs/README.md"
             "docs/troubleshooting.md"
             "docs/argocd-cli-setup.md"
             "docs/aws-deployment.md"

@@ -1,5 +1,7 @@
 # GitHub Actions Workflow: Terraform Deploy
-# Automates Terraform format, validate, plan, apply, and security/cost checks for EKS GitOps infrastructure
+# Runs Terraform format and validate checks for EKS GitOps infrastructure.
+# Plan and apply (which need AWS credentials and the S3 backend) live in
+# terraform-plan.yaml and terraform-apply.yaml.
 
 name: "Terraform Deploy"
 
@@ -27,33 +29,18 @@ jobs:
           terraform_version: 1.6.6
 
       - name: Terraform Format
-        run: terraform -chdir=infrastructure/terraform fmt -check -recursive
+        run: terraform -chdir=terraform fmt -check -recursive
 
       - name: Terraform Init
-        run: terraform -chdir=infrastructure/terraform init -backend=false -input=false
+        run: terraform -chdir=terraform/environments/aws init -backend=false -input=false
 
       - name: Terraform Validate
-        run: terraform -chdir=infrastructure/terraform validate -no-color
-
-      - name: Terraform Plan
-        run: terraform -chdir=infrastructure/terraform plan -input=false -out=plan.out
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform -chdir=infrastructure/terraform apply -auto-approve -input=false
+        run: terraform -chdir=terraform/environments/aws validate -no-color
 
       # Security scanners can be re-enabled when secrets/repository settings are configured
       # - uses: aquasecurity/tfsec-action@v1.0.3
       # - uses: bridgecrewio/checkov-action@v12
 
-      - name: Upload Terraform Plan (PR only)
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-plan
-          path: infrastructure/terraform/plan.out
-
 # Notes:
-# Notes:
-# - This workflow runs fmt/validate/plan without using a remote backend or AWS credentials.
+# - This workflow runs fmt/validate without using a remote backend or AWS credentials.
 # - Re-enable security scanners and cost estimation once repo secrets are configured.

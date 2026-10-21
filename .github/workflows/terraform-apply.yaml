@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      AWS_REGION: us-east-1
+      AWS_REGION: eu-west-1
     
     steps:
       - name: Checkout code
@@ -37,7 +37,12 @@ jobs:
       - name: Terraform Init
         run: |
           cd terraform/environments/aws
-          terraform init
+          terraform init -input=false \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}" \
+            -backend-config="encrypt=true"
 
       - name: Terraform Plan
         run: |
@@ -52,7 +57,7 @@ jobs:
       - name: Update Kubeconfig
         run: |
           cd terraform/environments/aws
-          CLUSTER_NAME=$(terraform output -raw cluster_name || echo "production-cluster")
+          CLUSTER_NAME=$(terraform output -raw eks_cluster_name || echo "eks-gitops-prod-cluster")
           aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_REGION
 
       - name: Get Infrastructure Version
