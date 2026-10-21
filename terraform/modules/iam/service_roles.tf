@@ -394,7 +394,7 @@ resource "aws_iam_policy" "load_balancer_controller" {
         Resource = "arn:aws:ec2:*:*:security-group/*"
         Condition = {
           Null = {
-            "aws:RequestedRegion" = "false"
+            "aws:RequestedRegion"                   = "false"
             "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
           }
         }
@@ -449,7 +449,7 @@ resource "aws_iam_policy" "load_balancer_controller" {
         ]
         Condition = {
           Null = {
-            "aws:RequestedRegion" = "false"
+            "aws:RequestedRegion"                   = "false"
             "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
           }
         }
