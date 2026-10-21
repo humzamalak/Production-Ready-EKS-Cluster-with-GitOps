@@ -13,6 +13,11 @@ output "cluster_endpoint" {
   value = aws_eks_cluster.this.endpoint
 }
 
+output "cluster_certificate_authority_data" {
+  description = "Base64-encoded certificate authority data for the EKS cluster"
+  value       = aws_eks_cluster.this.certificate_authority[0].data
+}
+
 output "node_group_role_arn" {
   value = aws_iam_role.eks_node_group.arn
 }
