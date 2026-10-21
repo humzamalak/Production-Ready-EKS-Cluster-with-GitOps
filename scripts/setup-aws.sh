@@ -33,8 +33,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 REPO_URL="https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps"
-CLUSTER_NAME="${CLUSTER_NAME:-production-cluster}"
-AWS_REGION="${AWS_REGION:-us-east-1}"
+CLUSTER_NAME="${CLUSTER_NAME:-eks-gitops-prod-cluster}"
+AWS_REGION="${AWS_REGION:-eu-west-1}"
 ARGOCD_VERSION="3.1.0"
 SKIP_TERRAFORM=false
 
@@ -122,7 +122,10 @@ provision_infrastructure() {
     # Apply
     log_info "Applying Terraform configuration..."
     terraform apply tfplan
-    
+
+    # Use the cluster name Terraform actually created
+    CLUSTER_NAME="$(terraform output -raw eks_cluster_name)"
+
     cd ../../..
     
     log_info "Infrastructure provisioned successfully!"

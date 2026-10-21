@@ -69,8 +69,8 @@ resource "helm_release" "cluster_autoscaler" {
   values = [
     <<EOF
     autoDiscovery:
-      clusterName: ${var.cluster_name} # Name of the EKS cluster (from variable)
-    awsRegion: ${var.region} # AWS region (from variable)
+      clusterName: ${aws_eks_cluster.this.name} # Name of the EKS cluster created by this module
+    awsRegion: ${var.aws_region} # AWS region of the cluster
     rbac:
       create: true
       serviceAccount:
