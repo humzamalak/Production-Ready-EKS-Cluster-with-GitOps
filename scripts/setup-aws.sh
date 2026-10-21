@@ -249,7 +249,7 @@ display_access_info() {
     echo "    kubectl port-forward -n monitoring svc/grafana 3000:80"
     echo ""
     echo "  Prometheus:"
-    echo "    kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090"
+    echo "    kubectl port-forward -n monitoring svc/prometheus-prometheus 9090:9090"
     echo ""
     echo "  Vault:"
     echo "    kubectl port-forward -n vault svc/vault 8200:8200"
