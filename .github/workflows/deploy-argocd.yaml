@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'production' }}
     env:
-      AWS_REGION: us-east-1
+      AWS_REGION: eu-west-1
       ARGOCD_SERVER: localhost:8080
     
     steps:
@@ -44,7 +44,7 @@ jobs:
 
       - name: Update Kubeconfig
         run: |
-          aws eks update-kubeconfig --name production-cluster --region $AWS_REGION
+          aws eks update-kubeconfig --name eks-gitops-prod-cluster --region $AWS_REGION
 
       - name: Install kubectl
         run: |
