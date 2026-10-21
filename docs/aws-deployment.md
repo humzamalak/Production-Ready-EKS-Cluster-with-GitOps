@@ -170,7 +170,7 @@ cd ../../..
 # Update kubeconfig
 aws eks update-kubeconfig \
   --region us-west-2 \
-  --name production-cluster
+  --name "$(terraform -chdir=terraform/environments/aws output -raw eks_cluster_name)"
 ```
 
 ### Step 1.5: Verify Infrastructure
@@ -472,12 +472,12 @@ terraform force-unlock <lock-id>
 kubectl describe nodes
 
 # Check EKS cluster
-aws eks describe-cluster --name production-cluster --region us-west-2
+aws eks describe-cluster --name my-eks-cluster-prod-cluster --region us-west-2
 
 # Check node group
 aws eks describe-nodegroup \
-  --cluster-name production-cluster \
-  --nodegroup-name production-node-group \
+  --cluster-name my-eks-cluster-prod-cluster \
+  --nodegroup-name my-eks-cluster-prod-ng-main \
   --region us-west-2
 ```
 
