@@ -9,7 +9,7 @@
 
 # VPC Module: Creates the Virtual Private Cloud and networking resources
 module "vpc" {
-  source                = "./modules/vpc"                   # Path to the VPC module
+  source                = "../../modules/vpc"               # Path to the VPC module
   project_prefix        = var.project_prefix                # Prefix for naming AWS resources
   environment           = var.environment                   # Environment name (e.g., dev, prod)
   aws_region            = var.aws_region                    # AWS region
@@ -21,7 +21,7 @@ module "vpc" {
 
 # EKS Module: Provisions the EKS cluster and node groups
 module "eks" {
-  source               = "./modules/eks" # Path to the EKS module
+  source               = "../../modules/eks" # Path to the EKS module
   project_prefix       = var.project_prefix
   environment          = var.environment
   aws_region           = var.aws_region
@@ -35,7 +35,7 @@ module "eks" {
 
 # IAM Module: Creates service roles and policies for EKS workloads
 module "iam" {
-  source                = "./modules/iam" # Path to the IAM module
+  source                = "../../modules/iam" # Path to the IAM module
   project_prefix        = var.project_prefix
   environment           = var.environment
   eks_cluster_name      = module.eks.cluster_name

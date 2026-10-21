@@ -28,7 +28,7 @@ output "fluentbit_role_arn" {
 
 output "external_secrets_role_arn" {
   description = "IAM role ARN for External Secrets Operator service account. Use this for IRSA configuration."
-  value       = module.iam.external_secrets_role_arn
+  value       = module.iam.vault_external_secrets_role_arn
 }
 
 output "ebs_csi_driver_role_arn" {
