@@ -552,7 +552,7 @@ kubectl top nodes
 kubectl top pods -A
 
 # Reduce monitoring resources or stop temporarily
-kubectl scale statefulset prometheus-kube-prometheus-stack-prometheus -n monitoring --replicas=0
+kubectl scale statefulset prometheus-prometheus-prometheus -n monitoring --replicas=0
 ```
 
 ## 🧹 Cleanup

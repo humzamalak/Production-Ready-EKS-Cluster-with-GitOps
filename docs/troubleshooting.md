@@ -67,7 +67,7 @@ kubectl run test-pod --image=busybox --rm -it --restart=Never -- \
 
 # Test service connectivity
 kubectl run test-pod --image=busybox --rm -it --restart=Never -- \
-  wget -O- http://prometheus-kube-prometheus-stack-prometheus.monitoring:9090/-/healthy
+  wget -O- http://prometheus-prometheus.monitoring:9090/-/healthy
 ```
 
 ## 🔵 ArgoCD Issues
@@ -597,11 +597,11 @@ kubectl -n vault delete ds vault-csi-provider --grace-period=0 --force --cascade
 **Solutions**:
 ```bash
 # Check pod logs
-kubectl logs -n monitoring statefulset/prometheus-kube-prometheus-stack-prometheus
+kubectl logs -n monitoring statefulset/prometheus-prometheus-prometheus
 
 # Check PVC and storage
 kubectl get pvc -n monitoring
-kubectl describe pvc prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0 -n monitoring
+kubectl describe pvc prometheus-prometheus-prometheus-db-prometheus-prometheus-prometheus-0 -n monitoring
 
 # Check CRD status
 kubectl get crd | grep monitoring.coreos.com
@@ -620,7 +620,7 @@ kubectl get servicemonitors -n monitoring
 curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length'
 
 # Check Prometheus config
-kubectl get configmap prometheus-kube-prometheus-stack-prometheus-rulefiles-0 -n monitoring -o yaml
+kubectl get configmap prometheus-prometheus-prometheus-rulefiles-0 -n monitoring -o yaml
 ```
 
 ### Grafana Issues
@@ -648,10 +648,10 @@ kubectl rollout restart deployment/grafana -n monitoring
 **Solutions**:
 ```bash
 # Check if Prometheus service is accessible
-kubectl get svc prometheus-kube-prometheus-stack-prometheus -n monitoring
+kubectl get svc prometheus-prometheus -n monitoring
 
 # Test connectivity from Grafana pod
-kubectl exec -it <grafana-pod> -n monitoring -- curl http://prometheus-kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/status/config
+kubectl exec -it <grafana-pod> -n monitoring -- curl http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/status/config
 ```
 
 ## 🌐 Network Issues

@@ -352,11 +352,11 @@ export GRAFANA_PASSWORD=$(kubectl get secret grafana-admin -n monitoring \
   -o jsonpath="{.data.admin-password}" | base64 -d)
 
 # ArgoCD
-kubectl port-forward svc/argo-cd-argocd-server -n argocd 8080:443 &
+kubectl port-forward svc/argocd-server -n argocd 8080:443 &
 echo "ArgoCD: https://localhost:8080 (admin / $ARGOCD_PASSWORD)"
 
 # Prometheus
-kubectl port-forward svc/prometheus-kube-prometheus-stack-prometheus -n monitoring 9090:9090 &
+kubectl port-forward svc/prometheus-prometheus -n monitoring 9090:9090 &
 echo "Prometheus: http://localhost:9090"
 
 # Grafana
@@ -368,7 +368,7 @@ kubectl port-forward svc/vault -n vault 8200:8200 &
 echo "Vault: http://localhost:8200"
 
 # Web Application
-kubectl port-forward svc/k8s-web-app -n production 8081:80 &
+kubectl port-forward svc/web-app -n production 8081:80 &
 echo "Web App: http://localhost:8081"
 ```
 
