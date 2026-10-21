@@ -59,6 +59,9 @@ spec:
       server: 'https://kubernetes.default.svc'
     - namespace: argocd
       server: 'https://kubernetes.default.svc'
+    # kube-prometheus-stack creates Services in kube-system for control-plane scraping
+    - namespace: kube-system
+      server: 'https://kubernetes.default.svc'
   
   # Cluster resource allowlist
   clusterResourceWhitelist:
@@ -163,6 +166,10 @@ spec:
       kind: PodMonitor
     - group: 'monitoring.coreos.com'
       kind: PrometheusRule
+    - group: 'monitoring.coreos.com'
+      kind: Prometheus
+    - group: 'monitoring.coreos.com'
+      kind: Alertmanager
   
   # Sync windows (optional - can be used to restrict deployments)
   # syncWindows: []
