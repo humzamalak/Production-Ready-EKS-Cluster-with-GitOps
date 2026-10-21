@@ -343,25 +343,8 @@ validate_deployments() {
     
     print_header "Validating Deployments ($scope)"
     
-    # Run repository structure validation
-    if [ "$scope" = "all" ] || [ "$scope" = "structure" ]; then
-        print_step "Validating repository structure..."
-        "$SCRIPT_DIR/validate-gitops-structure.sh"
-    fi
-    
-    # Run ArgoCD applications validation
-    if [ "$scope" = "all" ] || [ "$scope" = "apps" ]; then
-        print_step "Validating ArgoCD applications..."
-        "$SCRIPT_DIR/validate-argocd-apps.sh"
-    fi
-    
-    # Validate Helm charts
-    if [ "$scope" = "all" ] || [ "$scope" = "helm" ]; then
-        print_step "Validating Helm charts..."
-        cd "$REPO_ROOT/applications/web-app/k8s-web-app/helm"
-        helm lint .
-        helm template k8s-web-app . -f ../values.yaml --dry-run >/dev/null
-    fi
+    # Delegate to the repository validation script (scopes: all, structure, apps, helm, ...)
+    "$SCRIPT_DIR/validate.sh" "$scope"
     
     print_success "Deployment validation completed successfully"
 }
@@ -374,11 +357,11 @@ sync_argocd() {
     
     # Sync root application
     print_step "Syncing root application..."
-    kubectl patch application "$environment-app-of-apps" -n argocd --type merge -p '{"operation":{"sync":{"syncOptions":["CreateNamespace=true"]}}}'
+    kubectl patch application root-app -n argocd --type merge -p '{"operation":{"sync":{"syncOptions":["CreateNamespace=true"]}}}'
     
     # Wait for sync to complete
     print_step "Waiting for sync to complete..."
-    kubectl wait --for=condition=Synced --timeout=${TIMEOUT}s application "$environment-app-of-apps" -n argocd
+    kubectl wait --for=jsonpath='{.status.sync.status}'=Synced --timeout=${TIMEOUT}s application root-app -n argocd
     
     # Get list of applications to sync
     local apps=$(kubectl get applications -n argocd -l "app.kubernetes.io/part-of=$environment" -o name)

@@ -57,7 +57,7 @@ fmt-check:
 ## argo-install: Install ArgoCD on cluster
 argo-install:
 	kubectl apply -f argo-apps/install/01-namespaces.yaml
-	kubectl apply -f argo-apps/install/02-argocd-install.yaml
+	kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.1.0/manifests/install.yaml
 	kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
 
 ## argo-bootstrap: Bootstrap ArgoCD applications
