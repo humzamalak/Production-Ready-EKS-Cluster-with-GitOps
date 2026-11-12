@@ -214,8 +214,6 @@ secrets/
 
 # Cost analysis
 cost-reports/
-infracost-report.json
-infracost-report.html
 
 # Development tools
 .terraform-docs.yml

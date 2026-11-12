@@ -46,20 +46,20 @@ All resources have been validated to use only stable, non-deprecated APIs for Ku
 ## Files Referencing K8s Version
 
 ### Deployment Guides
-- ✅ `docs/aws-deployment.md` - Line 3, Line 85
-- ✅ `docs/local-deployment.md` - Line 3, Line 65
+- ✅ `docs/aws-deployment.md`
+- ✅ `docs/local-deployment.md`
 
 ### Terraform Configuration
-- ✅ `infrastructure/terraform/README.md` - Line 66
-- ✅ `infrastructure/terraform/terraform.tfvars.example` - Line 8
-- ✅ `infrastructure/terraform/modules/eks/variables.tf` - Line 42 (default value)
-- ✅ `infrastructure/terraform/modules/eks/README.md` - Line 11, Line 38
+- ✅ `terraform/modules/README.md`
+- ✅ `terraform/environments/aws/terraform.tfvars.example`
+- ✅ `terraform/modules/eks/variables.tf`
+- ✅ `terraform/modules/eks/README.md`
 
 ### Helm Charts
-- ✅ `applications/web-app/k8s-web-app/helm/Chart.yaml` - `kubeVersion: ">=1.29.0-0"`
+- ✅ `helm-charts/web-app/Chart.yaml` - `kubeVersion: ">=1.33.0-0"`
 
 ### Documentation
-- ✅ `README.md` - Line 4
+- ✅ `README.md`
 - ✅ `CHANGELOG.md` - v1.3.0 section
 - ✅ `AUDIT_REPORT.md` - Multiple references
 
@@ -70,7 +70,7 @@ All resources have been validated to use only stable, non-deprecated APIs for Ku
 ### Terraform Variables
 
 ```hcl
-# infrastructure/terraform/terraform.tfvars
+# terraform/environments/aws/terraform.tfvars
 kubernetes_version = "1.33"  # EKS cluster version
 ```
 
@@ -86,7 +86,7 @@ minikube start \
 ### Helm Chart Compatibility
 
 ```yaml
-# applications/web-app/k8s-web-app/helm/Chart.yaml
+# helm-charts/web-app/Chart.yaml
 kubeVersion: ">=1.29.0-0"  # Minimum K8s version required
 ```
 
@@ -133,12 +133,12 @@ If updating the Kubernetes version in the future:
 ### 1. Update Configuration Files
 ```bash
 # Update Terraform default
-vim infrastructure/terraform/modules/eks/variables.tf
+vim terraform/modules/eks/variables.tf
 
 # Update documentation
 vim docs/aws-deployment.md
 vim docs/local-deployment.md
-vim infrastructure/terraform/README.md
+vim terraform/modules/README.md
 ```
 
 ### 2. Validate API Compatibility
@@ -147,11 +147,10 @@ vim infrastructure/terraform/README.md
 kubectl-convert --validate
 
 # Test Helm charts
-helm lint applications/web-app/k8s-web-app/helm/
+helm lint helm-charts/web-app/
 
 # Dry-run all manifests
-kubectl apply --dry-run=client -f bootstrap/
-kubectl apply --dry-run=client -f environments/prod/
+kubeconform -summary -kubernetes-version 1.33.0 argo-apps/
 ```
 
 ### 3. Update Documentation
@@ -184,7 +183,7 @@ kubectl get --raw /apis | jq -r '.groups[].versions[].groupVersion'
 
 ```bash
 # Check Helm chart kubeVersion requirement
-helm show chart applications/web-app/k8s-web-app/helm/
+helm show chart helm-charts/web-app/
 
 # Update if needed
 # Current: kubeVersion: ">=1.29.0-0"

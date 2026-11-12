@@ -67,18 +67,10 @@ This directory contains comprehensive documentation for deploying and managing a
 
 ## **Directory-Specific Documentation**
 
-### **Bootstrap Components**
-- **[Bootstrap README](../bootstrap/README.md)** - Bootstrap configuration details (Argo CD install, security, repos)
-
-### **Environment & Applications**
-- **[Production Environment README](../clusters/production/README.md)** - Production environment overview
-- Environment apps live under `environments/<env>/apps/*.yaml` and reference sources in `applications/`
-
-### **Example Applications**
-- **[Example Web App README](../examples/web-app/README.md)** - Sample application reference
-
-### **Infrastructure**
-- **[Terraform README](../infrastructure/terraform/README.md)** - Infrastructure as Code documentation
+- **[Terraform modules](../terraform/modules/README.md)** - VPC, EKS and IAM modules
+- **[VPC module](../terraform/modules/vpc/README.md)**, **[EKS module](../terraform/modules/eks/README.md)**, **[IAM module](../terraform/modules/iam/README.md)**
+- Argo CD Applications live in `argo-apps/apps/*.yaml`; Helm values live in `helm-charts/<app>/`. See the [Architecture Guide](architecture.md).
+- **[History](history/)** - Earlier audit and upgrade reports
 
 ## **Documentation Updates**
 

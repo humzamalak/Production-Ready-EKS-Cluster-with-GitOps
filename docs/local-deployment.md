@@ -570,10 +570,10 @@ rm -f ~/.vault-local-env
 ### Partial Cleanup (Keep Minikube)
 ```bash
 # Delete root application (this will cascade delete all child apps)
-kubectl delete -f environments/prod/app-of-apps.yaml
+kubectl delete -f argo-apps/install/03-bootstrap.yaml
 
 # Wait for applications to be removed
-kubectl wait --for=delete application/prod-cluster -n argocd --timeout=300s
+kubectl wait --for=delete application/root-app -n argocd --timeout=300s
 
 # Delete ArgoCD
 helm uninstall argo-cd -n argocd

@@ -97,11 +97,11 @@ kubectl patch application <app-name> -n argocd --type merge -p '
     "sources": [
       {
         "repoURL": "https://github.com/your-org/your-repo",
-        "path": "applications/monitoring/prometheus"
+        "path": "helm-charts/prometheus"
       },
       {
         "repoURL": "https://github.com/your-org/your-repo", 
-        "path": "applications/monitoring/prometheus"
+        "path": "helm-charts/prometheus"
       }
     ],
     "helm": {
@@ -130,7 +130,7 @@ kubectl patch application <app-name> -n argocd --type merge -p '
 kubectl get application <app-name> -n argocd -o yaml | wc -c
 
 # Use validation script
-./scripts/validate-argocd-apps.sh
+./scripts/validate.sh apps
 ```
 
 ### Application Not Syncing
@@ -212,7 +212,7 @@ Invalid value: "": a lowercase RFC 1123 subdomain must consist of...
 **Check Values Configuration**:
 ```
 # Verify Vault toggle in Helm values
-grep -A3 "^vault:" applications/web-app/k8s-web-app/helm/values.yaml
+grep -A3 "^vault:" helm-charts/web-app/values.yaml
 
 # Expected when disabled:
 # vault:
@@ -223,8 +223,8 @@ grep -A3 "^vault:" applications/web-app/k8s-web-app/helm/values.yaml
 **Update Application Configuration**:
 ```
 # Edit chart values and commit; Argo CD will sync automatically
-vi applications/web-app/k8s-web-app/helm/values.yaml
-git add applications/web-app/k8s-web-app/helm/values.yaml
+vi helm-charts/web-app/values.yaml
+git add helm-charts/web-app/values.yaml
 git commit -m "Toggle Vault (enable/disable)"
 git push
 ```
@@ -232,11 +232,10 @@ git push
 **Debug Helm Template**:
 ```bash
 # Check helm values being used
-cd applications/web-app/k8s-web-app
-helm template ./helm -f values.yaml | grep -A 10 "secretKeyRef"
+helm template web-app helm-charts/web-app -f helm-charts/web-app/values.yaml | grep -A 10 "secretKeyRef"
 
 # Verify values file has correct configuration
-cat values.yaml | grep -A 5 "vault:"
+grep -A 5 "^vault:" helm-charts/web-app/values.yaml
 # Should show: vault.enabled: false (if not using Vault yet)
 ```
 

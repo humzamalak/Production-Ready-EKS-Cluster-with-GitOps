@@ -1,811 +1,109 @@
 # Architecture Guide
 
-Comprehensive overview of the repository structure, GitOps flow, and deployment configurations with a **Minikube-first approach**.
+This guide describes how the repository is organised and how its parts fit together. For deployment steps, see [aws-deployment.md](aws-deployment.md) and [local-deployment.md](local-deployment.md).
 
-## Quick Start
+## Layers
 
-- **New to this repository?** Start with the [Main README](../README.md) for an overview
-- **Primary path**: Follow the [Local Deployment Guide](local-deployment.md) for Minikube setup
-- **Vault setup**: See [Vault Local Setup](vault-local-setup.md) for manual unseal workflow
-- **Advanced**: Use the [AWS Deployment Guide](aws-deployment.md) for production
-- **Having issues?** Check the [Troubleshooting Guide](troubleshooting.md)
+| Layer | Tool | Path |
+|-------|------|------|
+| AWS infrastructure | Terraform | `terraform/` |
+| GitOps control plane | Argo CD | `argo-apps/` |
+| Platform and application configuration | Helm values and a custom chart | `helm-charts/` |
+| Operations | Bash scripts and Makefile | `scripts/`, `Makefile` |
+| Checks | GitHub Actions | `.github/workflows/` |
 
-## Repository Philosophy
+## Repository layout
 
-This repository prioritizes **local development first**, with production deployment as an optional advanced path:
-
-| Aspect | Approach | Rationale |
-|--------|----------|-----------|
-| **Primary Target** | Minikube (local) | Easy learning, rapid iteration |
-| **Documentation** | 80% local, 20% AWS | Match common workflow |
-| **Vault Config** | Single replica, manual unseal | Balance simplicity and production-like behavior |
-| **Storage** | File backend (local), Raft (AWS) | Appropriate for each environment |
-| **Values Files** | `values-minikube.yaml` first | Local as default, AWS as override |
-
-## Repository Structure
-
-### Overall Architecture
-
-The project follows a **GitOps pattern** with clear separation of concerns:
-
-```
-Production-Ready-EKS-Cluster-with-GitOps/
-├── environments/           # Environment-specific configurations
-│   ├── dev/               # Development environment
-│   ├── staging/           # Staging environment
-│   └── prod/              # Production environment
-├── applications/          # Application deployments organized by domain
-│   ├── monitoring/        # Monitoring stack
-│   ├── infrastructure/    # Infrastructure components
-│   └── web-app/          # Web application stack
-├── bootstrap/            # Initial cluster setup and foundational components
-├── examples/             # Sample applications and reference implementations
-├── infrastructure/       # Terraform modules for AWS infrastructure
-└── docs/                # Comprehensive documentation
-```
-
-## Directory Structure
-
-### `environments/` - Environment Configurations
-
-**Purpose**: Environment-specific settings and application discovery
-
-```
-environments/
-├── dev/                    # Development environment
-│   ├── app-of-apps.yaml   # Root application discovery
-│   ├── project.yaml       # ArgoCD project configuration
-│   ├── namespaces.yaml    # Development namespaces
-│   └── apps/              # Environment-scoped applications
-├── staging/                # Staging environment
-│   ├── app-of-apps.yaml
-│   ├── project.yaml
-│   ├── namespaces.yaml
+```text
+.
+├── argo-apps/
+│   ├── install/
+│   │   ├── 01-namespaces.yaml      # argocd, monitoring, production, vault namespaces with Pod Security labels
+│   │   ├── 02-argocd-install.yaml  # comments only: Argo CD is installed from the upstream manifest
+│   │   └── 03-bootstrap.yaml       # argocd-projects and root-app Applications
+│   ├── projects/
+│   │   └── prod-apps.yaml          # AppProject: allowed source repos, destinations and resource kinds
 │   └── apps/
-└── prod/                   # Production environment
-    ├── app-of-apps.yaml
-    ├── project.yaml
-    ├── namespaces.yaml
-    └── apps/
+│       ├── vault.yaml              # sync wave 2
+│       ├── prometheus.yaml         # sync wave 3 (kube-prometheus-stack)
+│       ├── grafana.yaml            # sync wave 4
+│       └── web-app.yaml            # sync wave 5
+├── helm-charts/
+│   ├── vault/                      # values for hashicorp/vault
+│   ├── prometheus/                 # values for prometheus-community/kube-prometheus-stack
+│   ├── grafana/                    # values for grafana/grafana
+│   └── web-app/                    # custom chart: Deployment, Service, Ingress, HPA,
+│                                   # NetworkPolicy, ServiceMonitor, Vault Agent annotations
+├── terraform/
+│   ├── environments/aws/           # root module: providers, S3 backend, module wiring, outputs
+│   └── modules/
+│       ├── vpc/                    # VPC, subnets, NAT gateways, security groups, flow logs
+│       ├── eks/                    # EKS cluster, node group, add-ons, Cluster Autoscaler, KMS
+│       └── iam/                    # IRSA roles, GitHub Actions OIDC role, Vault KMS key and role
+├── scripts/                        # setup-aws.sh, setup-minikube.sh, deploy.sh, validate.sh, vault-init.sh, ...
+└── docs/                           # guides; docs/history holds earlier audit reports
 ```
 
-**Key Features**:
-- ✅ Environment isolation
-- ✅ ArgoCD application discovery
-- ✅ Environment-specific configurations
-- ✅ Consistent structure across environments
+Each directory under `helm-charts/` has three value files:
 
-### `helm-charts/` - Helm Charts & Values
+- `values.yaml`: shared defaults
+- `values-aws.yaml`: EKS overrides (`gp3` storage, ALB ingress, HA Vault)
+- `values-minikube.yaml`: local overrides (`standard` storage, single replicas)
 
-**Purpose**: Helm charts and values for all applications
+## AWS infrastructure
 
-```
-helm-charts/
-├── web-app/                      # Custom Helm chart (maintained locally)
-│   ├── Chart.yaml
-│   ├── values.yaml               # Default values
-│   ├── values-minikube.yaml      # Minikube-specific overrides
-│   ├── values-aws.yaml           # AWS-specific overrides
-│   └── templates/                # Kubernetes manifests
-│       ├── deployment.yaml
-│       ├── service.yaml
-│       ├── ingress.yaml
-│       ├── hpa.yaml
-│       ├── servicemonitor.yaml
-│       └── vault-agent.yaml
-├── prometheus/                   # Values-only (uses upstream chart)
-│   ├── values.yaml               # prometheus-community/kube-prometheus-stack
-│   ├── values-minikube.yaml
-│   └── values-aws.yaml
-├── grafana/                      # Values-only (uses upstream chart)
-│   ├── values.yaml               # grafana/grafana
-│   ├── values-minikube.yaml
-│   └── values-aws.yaml
-└── vault/                        # Values-only (uses upstream chart)
-    ├── values.yaml               # hashicorp/vault
-    ├── values-minikube.yaml      # Local: single replica, file storage
-    └── values-aws.yaml           # AWS: HA, Raft storage, KMS
-```
+Terraform runs from `terraform/environments/aws` and calls three modules.
 
-**Important Notes**:
-- ✅ **Prometheus, Grafana, and Vault use upstream Helm charts** from their official repositories
-- ✅ **Only values overrides** are maintained locally in `helm-charts/*/values*.yaml`
-- ✅ **No chart duplication** - reduces maintenance overhead
-- ✅ **Custom web-app chart** - Complete chart maintained for sample application
-- ✅ **Environment-specific values** - Separate overrides for Minikube and AWS
+- **vpc**: one VPC across three Availability Zones, with three public and three private subnets, one NAT gateway per zone, and security groups for the cluster, nodes, load balancer and data tiers. VPC flow logs go to CloudWatch Logs, encrypted with a KMS key.
+- **eks**: the cluster has a private API endpoint only, envelope encryption of Kubernetes secrets with KMS, and all control plane log types enabled. A managed node group runs 2 to 10 nodes. Add-ons: VPC CNI, CoreDNS, kube-proxy, EBS CSI driver and Pod Identity Agent. Cluster Autoscaler is installed with the Helm provider.
+- **iam**: IRSA roles for the EBS CSI driver, AWS Load Balancer Controller, Fluent Bit and Vault, an OIDC role for GitHub Actions, and the KMS key that Vault uses to auto-unseal.
 
-**Upstream Chart References**:
-| Application | Upstream Chart | Repository |
-|------------|----------------|------------|
-| Prometheus | kube-prometheus-stack | prometheus-community/helm-charts |
-| Grafana | grafana | grafana/helm-charts |
-| Vault | vault | hashicorp/vault-helm |
-| Web App | (custom) | N/A - maintained locally |
+State is stored in S3 with DynamoDB locking. The backend block is empty, so you supply the values at `terraform init`.
 
-#### Vault Configuration Deep Dive
+The EKS API endpoint is private. Run `kubectl`, `helm` and `terraform apply` from a host that can reach the VPC.
 
-Vault is configured differently for local vs production:
+## GitOps flow
 
-**Local (Minikube)** - `values-minikube.yaml`:
-```yaml
-server:
-  replicas: 1                    # Single instance
-  standalone:
-    enabled: true                # Standalone mode
-    config: |
-      storage "file" {           # File backend
-        path = "/vault/data"
-      }
-  dataStorage:
-    storageClass: standard       # Minikube storageClass
-    size: 1Gi
-  ha:
-    enabled: false               # No HA
-```
+1. `kubectl apply -f argo-apps/install/01-namespaces.yaml` creates the namespaces.
+2. Argo CD is installed from the upstream v3.1.0 manifest into `argocd`.
+3. `kubectl apply -f argo-apps/install/03-bootstrap.yaml` creates two Applications:
+   - `argocd-projects` (wave 1) syncs `argo-apps/projects/`.
+   - `root-app` (wave 2) syncs `argo-apps/apps/`. This is the app-of-apps.
+4. `root-app` creates the child Applications. Argo CD syncs them in sync-wave order: Vault, Prometheus, Grafana, then the web app.
 
-**AWS (Production)** - `values-aws.yaml`:
-```yaml
-server:
-  replicas: 3                    # High availability
-  ha:
-    enabled: true                # HA enabled
-    raft:
-      enabled: true              # Raft consensus
-      config: |
-        storage "raft" {
-          path = "/vault/data"
-        }
-  seal:
-    awskms:
-      enabled: true              # KMS auto-unseal
-      region: us-west-2
-      kms_key_id: alias/vault-kms-key
-  dataStorage:
-    storageClass: gp3            # AWS EBS
-    size: 10Gi
-```
+All Applications use automated sync with `prune` and `selfHeal`, so Argo CD corrects drift from Git.
 
-**Key Differences**:
-| Feature | Local (Minikube) | AWS (Production) |
-|---------|------------------|------------------|
-| Replicas | 1 | 3 |
-| Storage Backend | File | Raft consensus |
-| Unseal | Manual | AWS KMS auto-unseal |
-| StorageClass | `standard` | `gp3` |
-| HA | Disabled | Enabled |
-| Best For | Development | Production |
+The Vault, Prometheus and Grafana Applications use multiple sources: the chart comes from the upstream Helm repository and the value files come from this repository through a `$values` reference.
 
-See [Vault Local Setup](vault-local-setup.md) and [Vault AWS Setup](vault-setup.md) for detailed configuration guides.
+### Selecting an environment
 
-### `argo-apps/` - ArgoCD GitOps Configuration
+Each Application in `argo-apps/apps/` lists its value files. The environment file is chosen by editing that list:
 
-**Purpose**: ArgoCD installation and application manifests
+- Vault uses `values-minikube.yaml` by default.
+- Prometheus, Grafana and the web app use only `values.yaml` by default.
 
-```
-argo-apps/
-├── install/                        # Installation & bootstrap manifests
-│   ├── 01-namespaces.yaml         # Namespace definitions with Pod Security labels
-│   ├── 02-argocd-install.yaml     # ArgoCD installation manifest reference
-│   └── 03-bootstrap.yaml          # Bootstrap application manifests
-├── projects/                       # ArgoCD Project definitions
-│   └── prod-apps.yaml             # Production apps project (RBAC, repos)
-└── apps/                          # Application manifests
-    ├── web-app.yaml               # Web application
-    ├── prometheus.yaml            # Prometheus monitoring
-    ├── grafana.yaml               # Grafana dashboards
-    └── vault.yaml                 # HashiCorp Vault
-```
+For EKS, change the lists to use `values-aws.yaml`, and set the Vault service account annotation to the `vault_server_role_arn` Terraform output.
 
-**Key Features**:
-- ✅ Clear separation of concerns
-- ✅ Numeric prefixes in install/ enforce apply order
-- ✅ All applications managed via GitOps
-- ✅ Projects provide RBAC and repository access control
+## Security controls in the code
 
-### `terraform/` - Infrastructure as Code (Multi-Cloud Ready)
+| Control | Where |
+|---------|-------|
+| Private EKS API endpoint | `terraform/modules/eks/main.tf` |
+| KMS encryption of Kubernetes secrets | `terraform/modules/eks/main.tf` |
+| Encrypted VPC flow logs | `terraform/modules/vpc/main.tf` |
+| IRSA roles scoped to one service account each | `terraform/modules/iam/` |
+| Vault auto-unseal with a dedicated KMS key | `terraform/modules/iam/vault_kms.tf`, `helm-charts/vault/values-aws.yaml` |
+| Pod Security Standards (`restricted` for `production`, `baseline` elsewhere) | `argo-apps/install/01-namespaces.yaml` |
+| AppProject limits on sources, destinations and resource kinds | `argo-apps/projects/prod-apps.yaml` |
+| NetworkPolicy for the web app | `helm-charts/web-app/templates/networkpolicy.yaml` |
 
-**Purpose**: Terraform modules for cloud infrastructure
+## Monitoring
 
-```
-terraform/
-├── environments/                   # Environment-specific configurations
-│   └── aws/                       # AWS-specific Terraform
-│       ├── main.tf                # Main configuration
-│       ├── variables.tf           # Variable definitions
-│       ├── outputs.tf             # Output values
-│       ├── backend.tf             # Remote state configuration
-│       ├── versions.tf            # Provider versions
-│       └── terraform.tfvars.example  # Example variables
-└── modules/                       # Reusable Terraform modules
-    ├── vpc/                       # VPC and networking
-    ├── eks/                       # EKS cluster with autoscaling
-    └── iam/                       # IAM roles, policies, IRSA
-```
+kube-prometheus-stack runs Prometheus, Alertmanager and the Prometheus Operator in the `monitoring` namespace. The web-app chart can create a ServiceMonitor (`serviceMonitor.enabled`). Grafana runs as a separate Application and uses Prometheus as its data source.
 
-**Multi-Cloud Extensibility**:
-- ✅ `environments/aws/` - AWS-specific configuration
-- ✅ `environments/gcp/` - Future GCP support (add when needed)
-- ✅ `environments/azure/` - Future Azure support (add when needed)
-- ✅ Shared `modules/` across all clouds
+## Adding an application
 
-**Key Features**:
-- ✅ Environment-based organization
-- ✅ Reusable modules
-- ✅ Remote state with S3 backend
-- ✅ DynamoDB state locking
-
-## GitOps Workflow
-
-### 1. Bootstrap Phase
-
-```bash
-# Apply foundational components in order
-kubectl apply -f bootstrap/00-namespaces.yaml
-kubectl apply -f bootstrap/01-pod-security-standards.yaml
-kubectl apply -f bootstrap/02-network-policy.yaml
-kubectl apply -f bootstrap/03-helm-repos.yaml
-kubectl apply -f bootstrap/04-argo-cd-install.yaml
-kubectl apply -f bootstrap/05-vault-policies.yaml
-kubectl apply -f bootstrap/06-etcd-backup.yaml
-```
-
-This sets up:
-- ArgoCD installation
-- Helm repositories
-- Security policies
-- Vault integration components
-
-### 2. Application Deployment Phase
-
-```bash
-# Apply environment-specific root application (app-of-apps)
-kubectl apply -f environments/prod/app-of-apps.yaml
-```
-
-This triggers:
-- Namespace creation per `environments/<env>/namespaces.yaml`
-- Application discovery for all files under `environments/<env>/apps/`
-- Automated deployment and continuous reconciliation by Argo CD
-
-### 3. Application Management Phase
-
-Applications are managed via:
-- Git commits to `environments/<env>/apps/*.yaml`
-- Argo CD UI for observability and sync control
-- Automated reconciliation and health monitoring
-
-## GitOps Principles Applied
-
-### 1. Declarative Configuration
-- All desired state defined in YAML manifests
-- No imperative commands required
-- Version-controlled configurations
-
-### 2. Version Control
-- All changes tracked in Git
-- Immutable infrastructure
-- Audit trail for all changes
-
-### 3. Automated Reconciliation
-- ArgoCD continuously monitors Git
-- Automatic drift detection and correction
-- Self-healing capabilities
-
-### 4. Observable
-- ArgoCD UI for application status
-- Prometheus metrics for monitoring
-- Grafana dashboards for observability
-
-## Application Structure
-
-### App-of-Apps Pattern
-
-The repository uses environment-specific root applications to discover child applications defined under `environments/<env>/apps/`:
-
-```
-Root App (environments/prod/app-of-apps.yaml)
-├── Monitoring Stack
-│   ├── Prometheus (environments/prod/apps/prometheus.yaml)
-│   └── Grafana (environments/prod/apps/grafana.yaml)
-└── Web App Stack
-    └── K8s Web App (environments/prod/apps/k8s-web-app.yaml)
-```
-
-### Environment Overlays
-
-Each environment has its own configuration:
-
-```
-environments/
-├── dev/                    # Development
-│   ├── app-of-apps.yaml   # Discovers dev applications
-│   ├── project.yaml       # ArgoCD project for dev
-│   └── apps/              # Dev-specific applications
-├── staging/                # Staging
-│   ├── app-of-apps.yaml   # Discovers staging applications
-│   ├── project.yaml       # ArgoCD project for staging
-│   └── apps/              # Staging-specific applications
-└── prod/                   # Production
-    ├── app-of-apps.yaml   # Discovers prod applications
-    ├── project.yaml       # ArgoCD project for prod
-    └── apps/              # Production-specific applications
-```
-
-### Sync Waves
-
-Applications are deployed in waves using ArgoCD sync waves:
-
-1. **Wave 1**: Root application and namespaces
-2. **Wave 2**: Infrastructure components
-3. **Wave 3**: Monitoring stack
-4. **Wave 4**: Security stack (Vault)
-5. **Wave 5**: Applications
-
-This ensures proper dependency ordering.
-
-## Application Configuration
-
-### Values Files Structure
-
-Applications use environment-specific values files referenced by each app under `environments/<env>/apps/*.yaml`:
-
-```
-applications/monitoring/grafana/
-├── values-local.yaml        # Local development (Minikube)
-├── values-staging.yaml      # Staging environment
-└── values-production.yaml   # Production environment
-```
-
-### Helm Chart Structure
-
-```
-applications/web-app/k8s-web-app/helm/
-├── Chart.yaml              # Chart metadata
-├── values.yaml             # Default values
-└── templates/              # Kubernetes templates
-    ├── deployment.yaml     # Application deployment
-    ├── service.yaml        # Service definition
-    ├── ingress.yaml        # Ingress configuration
-    ├── hpa.yaml           # Horizontal Pod Autoscaler
-    ├── serviceaccount.yaml # Service account
-    ├── networkpolicy.yaml  # Network policy
-    ├── servicemonitor.yaml # Prometheus ServiceMonitor
-    └── vault-agent.yaml    # Vault agent configuration
-```
-
-## Adding New Applications
-
-### 1. Create Application Directory
-
-```bash
-mkdir -p applications/new-domain/new-app
-```
-
-### 2. Create Application Manifest
-
-Place application manifests under the environment directory, not inside the app source tree:
-
-```yaml
-# environments/prod/apps/new-app.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: new-app
-  namespace: argocd
-spec:
-  project: production-apps
-  source:
-    repoURL: https://github.com/your-org/your-repo
-    path: applications/new-domain/new-app
-    targetRevision: HEAD
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: new-namespace
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-```
-
-### 3. Update Environment App-of-Apps
-
-Ensure the root app includes the environment directory with directory recursion to pick up `apps/*.yaml`:
-
-```yaml
-# environments/prod/app-of-apps.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: production-cluster
-  namespace: argocd
-spec:
-  project: production-apps
-  source:
-    repoURL: https://github.com/your-org/your-repo
-    path: environments/prod
-    targetRevision: HEAD
-    directory:
-      recurse: true
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: argocd
-```
-
-### 4. Commit and Deploy
-
-```bash
-git add .
-git commit -m "Add new application"
-git push
-```
-
-ArgoCD will automatically detect and deploy the new application.
-
-## Security Architecture
-
-### Pod Security Standards
-
-```yaml
-# bootstrap/01-pod-security-standards.yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: production
-  labels:
-    pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/enforce-version: latest
-    pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/warn: restricted
-```
-
-### Network Policies
-
-```yaml
-# bootstrap/02-network-policy.yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: default-deny-all
-  namespace: production
-spec:
-  podSelector: {}
-  policyTypes:
-  - Ingress
-  - Egress
-```
-
-### Vault Integration
-
-```yaml
-# Vault agent injection annotations
-annotations:
-  vault.hashicorp.com/agent-inject: "true"
-  vault.hashicorp.com/role: "k8s-web-app"
-  vault.hashicorp.com/agent-inject-secret-db: "secret/data/production/web-app/db"
-  vault.hashicorp.com/agent-inject-template-db: |
-    {{- with secret "secret/data/production/web-app/db" -}}
-    DB_HOST={{ .Data.data.host }}
-    DB_PORT={{ .Data.data.port }}
-    {{- end }}
-```
-
-## Monitoring Architecture
-
-### Prometheus Configuration
-
-```yaml
-# ServiceMonitor for application metrics
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: k8s-web-app
-  namespace: production
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: k8s-web-app
-  endpoints:
-  - port: http
-    path: /metrics
-```
-
-### Grafana Dashboards
-
-- **Kubernetes Cluster Overview**: Overall cluster health and resource usage
-- **Application Metrics**: Custom application dashboards
-- **Infrastructure Metrics**: Node, pod, and service metrics
-
-## Best Practices
-
-### Adding New Applications
-
-1. Create domain directory under `applications/`
-2. Ensure the environment `app-of-apps.yaml` discovers your application
-3. Create Helm chart or Kubernetes manifests
-4. Add ArgoCD `application.yaml` files
-5. Update documentation
-
-### Environment Management
-
-- Use `environments/` for environment-specific configurations
-- Maintain separate values files for different environments
-- Use ArgoCD projects for environment isolation
-
-### Secret Management
-
-- Use Vault agent injection for automatic secret injection
-- Create application-specific Vault policies
-- Use dedicated service accounts for Vault authentication
-
-### Documentation
-
-- Keep README files updated with current configurations
-- Document any changes in `CHANGELOG.md`
-- Provide troubleshooting guides for complex components
-
-## Troubleshooting Architecture
-
-### Common Issues
-
-1. **Application Not Syncing**: Check ArgoCD UI for errors, verify repository access
-2. **Resource Conflicts**: Review resource quotas, check for naming conflicts
-3. **Bootstrap Issues**: Ensure ArgoCD is installed, check bootstrap manifests
-
-### Debug Commands
-
-```bash
-# Check ArgoCD application status
-kubectl get applications -n argocd
-
-# View application details
-kubectl describe application <app-name> -n argocd
-
-# Check sync status
-argocd app get <app-name>
-
-# Force sync
-argocd app sync <app-name>
-```
-
-## Scalability Considerations
-
-### Horizontal Scaling
-
-- **Applications**: Use Horizontal Pod Autoscaler (HPA)
-- **Monitoring**: Scale Prometheus and Grafana based on metrics volume
-- **Vault**: Use Vault HA mode for production
-
-### Vertical Scaling
-
-- **Resource Limits**: Set appropriate CPU and memory limits
-- **Node Sizing**: Right-size EKS nodes for workload requirements
-- **Storage**: Use appropriate storage classes and sizes
-
-### Multi-Environment Scaling
-
-- **Environment Isolation**: Separate ArgoCD projects per environment
-- **Resource Quotas**: Set environment-specific resource quotas
-- **Network Policies**: Implement environment-specific network policies
-
-## Implementation Flow
-
-### End-to-End Deployment Flow
-
-The following diagram shows the complete implementation flow from repository clone through environment setup, bootstrap, ArgoCD application deployment, and ongoing operations:
-
-```mermaid
-flowchart LR
-  %% Style
-  classDef action fill:#e9f5ff,stroke:#4098d7,stroke-width:1px,color:#0b3e6f
-  classDef file fill:#fff7e6,stroke:#c17d00,stroke-width:1px,color:#5a3a00
-  classDef k8s fill:#eef9f0,stroke:#2d8a34,stroke-width:1px,color:#1e5a22
-  classDef argocd fill:#f3eaff,stroke:#6f42c1,stroke-width:1px,color:#3c2a77
-  classDef script fill:#f0f4ff,stroke:#3b5bdb,stroke-width:1px,color:#243b77
-  classDef env fill:#f9f9f9,stroke:#999,stroke-width:1px,color:#333
-
-  %% Developer entry
-  A["Clone repo\n(git clone)"]:::action --> B["Review docs\n`docs/local-deployment.md` / `docs/aws-deployment.md`"]:::file
-
-  %% Choose environment
-  B --> C{Choose target env}
-  C -->|Local| L1["Start Minikube\n(minikube start)"]:::action
-  C -->|AWS| L2["Provision EKS with Terraform\n`scripts/deploy.sh terraform prod`\n`infrastructure/terraform/*`"]:::script
-
-  %% Bootstrap Argo CD
-  subgraph BOOTSTRAP[Bootstrap]
-    direction TB
-    B0["Apply core namespaces\n`bootstrap/00-namespaces.yaml`"]:::k8s
-    B1["Pod Security + NetPol\n`bootstrap/01-pod-security-standards.yaml`\n`bootstrap/02-network-policy.yaml`"]:::k8s
-    B2["Register Helm repos\n`bootstrap/03-helm-repos.yaml`"]:::k8s
-    B3["Install Argo CD\n`bootstrap/04-argo-cd-install.yaml`"]:::k8s
-  end
-
-  L1 --> BOOTSTRAP
-  L2 --> BOOTSTRAP
-
-  %% Argo CD Root (App of Apps)
-  subgraph ARGO[Argo CD Control]
-    direction TB
-    R0["Apply App-of-Apps\n`environments/<env>/app-of-apps.yaml`\npoints to `environments/<env>/apps/`"]:::argocd
-    R1["Argo CD sync policy\nAutomated prune/self-heal"]:::argocd
-  end
-
-  BOOTSTRAP --> R0
-  R0 --> R1
-
-  %% Environments
-  subgraph ENVS[Environments]
-    direction LR
-    subgraph DEV[dev]
-      D1["Project + NS\n`environments/dev/project.yaml`\n`environments/dev/namespaces.yaml`"]:::k8s
-      D2["Apps\n`environments/dev/apps/*.yaml` (Applications)"]:::argocd
-    end
-    subgraph STG[staging]
-      S1["Project + NS\n`environments/staging/project.yaml`\n`environments/staging/namespaces.yaml`"]:::k8s
-      S2["Apps\n`environments/staging/apps/*.yaml`"]:::argocd
-    end
-    subgraph PRD[prod]
-      P1["Project + NS\n`environments/prod/project.yaml`\n`environments/prod/namespaces.yaml`"]:::k8s
-      P2["Apps\n`environments/prod/apps/*.yaml`"]:::argocd
-    end
-  end
-
-  R1 --> D2
-  R1 --> S2
-  R1 --> P2
-
-  %% Applications
-  subgraph APPS[Applications]
-    direction LR
-    subgraph MON[Monitoring]
-      M1["Prometheus App\n`environments/<env>/apps/prometheus.yaml`"]:::argocd
-      M2["Grafana App\n`environments/<env>/apps/grafana.yaml`"]:::argocd
-    end
-    subgraph WEB[Web App Helm]
-      W0["Helm Chart\n`applications/web-app/k8s-web-app/helm/Chart.yaml`\n`values.yaml`"]:::file
-      W1["Deployment\n`helm/templates/deployment.yaml`"]:::file
-      W2["Service/Ingress/HPA\n`helm/templates/{service,ingress,hpa}.yaml`"]:::file
-      W3["Vault Agent (optional)\n`helm/templates/vault-agent.yaml`"]:::file
-      W4["Env values\n`applications/web-app/k8s-web-app/values.yaml`"]:::file
-    end
-  end
-
-  D2 --> MON
-  D2 --> WEB
-  S2 --> MON
-  S2 --> WEB
-  P2 --> MON
-  P2 --> WEB
-
-  %% Scripts and Automation
-  subgraph SCRIPTS[Consolidated Scripts]
-    direction TB
-    SC1["Deploy\n`scripts/deploy.sh`\nterraform | bootstrap | secrets | sync | status"]:::script
-    SC2["Validate\n`scripts/validate.sh`\nstructure | apps | helm | manifests | security | vault"]:::script
-    SC3["Secrets\n`scripts/secrets.sh`\ncreate | rotate | verify | backup | restore"]:::script
-    SC4["Config\n`scripts/config.sh`\n(generate/validate/merge env configs)"]:::script
-    MK["Makefile targets\n`make bootstrap-cluster ENV=<env>` etc."]:::file
-  end
-
-  %% Flow connections
-  R1 -->|Sync| APPS
-  SC1 -->|bootstrap <env>| BOOTSTRAP
-  SC1 -->|sync <env>| R1
-  SC1 -->|terraform prod| L2
-  SC3 -->|create monitoring| M2
-  SC3 -->|create web-app| W1
-  SC2 -->|validate apps| APPS
-  SC2 -->|validate structure| ENVS
-  MK --> SC1
-
-  %% Observability & Access
-  M2 --> GRAFANA["Grafana UI"]:::action
-  M1 --> PROM["Prometheus"]:::action
-  R1 --> ARGOCDUI["Argo CD UI"]:::action
-```
-
-### Flow Explanation
-
-1. **Clone Repository**: Developer obtains the GitOps source of truth locally
-2. **Choose Environment**: Select Local (Minikube) or AWS (EKS) deployment path
-3. **Infrastructure Setup**:
-   - Local: Start Minikube with required addons
-   - AWS: Provision EKS cluster using Terraform
-4. **Bootstrap Phase**: Apply core namespaces, security policies, Helm repos, and ArgoCD installation
-5. **App-of-Apps Deployment**: Deploy root ArgoCD Application that discovers child applications
-6. **Environment Applications**: ArgoCD automatically syncs applications defined in `environments/<env>/apps/`
-7. **Monitoring & Web Apps**: Deploy monitoring stack and sample web application
-8. **Ongoing Operations**: Use consolidated scripts for deployment, validation, and maintenance
-
-## Validation and Quality Assurance
-
-### Application Validation System
-
-The repository includes comprehensive validation tools to ensure reliable deployments:
-
-#### Validation Script (`scripts/validate-argocd-apps.sh`)
-
-**Features**:
-- ✅ Checks annotation size limits (256KB) to prevent CRD failures
-- ✅ Detects large inline Helm values that cause annotation issues
-- ✅ Validates required fields (spec.destination, spec.source/sources)
-- ✅ Provides improvement suggestions for best practices
-- ✅ Color-coded output for easy reading
-
-**Usage**:
-```bash
-./scripts/validate-argocd-apps.sh
-make validate-apps
-```
-
-#### Pre-commit Hook
-
-Automatically validates applications before commits to prevent problematic code:
-```bash
-# Validation runs automatically on every commit
-git commit -m "Add new application"
-# Validation script executes and blocks commit if issues found
-```
-
-#### CI/CD Integration
-
-GitHub Actions workflow validates applications on every push/PR:
-- YAML syntax validation
-- Large file detection
-- Annotation size checking
-- Best practices compliance
-
-### Best Practices Enforcement
-
-#### External Values Files Pattern
-```yaml
-# ✅ Good: External values file
-spec:
-  sources:
-    - repoURL: 'https://charts.example.com'
-      chart: my-chart
-    - repoURL: 'https://github.com/user/repo'
-      path: charts/my-app
-  helm:
-    valueFiles:
-      - values.yaml
-```
-
-#### Minimal Inline Values Pattern
-```yaml
-# ✅ Good: Only essential overrides
-spec:
-  source:
-    helm:
-      values: |
-        replicaCount: 3
-        image:
-          tag: "v1.2.3"
-```
-
-#### Lighter Chart Selection
-- Use `prometheus` instead of `kube-prometheus-stack`
-- Individual charts instead of umbrella charts
-- Avoid charts with inherently large CRDs
-
-### Validation Results
-
-All applications in the repository pass validation:
-
-```
-📊 Validation Summary:
-   Total files checked: 3
-   Files with issues: 0
-🎉 All applications passed validation!
-```
-
-**File Sizes**:
-- `prometheus/application.yaml`: 994 bytes ✅
-- `grafana/application.yaml`: 1,229 bytes ✅  
-- `k8s-web-app/application.yaml`: 1,223 bytes ✅
-
----
-
-This architecture provides a clean, maintainable, and scalable foundation for production Kubernetes deployments using GitOps principles. The structure supports multiple environments, secure secret management, comprehensive monitoring, validation systems, and easy application onboarding.
+1. Add values under `helm-charts/<name>/`, or a chart if there is no upstream chart.
+2. Add `argo-apps/apps/<name>.yaml` with `project: prod-apps` and a sync wave.
+3. If the application needs a new namespace or source repository, add it to `argo-apps/install/01-namespaces.yaml` and `argo-apps/projects/prod-apps.yaml`.
+4. Commit and push. `root-app` picks up the new file.
