@@ -5,7 +5,7 @@
 
 Complete guide for deploying a GitOps stack on **Minikube** with ArgoCD, Vault (manual unseal), Prometheus, and Grafana.
 
-## 🎯 Overview
+## Overview
 
 This deployment provides a **complete GitOps stack** optimized for local development:
 
@@ -22,7 +22,7 @@ This deployment provides a **complete GitOps stack** optimized for local develop
 
 **Note**: This guide uses the **automated setup script** for simplicity. For manual step-by-step deployment, see the detailed sections below.
 
-## ⚠️ Important: Vault Configuration
+## Important: Vault Configuration
 
 This local setup uses **single-replica Vault with file storage** and **manual unseal**:
 - **NOT dev mode** - Proper initialization required
@@ -32,7 +32,7 @@ This local setup uses **single-replica Vault with file storage** and **manual un
 
 For production AWS deployment with HA and KMS auto-unseal, see [Vault AWS Setup](vault-setup.md).
 
-## 📋 Prerequisites
+## Prerequisites
 
 ### System Requirements
 - **RAM**: 4GB minimum, 8GB recommended
@@ -63,7 +63,7 @@ sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(l
 sudo apt-get update && sudo apt-get install vault
 ```
 
-## 🚀 Quick Start (Automated)
+## Quick Start (Automated)
 
 ### Single Command Deployment
 
@@ -86,7 +86,7 @@ This script automatically:
 
 ---
 
-## 🛠️ Phase 0: Prerequisites Check (Manual)
+## Phase 0: Prerequisites Check (Manual)
 
 ### Step 0.1: Verify Required Tools
 
@@ -122,7 +122,7 @@ df -h .  # Should show at least 30GB free
 
 ---
 
-## 🚀 Phase 1: Local Infrastructure (Manual)
+## Phase 1: Local Infrastructure (Manual)
 
 ### Step 1.1: Start Minikube
 
@@ -148,7 +148,7 @@ minikube addons enable default-storageclass
 
 **✅ Phase 1 Complete**: Minikube running with required addons
 
-## 🔧 Phase 2: ArgoCD Bootstrap (Manual)
+## Phase 2: ArgoCD Bootstrap (Manual)
 
 ### Step 2.1: Create Namespaces
 
@@ -213,7 +213,7 @@ kubectl get applications -n argocd
 
 > **Note**: The bootstrap file contains ArgoCD Application manifests that reference Helm charts. ArgoCD will automatically sync and deploy all applications.
 
-## 📊 Phase 3: Applications Deployment
+## Phase 3: Applications Deployment
 
 > **Note**: ArgoCD automatically deploys all applications defined in `argo-apps/install/03-bootstrap.yaml`. This includes Prometheus, Grafana, Vault, and the sample web application. All applications use **upstream Helm charts** with custom values overrides.
 
@@ -248,7 +248,7 @@ kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=web-app -n prod
 
 ---
 
-## 🔐 Phase 3.5: Vault Manual Unseal (REQUIRED)
+## Phase 3.5: Vault Manual Unseal (REQUIRED)
 
 > **Critical**: Vault will not be ready until manually unsealed. This is normal for non-dev mode Vault.
 
@@ -319,7 +319,7 @@ kubectl get pods -n vault
 
 ---
 
-## ✅ Phase 4: Verification & Access
+## Phase 4: Verification & Access
 
 ### System Health Check
 
@@ -377,7 +377,7 @@ make port-forward-argocd   # ArgoCD UI
 make port-forward-grafana  # Grafana
 ```
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Vault Issues
 
@@ -555,7 +555,7 @@ kubectl top pods -A
 kubectl scale statefulset prometheus-prometheus-prometheus -n monitoring --replicas=0
 ```
 
-## 🧹 Cleanup
+## Cleanup
 
 ### Full Cleanup
 ```bash
@@ -582,7 +582,7 @@ helm uninstall argo-cd -n argocd
 kubectl delete namespace argocd monitoring production
 ```
 
-## 🔧 Daily Operations
+## Daily Operations
 
 ### Daily Startup Workflow
 
@@ -641,7 +641,7 @@ kubectl get hpa -n production
 kubectl scale deployment web-app -n production --replicas=3
 ```
 
-## 📚 Additional Resources
+## Additional Resources
 
 ### Documentation
 - **[Architecture Guide](architecture.md)** - Understand the repository structure

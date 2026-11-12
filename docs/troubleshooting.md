@@ -2,7 +2,7 @@
 
 Comprehensive guide for diagnosing and resolving common issues in GitOps deployments with ArgoCD, Kubernetes, and Vault.
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Quick Diagnostic Commands](#quick-diagnostic-commands)
 2. [ArgoCD Issues](#argocd-issues)
@@ -13,7 +13,7 @@ Comprehensive guide for diagnosing and resolving common issues in GitOps deploym
 7. [Resource Issues](#resource-issues)
 8. [Application Issues](#application-issues)
 
-## 🚨 Quick Reference
+## Quick Reference
 
 ### Most Common Issues (Minikube)
 1. **Vault pod not ready (0/1)** → [Unseal Vault manually](#vault-sealed-minikube)
@@ -70,7 +70,7 @@ kubectl run test-pod --image=busybox --rm -it --restart=Never -- \
   wget -O- http://prometheus-prometheus.monitoring:9090/-/healthy
 ```
 
-## 🔵 ArgoCD Issues
+## ArgoCD Issues
 
 ### CRD Annotation Size Issues
 
@@ -285,7 +285,7 @@ kubectl describe pod <pod-name> -n argocd
 kubectl top pods -n argocd
 ```
 
-## ☸️ Kubernetes Issues
+## Kubernetes Issues
 
 ### Pod Issues
 
@@ -364,7 +364,7 @@ kubectl get storageclass
 kubectl get pv
 ```
 
-## 🔐 Vault Issues
+## Vault Issues
 
 ### Vault Sealed (Minikube)
 
@@ -586,7 +586,7 @@ kubectl -n vault delete pod -l app.kubernetes.io/name=vault-csi-provider --force
 kubectl -n vault delete ds vault-csi-provider --grace-period=0 --force --cascade=orphan
 ```
 
-## 📊 Monitoring Issues
+## Monitoring Issues
 
 ### Prometheus Issues
 
@@ -654,7 +654,7 @@ kubectl get svc prometheus-prometheus -n monitoring
 kubectl exec -it <grafana-pod> -n monitoring -- curl http://prometheus-prometheus.monitoring.svc.cluster.local:9090/api/v1/status/config
 ```
 
-## 🌐 Network Issues
+## Network Issues
 
 ### Ingress Configuration
 
@@ -695,7 +695,7 @@ kubectl run test-pod --image=busybox --rm -it --restart=Never -- nslookup <servi
 kubectl describe svc <service-name> -n <namespace>
 ```
 
-## 💾 Resource Issues
+## Resource Issues
 
 ### Out of Resources
 
@@ -754,7 +754,7 @@ kubectl get storageclass standard -o yaml
 aws ec2 describe-volumes --region <region>
 ```
 
-## 🌐 Application Issues
+## Application Issues
 
 ### Web Application Issues
 
@@ -815,7 +815,7 @@ kill -9 <PID>
 kubectl port-forward svc/<service-name> -n <namespace> <local-port>:<service-port> &
 ```
 
-## 🔧 Prevention Best Practices
+## Prevention Best Practices
 
 ### Regular Maintenance
 

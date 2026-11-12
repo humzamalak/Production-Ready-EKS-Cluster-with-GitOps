@@ -6,7 +6,7 @@ This document provides comprehensive documentation for the GitHub Actions workfl
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Overview](#overview)
 2. [Workflows](#workflows)
@@ -18,7 +18,7 @@ This document provides comprehensive documentation for the GitHub Actions workfl
 
 ---
 
-## 🎯 Overview
+## Overview
 
 The CI/CD pipeline consists of **6 automated workflows** that ensure code quality, security, and reliable deployments:
 
@@ -33,7 +33,7 @@ The CI/CD pipeline consists of **6 automated workflows** that ensure code qualit
 
 ---
 
-## 🔄 Workflows
+## Workflows
 
 ### 1. validate.yaml - Comprehensive Validation
 
@@ -303,7 +303,7 @@ Results are uploaded to GitHub Security tab for tracking.
 
 ---
 
-## ⚙️ Setup & Configuration
+## Setup & Configuration
 
 ### Required GitHub Secrets
 
@@ -346,7 +346,7 @@ Branch name pattern: main
 
 ---
 
-## 🔔 Trigger Conditions
+## Trigger Conditions
 
 ### Automatic Triggers
 
@@ -381,7 +381,7 @@ gh workflow run deploy-argocd.yaml \
 
 ---
 
-## 🔐 Secrets Management
+## Secrets Management
 
 ### Rotating Secrets
 
@@ -425,9 +425,9 @@ terraform {
 
 ---
 
-## 📊 Workflow Integration
+## Workflow Integration
 
-### Terraform ↔ ArgoCD Integration
+### Terraform  ArgoCD Integration
 
 ```mermaid
 graph LR
@@ -460,7 +460,7 @@ graph TD
 
 ---
 
-## 🛠️ Best Practices
+## Best Practices
 
 ### Writing Workflow-Friendly Code
 
@@ -536,7 +536,7 @@ make test-actions-validate
 
 ---
 
-## 🔧 Configuration Files
+## Configuration Files
 
 ### Workflow Configuration
 
@@ -571,7 +571,7 @@ env:
 
 ---
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -625,7 +625,7 @@ make docs-lint
 
 ---
 
-## 📈 Workflow Monitoring
+## Workflow Monitoring
 
 ### GitHub Actions Dashboard
 
@@ -656,7 +656,7 @@ Add to README.md:
 
 ---
 
-## 🔄 Workflow Lifecycle
+## Workflow Lifecycle
 
 ### Development Workflow
 
@@ -707,7 +707,7 @@ Monitoring alerts confirm successful deployment
 
 ---
 
-## 📚 Additional Resources
+## Additional Resources
 
 ### Related Documentation
 - [Deployment Guide](deployment.md) - Step-by-step deployment instructions
@@ -722,7 +722,7 @@ Monitoring alerts confirm successful deployment
 
 ---
 
-## 🎯 Success Metrics
+## Success Metrics
 
 ### Pipeline Health Indicators
 

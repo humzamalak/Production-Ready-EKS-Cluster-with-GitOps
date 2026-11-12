@@ -1,34 +1,33 @@
-<!-- Docs Update: 2025-10-11 — Minikube-first documentation overhaul with Vault local setup. -->
 # Documentation Index
 
-> **Primary Focus**: Local development with Minikube  
+> **Primary target**: AWS EKS. Minikube is the local option.  
 > **Compatibility**: Kubernetes v1.33.0
 
 This directory contains comprehensive documentation for deploying and managing a GitOps stack with ArgoCD, Vault, and observability.
 
-## 📚 Documentation Structure
+## Documentation Structure
 
-### 🚀 **Getting Started** (Start Here)
+### **Getting Started** (Start Here)
 - **[Main README](../README.md)** - Project overview and quick start
 - **[Local Deployment Guide](local-deployment.md)** - ⭐ **START HERE** - Complete Minikube setup (~30 min)
 - **[Vault Local Setup](vault-local-setup.md)** - Single-replica Vault with manual unseal
 
-### 🏗️ **Architecture & Troubleshooting**
+### **Architecture & Troubleshooting**
 - **[Architecture Guide](architecture.md)** - Repository structure and GitOps patterns
 - **[Troubleshooting Guide](troubleshooting.md)** - Common issues: Vault PVC, permissions, unsealing, Argo CD sync
 
-### ☁️ **Advanced: Production Deployment** (Optional)
+### **Advanced: Production Deployment** (Optional)
 - **[AWS Deployment Guide](aws-deployment.md)** - Production EKS deployment (~60 min)
 - **[Vault AWS Setup](vault-setup.md)** - HA Vault with Raft and KMS auto-unseal
 
-### 🛠️ **Additional Resources**
+### **Additional Resources**
 - **[ArgoCD CLI Setup](argocd-cli-setup.md)** - Cross-platform CLI access
 - **[K8s Version Policy](K8S_VERSION_POLICY.md)** - Kubernetes compatibility
 - **[CI/CD Pipeline](ci_cd_pipeline.md)** - GitHub Actions workflows
 - **[Scripts Documentation](scripts.md)** - Deployment script usage
 - **[Changelog](../CHANGELOG.md)** - Version history
 
-## 🎯 **Quick Navigation**
+## **Quick Navigation**
 
 ### **For New Users:**
 1. Start with [Main README](../README.md) - understand what's included
@@ -48,7 +47,7 @@ This directory contains comprehensive documentation for deploying and managing a
 3. Configure [Vault AWS Setup](vault-setup.md) - HA with KMS
 4. Set up CI/CD with [CI/CD Pipeline Guide](ci_cd_pipeline.md)
 
-## 📖 **Recommended Reading Order**
+## **Recommended Reading Order**
 
 **Complete Beginner:**
 ```
@@ -66,7 +65,7 @@ This directory contains comprehensive documentation for deploying and managing a
 4. CI/CD Pipeline → Automation
 ```
 
-## 📁 **Directory-Specific Documentation**
+## **Directory-Specific Documentation**
 
 ### **Bootstrap Components**
 - **[Bootstrap README](../bootstrap/README.md)** - Bootstrap configuration details (Argo CD install, security, repos)
@@ -81,7 +80,7 @@ This directory contains comprehensive documentation for deploying and managing a
 ### **Infrastructure**
 - **[Terraform README](../infrastructure/terraform/README.md)** - Infrastructure as Code documentation
 
-## 🔄 **Documentation Updates**
+## **Documentation Updates**
 
 This documentation is maintained as part of the GitOps workflow. When making changes:
 
@@ -90,7 +89,7 @@ This documentation is maintained as part of the GitOps workflow. When making cha
 3. Keep this index updated
 4. Follow consistent formatting and structure
 
-## 📝 **Contributing to Documentation**
+## **Contributing to Documentation**
 
 When adding new documentation:
 

@@ -2,7 +2,7 @@
 
 Comprehensive overview of the repository structure, GitOps flow, and deployment configurations with a **Minikube-first approach**.
 
-## 🚀 Quick Start
+## Quick Start
 
 - **New to this repository?** Start with the [Main README](../README.md) for an overview
 - **Primary path**: Follow the [Local Deployment Guide](local-deployment.md) for Minikube setup
@@ -10,7 +10,7 @@ Comprehensive overview of the repository structure, GitOps flow, and deployment 
 - **Advanced**: Use the [AWS Deployment Guide](aws-deployment.md) for production
 - **Having issues?** Check the [Troubleshooting Guide](troubleshooting.md)
 
-## 🎯 Repository Philosophy
+## Repository Philosophy
 
 This repository prioritizes **local development first**, with production deployment as an optional advanced path:
 
@@ -22,7 +22,7 @@ This repository prioritizes **local development first**, with production deploym
 | **Storage** | File backend (local), Raft (AWS) | Appropriate for each environment |
 | **Values Files** | `values-minikube.yaml` first | Local as default, AWS as override |
 
-## 🏗️ Repository Structure
+## Repository Structure
 
 ### Overall Architecture
 
@@ -44,7 +44,7 @@ Production-Ready-EKS-Cluster-with-GitOps/
 └── docs/                # Comprehensive documentation
 ```
 
-## 📁 Directory Structure
+## Directory Structure
 
 ### `environments/` - Environment Configurations
 
@@ -234,7 +234,7 @@ terraform/
 - ✅ Remote state with S3 backend
 - ✅ DynamoDB state locking
 
-## 🔄 GitOps Workflow
+## GitOps Workflow
 
 ### 1. Bootstrap Phase
 
@@ -274,7 +274,7 @@ Applications are managed via:
 - Argo CD UI for observability and sync control
 - Automated reconciliation and health monitoring
 
-## 🎯 GitOps Principles Applied
+## GitOps Principles Applied
 
 ### 1. Declarative Configuration
 - All desired state defined in YAML manifests
@@ -296,7 +296,7 @@ Applications are managed via:
 - Prometheus metrics for monitoring
 - Grafana dashboards for observability
 
-## 🏗️ Application Structure
+## Application Structure
 
 ### App-of-Apps Pattern
 
@@ -343,7 +343,7 @@ Applications are deployed in waves using ArgoCD sync waves:
 
 This ensures proper dependency ordering.
 
-## 🔧 Application Configuration
+## Application Configuration
 
 ### Values Files Structure
 
@@ -373,7 +373,7 @@ applications/web-app/k8s-web-app/helm/
     └── vault-agent.yaml    # Vault agent configuration
 ```
 
-## 🚀 Adding New Applications
+## Adding New Applications
 
 ### 1. Create Application Directory
 
@@ -443,7 +443,7 @@ git push
 
 ArgoCD will automatically detect and deploy the new application.
 
-## 🔐 Security Architecture
+## Security Architecture
 
 ### Pod Security Standards
 
@@ -491,7 +491,7 @@ annotations:
     {{- end }}
 ```
 
-## 📊 Monitoring Architecture
+## Monitoring Architecture
 
 ### Prometheus Configuration
 
@@ -517,7 +517,7 @@ spec:
 - **Application Metrics**: Custom application dashboards
 - **Infrastructure Metrics**: Node, pod, and service metrics
 
-## 🔧 Best Practices
+## Best Practices
 
 ### Adding New Applications
 
@@ -545,7 +545,7 @@ spec:
 - Document any changes in `CHANGELOG.md`
 - Provide troubleshooting guides for complex components
 
-## 🔍 Troubleshooting Architecture
+## Troubleshooting Architecture
 
 ### Common Issues
 
@@ -569,7 +569,7 @@ argocd app get <app-name>
 argocd app sync <app-name>
 ```
 
-## 📈 Scalability Considerations
+## Scalability Considerations
 
 ### Horizontal Scaling
 
@@ -589,7 +589,7 @@ argocd app sync <app-name>
 - **Resource Quotas**: Set environment-specific resource quotas
 - **Network Policies**: Implement environment-specific network policies
 
-## 📊 Implementation Flow
+## Implementation Flow
 
 ### End-to-End Deployment Flow
 
@@ -719,7 +719,7 @@ flowchart LR
 7. **Monitoring & Web Apps**: Deploy monitoring stack and sample web application
 8. **Ongoing Operations**: Use consolidated scripts for deployment, validation, and maintenance
 
-## 🔧 Validation and Quality Assurance
+## Validation and Quality Assurance
 
 ### Application Validation System
 

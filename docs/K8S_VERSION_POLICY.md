@@ -6,7 +6,7 @@
 
 ---
 
-## 🎯 Official Kubernetes Version
+## Official Kubernetes Version
 
 This repository is designed and validated for **Kubernetes v1.33.0**.
 
@@ -14,7 +14,7 @@ All manifests, Helm charts, and documentation reference this version consistentl
 
 ---
 
-## ✅ API Compatibility Validation
+## API Compatibility Validation
 
 All Kubernetes resources in this repository use **stable, v1.33.0-compatible API versions**:
 
@@ -43,7 +43,7 @@ All resources have been validated to use only stable, non-deprecated APIs for Ku
 
 ---
 
-## 📁 Files Referencing K8s Version
+## Files Referencing K8s Version
 
 ### Deployment Guides
 - ✅ `docs/aws-deployment.md` - Line 3, Line 85
@@ -65,7 +65,7 @@ All resources have been validated to use only stable, non-deprecated APIs for Ku
 
 ---
 
-## 🔧 Configuration Examples
+## Configuration Examples
 
 ### Terraform Variables
 
@@ -92,7 +92,7 @@ kubeVersion: ">=1.29.0-0"  # Minimum K8s version required
 
 ---
 
-## 🎯 Backward Compatibility
+## Backward Compatibility
 
 ### Minimum Supported Version
 - **Minimum**: Kubernetes v1.29.0
@@ -106,7 +106,7 @@ The repository uses only stable APIs that have been available since v1.29, ensur
 
 ---
 
-## 📊 Validation Status
+## Validation Status
 
 ### Validation Tools Used
 - ✅ `helm lint` - All charts pass
@@ -126,7 +126,7 @@ The repository uses only stable APIs that have been available since v1.29, ensur
 
 ---
 
-## 🔄 Version Update Process
+## Version Update Process
 
 If updating the Kubernetes version in the future:
 
@@ -168,7 +168,7 @@ kubectl apply --dry-run=client -f environments/prod/
 
 ---
 
-## 🛠️ Troubleshooting Version Issues
+## Troubleshooting Version Issues
 
 ### Issue: API Version Deprecation Warning
 
@@ -202,7 +202,7 @@ aws eks describe-addon-versions --kubernetes-version 1.33
 
 ---
 
-## 📞 Support
+## Support
 
 For version-related questions:
 1. Check this policy document
@@ -212,7 +212,7 @@ For version-related questions:
 
 ---
 
-## 📝 Version History
+## Version History
 
 | Repository Version | Kubernetes Version | Date | Notes |
 |--------------------|-------------------|------|-------|
