@@ -4,47 +4,38 @@ on:
   push:
     branches: [ main, develop ]
     paths:
-      - 'applications/**'
-      - 'environments/**'
-      - 'scripts/validate-argocd-apps.sh'
+      - 'argo-apps/**'
+      - 'scripts/validate.sh'
+      - '.github/workflows/validate-applications.yml'
   pull_request:
     branches: [ main ]
     paths:
-      - 'applications/**'
-      - 'environments/**'
-      - 'scripts/validate-argocd-apps.sh'
+      - 'argo-apps/**'
+      - 'scripts/validate.sh'
+      - '.github/workflows/validate-applications.yml'
+
+permissions:
+  contents: read
 
 jobs:
   validate-applications:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Make validation script executable
-      run: chmod +x scripts/validate-argocd-apps.sh
-      
+
+    # ubuntu-latest ships kubectl and mikefarah/yq, which scripts/validate.sh needs.
+    # --dry-run skips the cluster connection check; the apps scope reads files only.
     - name: Validate ArgoCD Applications
       run: |
         echo "🔍 Validating ArgoCD Applications..."
-        ./scripts/validate-argocd-apps.sh
-        
-    - name: Check for large files
-      run: |
-        echo "📏 Checking for large files that might cause annotation issues..."
-        find applications/ environments/ -name "*.yaml" -exec sh -c '
-          size=$(wc -c < "$1")
-          if [ "$size" -gt 50000 ]; then
-            echo "⚠️  Large file detected: $1 ($size bytes)"
-            echo "Consider using external values files to reduce size"
-          fi
-        ' _ {} \;
-        
+        bash scripts/validate.sh apps --dry-run
+
     - name: Validate YAML syntax
       run: |
         echo "🔍 Validating YAML syntax..."
-        for file in $(find applications/ environments/ bootstrap/ -name "*.yaml"); do
+        find argo-apps/ -name "*.yaml" -print0 | while IFS= read -r -d '' file; do
           echo "Checking $file..."
-          python3 -c "import yaml; yaml.safe_load(open('$file'))" || exit 1
+          python3 -c "import sys, yaml; list(yaml.safe_load_all(open(sys.argv[1])))" "$file" || exit 1
         done
