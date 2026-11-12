@@ -88,6 +88,3 @@ spec:
         - /spec/replicas
   
   revisionHistoryLimit: 3
-
-
-
