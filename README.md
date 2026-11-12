@@ -157,7 +157,7 @@ The full guide is [docs/local-deployment.md](docs/local-deployment.md). For manu
 | [`security-scan.yaml`](.github/workflows/security-scan.yaml) | Push, pull requests, weekly | Trivy config scan (SARIF to the Security tab), tfsec, Checkov, kubesec |
 | [`image-scan.yml`](.github/workflows/image-scan.yml) | Push, pull requests | Trivy filesystem scan |
 | [`secret-scan-dep-check.yml`](.github/workflows/secret-scan-dep-check.yml) | Push, pull requests | TruffleHog secret scan, dependency review on pull requests |
-| `terraform-plan`, `terraform-apply`, `terraform-pr-comment`, `terraform-drift-detection`, `deploy-argocd` | Manual (`workflow_dispatch`) | Plan, apply, drift detection and Argo CD sync against a real AWS account |
+| `terraform-plan`, `terraform-apply`, `terraform-drift-detection`, `deploy-argocd` | Manual (`workflow_dispatch`) | Plan, apply, drift detection and Argo CD sync against a real AWS account |
 
 The security scanners report findings but do not fail the build. The AWS workflows need the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `TF_STATE_BUCKET` and `TF_STATE_LOCK_TABLE` secrets. See [docs/ci_cd_pipeline.md](docs/ci_cd_pipeline.md).
 

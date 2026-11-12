@@ -20,10 +20,24 @@ This document provides comprehensive documentation for the GitHub Actions workfl
 
 ## Overview
 
-The CI/CD pipeline consists of **6 automated workflows** that ensure code quality, security, and reliable deployments:
+The repository has 10 workflows. Six run automatically on pushes and pull requests. Four need an AWS account and run only when started by hand (`workflow_dispatch`), so they do not fail on forks or on a repository without AWS secrets, and they never change AWS resources by themselves.
 
-| Workflow | Purpose | Trigger | Duration |
-|----------|---------|---------|----------|
+| Workflow | Purpose | Trigger |
+|----------|---------|---------|
+| **ci.yaml** | Terraform fmt and validate, yamllint, markdownlint | PR, push to main |
+| **validate.yaml** | YAML, Helm, Terraform, Argo CD manifest and script checks | PR, push |
+| **docs-lint.yaml** | Documentation quality | PR affecting docs, push |
+| **security-scan.yaml** | Trivy, tfsec, Checkov, kubesec | PR, push, weekly |
+| **image-scan.yml** | Trivy filesystem scan | PR, push to main |
+| **secret-scan-dep-check.yml** | TruffleHog, dependency review | PR, push to main |
+| **terraform-plan.yaml** | Infrastructure plan | Manual |
+| **terraform-apply.yaml** | Infrastructure apply | Manual |
+| **terraform-drift-detection.yml** | Drift detection | Manual |
+| **deploy-argocd.yaml** | Argo CD application sync | Manual |
+
+The trigger examples later in this document show the original automatic triggers. To restore them, add `push` or `pull_request` back to the workflow `on:` block after you configure the AWS secrets.
+
+----------|---------|---------|----------|
 | **validate.yaml** | Comprehensive validation | PR, Push to main | 5-7 min |
 | **docs-lint.yaml** | Documentation quality | PR affecting docs | 2-3 min |
 | **terraform-plan.yaml** | Infrastructure planning | PR affecting terraform | 3-5 min |
