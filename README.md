@@ -7,7 +7,21 @@ Infrastructure as code and GitOps configuration for a Kubernetes platform on AWS
 - **HashiCorp Vault** runs in HA mode with Raft storage and AWS KMS auto-unseal on EKS.
 - **Prometheus and Grafana** give metrics and dashboards. A sample web application shows the Helm chart pattern.
 
-The same Argo CD applications also run on Minikube for local development. See [Local option: Minikube](#local-option-minikube).
+The same Argo CD applications also run on Minikube for local development.
+
+## Quick start
+
+Choose one path:
+
+- **AWS EKS**: create the VPC, cluster and IAM roles with Terraform, then install Argo CD and let it deploy Vault, monitoring and the web app. Follow [Deploy to AWS EKS](#deploy-to-aws-eks), or run `make deploy-aws` from a host that can reach the VPC.
+- **Local**: no AWS account needed. Run the commands below, then follow the script output for the Argo CD, Grafana and Vault URLs and credentials. Details are in [Local option: Minikube](#local-option-minikube).
+
+```bash
+git clone https://github.com/humzamalak/Production-Ready-EKS-Cluster-with-GitOps.git
+cd Production-Ready-EKS-Cluster-with-GitOps
+minikube start --cpus=4 --memory=8192 --disk-size=20g
+./scripts/setup-minikube.sh
+```
 
 ## Architecture
 
