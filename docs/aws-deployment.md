@@ -122,12 +122,12 @@ project_prefix = "my-eks-cluster"
 environment    = "prod"
 aws_region     = "us-west-2"
 
+# The default AZs are in eu-west-1. Set them to match aws_region.
+azs = ["us-west-2a", "us-west-2b", "us-west-2c"]
+vpc_cidr = "10.0.0.0/16"
+
 # EKS Configuration (Kubernetes v1.33.0)
 kubernetes_version = "1.33"
-node_instance_types = ["t3.medium"]
-min_size = 2
-max_size = 5
-desired_size = 3
 
 tags = {
   Owner       = "your-team@example.com"
@@ -136,6 +136,9 @@ tags = {
 }
 EOF
 ```
+
+> Only the variables in `variables.tf` can be set here. Terraform ignores any other key and only shows a warning.
+> The node group (`t3.medium`, min 2, desired 2, max 10) is set in `terraform/modules/eks/`. Change it there.
 
 ### Step 1.3: Deploy Infrastructure
 
