@@ -29,6 +29,3 @@
 # This file intentionally contains only this comment.
 # The setup-minikube.sh script will install ArgoCD using the official manifest.
 # After ArgoCD is installed and running, the bootstrap configuration can be applied.
-
-
-
