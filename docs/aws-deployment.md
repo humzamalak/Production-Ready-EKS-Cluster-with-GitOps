@@ -1,12 +1,11 @@
-# AWS Deployment Guide (Advanced)
+# AWS Deployment Guide
 
-> 🚀 **Advanced: Production Deployment on AWS EKS**  
-> **New to this repository?** Start with [Local Deployment Guide](local-deployment.md) first  
+> **Production deployment on AWS EKS.** To test locally first, see the [Local Deployment Guide](local-deployment.md).  
 > **Compatibility**: Kubernetes v1.33.0 (EKS cluster version 1.33)
 
 Complete guide for deploying this GitOps repository on **AWS EKS** for production environments with high availability, auto-scaling, and enterprise features.
 
-## 🎯 Overview
+## Overview
 
 This deployment follows a **7-phase approach** with built-in verification:
 
@@ -22,7 +21,7 @@ This deployment follows a **7-phase approach** with built-in verification:
 
 **Total Time**: ~40 minutes (without Vault) or ~65 minutes (with Vault)
 
-## 🔀 Local vs AWS Comparison
+## Local vs AWS Comparison
 
 | Feature | Local (Minikube) | AWS EKS (This Guide) |
 |---------|------------------|----------------------|
@@ -37,7 +36,7 @@ This deployment follows a **7-phase approach** with built-in verification:
 
 **Prerequisites**: Familiarity with local deployment recommended. See [Local Deployment Guide](local-deployment.md).
 
-## 📋 Prerequisites
+## Prerequisites
 
 ### Required Tools
 
@@ -70,7 +69,7 @@ sudo apt-get update && sudo apt-get install vault
 ```bash
 # Configure AWS credentials
 aws configure
-# Enter: Access Key ID, Secret Access Key, region (e.g., us-west-2), output format (json)
+# Enter: Access Key ID, Secret Access Key, region (e.g., eu-west-1), output format (json)
 
 # Verify access
 aws sts get-caller-identity
@@ -78,7 +77,7 @@ aws sts get-caller-identity
 
 **Required AWS permissions**: EKS, VPC, IAM, EC2, CloudWatch, S3, DynamoDB
 
-## 🚀 Quick Start (Automated)
+## Quick Start (Automated)
 
 ### Single Command Deployment
 
@@ -99,7 +98,7 @@ This script automatically:
 
 ---
 
-## 🚀 Phase 1: AWS Infrastructure (Manual)
+## Phase 1: AWS Infrastructure (Manual)
 
 ### Step 1.1: Clone Repository
 
@@ -118,15 +117,10 @@ cp terraform.tfvars.example terraform.tfvars
 
 # Edit terraform.tfvars with your values
 cat > terraform.tfvars <<EOF
-project_prefix = "my-eks-cluster"
-environment    = "prod"
-aws_region     = "us-west-2"
-
-# The default AZs are in eu-west-1. Set them to match aws_region.
-azs = ["us-west-2a", "us-west-2b", "us-west-2c"]
-vpc_cidr = "10.0.0.0/16"
-
-# EKS Configuration (Kubernetes v1.33.0)
+project_prefix     = "my-eks-cluster"
+environment        = "prod"
+aws_region         = "eu-west-1"
+azs                = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
 kubernetes_version = "1.33"
 
 tags = {
@@ -137,7 +131,6 @@ tags = {
 EOF
 ```
 
-> Only the variables in `variables.tf` can be set here. Terraform ignores any other key and only shows a warning.
 > The node group (`t3.medium`, min 2, desired 2, max 10) is set in `terraform/modules/eks/`. Change it there.
 
 ### Step 1.3: Deploy Infrastructure
@@ -172,7 +165,7 @@ cd ../../..
 
 # Update kubeconfig
 aws eks update-kubeconfig \
-  --region us-west-2 \
+  --region eu-west-1 \
   --name "$(terraform -chdir=terraform/environments/aws output -raw eks_cluster_name)"
 ```
 
@@ -189,7 +182,7 @@ kubectl cluster-info
 
 **✅ Phase 1 Complete**: EKS cluster deployed, kubectl configured
 
-## 🔧 Phase 2: ArgoCD Bootstrap
+## Phase 2: ArgoCD Bootstrap
 
 ### Step 2.1: (Optional) Update Repository URL
 
@@ -275,7 +268,7 @@ make argo-bootstrap  # Deploys all applications
 
 **✅ Phase 2 Complete**: ArgoCD installed and applications bootstrapped
 
-## 📊 Phase 3: Applications Deployment
+## Phase 3: Applications Deployment
 
 > **Note**: ArgoCD automatically deploys all applications defined in `argo-apps/install/03-bootstrap.yaml`. This includes Prometheus, Grafana, Vault, and the web application. All applications use **upstream Helm charts** (except web-app) with environment-specific values overrides.
 
@@ -330,7 +323,7 @@ make argo-sync     # Sync all applications
 make status        # Check deployment status
 ```
 
-## ✅ Final Verification
+## Final Verification
 
 ### System Health Check
 
@@ -409,7 +402,7 @@ make port-forward-argocd   # Quick access to ArgoCD
 make port-forward-grafana  # Quick access to Grafana
 ```
 
-## 🔧 Configuration Updates
+## Configuration Updates
 
 ### Update Application Configuration
 
@@ -440,7 +433,7 @@ vi helm-charts/web-app/values-aws.yaml
 # Update autoscaling.minReplicas and maxReplicas
 ```
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### ArgoCD Application Not Syncing
 
@@ -475,18 +468,18 @@ terraform force-unlock <lock-id>
 kubectl describe nodes
 
 # Check EKS cluster
-aws eks describe-cluster --name my-eks-cluster-prod-cluster --region us-west-2
+aws eks describe-cluster --name my-eks-cluster-prod-cluster --region eu-west-1
 
 # Check node group
 aws eks describe-nodegroup \
   --cluster-name my-eks-cluster-prod-cluster \
   --nodegroup-name my-eks-cluster-prod-ng-main \
-  --region us-west-2
+  --region eu-west-1
 ```
 
 **For more troubleshooting**: See [Troubleshooting Guide](troubleshooting.md)
 
-## 🧹 Cleanup
+## Cleanup
 
 ### Destroy Everything
 
@@ -527,7 +520,7 @@ kubectl delete application grafana -n argocd
 kubectl delete application vault -n argocd
 ```
 
-## 📚 Additional Resources
+## Additional Resources
 
 ### Documentation
 - **[Architecture Guide](architecture.md)** - Repository structure and GitOps flow
@@ -573,7 +566,7 @@ This repository uses **upstream Helm charts** with local values overrides:
 
 Only values files are maintained locally - no chart duplication.
 
-## 📝 Next Steps
+## Next Steps
 
 1. **Configure ALB Ingress Controller**: For production access without port-forwarding
 2. **Set up Route53 DNS**: Point domains to application load balancers

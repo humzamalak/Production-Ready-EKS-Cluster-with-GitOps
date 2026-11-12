@@ -1,11 +1,8 @@
 name: Terraform Apply
 
+# Manual only: needs AWS credentials and the S3 state backend (see README, CI).
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'terraform/**'
-      - '.github/workflows/terraform-apply.yaml'
+  workflow_dispatch:
 
 permissions:
   contents: write
