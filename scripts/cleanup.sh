@@ -38,7 +38,7 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BACKUP_DIR="$REPO_ROOT/.cleanup-backup-$(date +%Y%m%d-%H%M%S)"
-LOG_FILE="$REPO_ROOT/reports/cleanup-execution.log"
+LOG_FILE="$REPO_ROOT/docs/history/cleanup-execution.log"
 
 # Operation modes
 DRY_RUN=true

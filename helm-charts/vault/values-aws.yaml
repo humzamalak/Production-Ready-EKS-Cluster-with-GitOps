@@ -15,7 +15,7 @@ server:
     create: true
     name: vault-server
     annotations:
-      eks.amazonaws.com/role-arn: ""  # Add your IAM role ARN for KMS access
+      eks.amazonaws.com/role-arn: ""  # Set to the vault_server_role_arn Terraform output
   
   # HA mode with Raft storage
   ha:
@@ -52,7 +52,7 @@ server:
         }
         
         seal "awskms" {
-          region     = "us-west-2"
+          region     = "eu-west-1"  # must match the Terraform aws_region
           kms_key_id = "alias/vault-kms-key"
         }
         

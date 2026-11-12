@@ -6,7 +6,7 @@ Comprehensive documentation for all deployment and management scripts in this re
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Overview](#overview)
 2. [Core Scripts](#core-scripts)
@@ -17,7 +17,7 @@ Comprehensive documentation for all deployment and management scripts in this re
 
 ---
 
-## 🎯 Overview
+## Overview
 
 This repository includes **8 core scripts** for deployment, validation, and management:
 
@@ -34,7 +34,7 @@ This repository includes **8 core scripts** for deployment, validation, and mana
 
 ---
 
-## 🔧 Core Scripts
+## Core Scripts
 
 ### 1. deploy.sh - Unified Deployment Interface
 
@@ -472,7 +472,7 @@ make cleanup-backup      # Backup only
 
 ---
 
-## 🔗 Script Integration
+## Script Integration
 
 ### Makefile Integration
 
@@ -520,7 +520,7 @@ Scripts are called from workflows:
 
 ---
 
-## 🌍 Cross-Platform Compatibility
+## Cross-Platform Compatibility
 
 ### Platform Support Matrix
 
@@ -587,7 +587,7 @@ For detailed Windows setup, see [ArgoCD CLI Setup Guide](argocd-cli-setup.md).
 
 ---
 
-## 🛠️ Best Practices
+## Best Practices
 
 ### Error Handling
 
@@ -637,7 +637,7 @@ Scripts support previewing operations:
 
 ---
 
-## 🔍 Script Dependencies
+## Script Dependencies
 
 ### Tool Requirements
 
@@ -670,7 +670,7 @@ command -v terraform || echo "terraform not found"
 
 ---
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -766,7 +766,7 @@ terraform force-unlock <lock-id>
 
 ---
 
-## 📚 Script Development Guidelines
+## Script Development Guidelines
 
 ### Adding New Scripts
 
@@ -835,7 +835,7 @@ The following scripts were consolidated during the repository audit:
 
 ---
 
-## 🔗 Related Documentation
+## Related Documentation
 
 - **[Deployment Guide](deployment.md)** - How to deploy using these scripts
 - **[ArgoCD CLI Setup](argocd-cli-setup.md)** - Detailed ArgoCD CLI configuration
@@ -844,7 +844,7 @@ The following scripts were consolidated during the repository audit:
 
 ---
 
-## 📊 Usage Examples
+## Usage Examples
 
 ### Complete Minikube Deployment
 

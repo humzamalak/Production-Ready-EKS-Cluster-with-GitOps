@@ -45,3 +45,13 @@ output "ebs_backup_role_arn" {
   description = "ARN of the EBS Backup IAM role for backup operations"
   value       = aws_iam_role.ebs_backup.arn
 }
+
+output "vault_kms_key_arn" {
+  description = "ARN of the KMS key that Vault uses for auto-unseal"
+  value       = aws_kms_key.vault_unseal.arn
+}
+
+output "vault_server_role_arn" {
+  description = "ARN of the IRSA role for the Vault server service account (KMS unseal)"
+  value       = aws_iam_role.vault_server.arn
+}

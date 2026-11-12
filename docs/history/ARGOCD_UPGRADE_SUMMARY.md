@@ -7,13 +7,13 @@
 
 ---
 
-## 🎯 Upgrade Summary
+## Upgrade Summary
 
 Successfully upgraded ArgoCD from v2.13.0 to v3.1.0 across the entire repository with automated validation, rollback capabilities, and comprehensive testing.
 
 ---
 
-## ✅ All Changes Completed
+## All Changes Completed
 
 ### 1. Version Updates (6 files)
 
@@ -89,7 +89,7 @@ make rollback-argocd    # Quick rollback
 
 ---
 
-## 🧪 Validation & Testing
+## Validation & Testing
 
 ### Automated Validation
 
@@ -130,7 +130,7 @@ After deployment, verify:
 
 ---
 
-## 🔄 Rollback Capability
+## Rollback Capability
 
 ### Automated Rollback
 
@@ -167,7 +167,7 @@ kubectl apply -f apps-backup.yaml
 
 ---
 
-## 📋 Compatibility Matrix
+## Compatibility Matrix
 
 | Component | Version | Compatibility | Notes |
 |-----------|---------|---------------|-------|
@@ -181,7 +181,7 @@ kubectl apply -f apps-backup.yaml
 
 ---
 
-## 🚀 Deployment Instructions
+## Deployment Instructions
 
 ### New Deployments
 
@@ -226,7 +226,7 @@ kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -
 
 ---
 
-## 🔍 Key Features of ArgoCD v3.1.0
+## Key Features of ArgoCD v3.1.0
 
 ### Enhancements from v2.13.0
 - Improved performance and scalability
@@ -244,7 +244,7 @@ kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -
 
 ---
 
-## 📊 Files Changed Summary
+## Files Changed Summary
 
 **Total Files Updated**: 13 files  
 **New Files Created**: 3 files  
@@ -256,7 +256,7 @@ kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -
 
 ---
 
-## 📚 Reference Links
+## Reference Links
 
 - **ArgoCD v3.1.0 Release Notes**: https://github.com/argoproj/argo-cd/releases/tag/v3.1.0
 - **ArgoCD Documentation**: https://argo-cd.readthedocs.io/
@@ -265,7 +265,7 @@ kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -
 
 ---
 
-## ✅ Success Criteria - All Met
+## Success Criteria - All Met
 
 ✅ ArgoCD upgraded to v3.1.0 in all files  
 ✅ Kubernetes 1.33 compatibility maintained  
@@ -284,7 +284,7 @@ kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -
 
 ---
 
-## 🎓 Next Steps
+## Next Steps
 
 ### Before Committing
 
@@ -334,7 +334,7 @@ git push
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### If Validation Fails
 
@@ -369,7 +369,7 @@ kubectl logs -n argocd deployment/argocd-server --tail=50
 
 ---
 
-## 🎉 Conclusion
+## Conclusion
 
 ArgoCD has been successfully upgraded to v3.1.0 with:
 - ✅ Full Kubernetes 1.33 compatibility maintained

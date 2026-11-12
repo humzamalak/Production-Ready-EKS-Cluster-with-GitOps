@@ -26,3 +26,21 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "vault_kms_alias" {
+  description = "KMS alias for the Vault auto-unseal key. Must match kms_key_id in helm-charts/vault/values-aws.yaml."
+  type        = string
+  default     = "alias/vault-kms-key"
+}
+
+variable "vault_namespace" {
+  description = "Namespace that runs the Vault server pods."
+  type        = string
+  default     = "vault"
+}
+
+variable "vault_service_account" {
+  description = "Service account of the Vault server pods (server.serviceAccount.name in values-aws.yaml)."
+  type        = string
+  default     = "vault-server"
+}

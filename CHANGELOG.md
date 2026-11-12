@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.1.0-upgrade] - 2025-10-11
 
-### Upgrade - ArgoCD v2.13.0 → v3.1.0
+### Upgrade - ArgoCD v2.13.0  v3.1.0
 
 **Purpose**: Upgrade to latest ArgoCD 3.1.x series for enhanced features, security improvements, and better performance.
 

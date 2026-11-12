@@ -1,12 +1,7 @@
 name: Deploy ArgoCD Applications
 
+# Manual only: needs AWS credentials and the S3 state backend (see README, CI).
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'argo-apps/**'
-      - 'helm-charts/**'
-      - '.github/workflows/deploy-argocd.yaml'
   workflow_dispatch:
     inputs:
       environment:

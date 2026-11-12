@@ -5,7 +5,7 @@
 
 Complete guide for deploying and managing HashiCorp Vault on **Minikube** with single-replica, file storage, and manual unseal.
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Architecture](#architecture)
@@ -15,7 +15,7 @@ Complete guide for deploying and managing HashiCorp Vault on **Minikube** with s
 - [Daily Operations](#daily-operations)
 - [Troubleshooting](#troubleshooting)
 
-## 🎯 Overview
+## Overview
 
 This Vault configuration is optimized for **local development and learning**:
 
@@ -40,7 +40,7 @@ This Vault configuration is optimized for **local development and learning**:
 | TLS | Disabled | Enabled |
 | Performance | Dev workloads | Production scale |
 
-## 🏗️ Architecture
+## Architecture
 
 ### Local Vault Stack
 
@@ -69,7 +69,7 @@ Manual Unseal Required:
   kubectl exec vault-0 -- vault operator unseal <key>
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Helm Values Structure
 
@@ -123,7 +123,7 @@ server:
 - **Persistence**: Data survives pod restarts
 - **Not replicated**: Single copy (local dev acceptable)
 
-## 🚀 Deployment
+## Deployment
 
 ### Via Argo CD (Recommended)
 
@@ -161,7 +161,7 @@ helm install vault hashicorp/vault \
 kubectl wait --for=condition=PodScheduled pod/vault-0 -n vault --timeout=120s
 ```
 
-## 🔐 Initialization & Unsealing
+## Initialization & Unsealing
 
 ### First-Time Initialization
 
@@ -235,7 +235,7 @@ kubectl exec -n vault vault-0 -- vault status
 # HA Enabled      false
 ```
 
-## 🔧 Daily Operations
+## Daily Operations
 
 ### Starting Minikube + Vault
 
@@ -304,7 +304,7 @@ kubectl logs vault-0 -n vault --tail=50
 kubectl logs vault-0 -n vault --previous
 ```
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Vault Pod Not Ready
 
@@ -410,7 +410,7 @@ lsof -i :8200
 kubectl port-forward svc/vault -n vault 8200:8200 &
 ```
 
-## 📚 Additional Resources
+## Additional Resources
 
 ### Official Documentation
 

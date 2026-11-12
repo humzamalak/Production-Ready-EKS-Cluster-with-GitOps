@@ -62,3 +62,13 @@ output "security_groups" {
     redis          = module.vpc.redis_sg_id
   }
 }
+
+output "vault_kms_key_arn" {
+  description = "KMS key ARN for Vault auto-unseal."
+  value       = module.iam.vault_kms_key_arn
+}
+
+output "vault_server_role_arn" {
+  description = "IAM role ARN for the Vault server service account. Set it as eks.amazonaws.com/role-arn in helm-charts/vault/values-aws.yaml."
+  value       = module.iam.vault_server_role_arn
+}

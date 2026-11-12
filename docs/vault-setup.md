@@ -5,7 +5,7 @@
 
 Complete guide for deploying production-grade HashiCorp Vault on **AWS EKS** with HA, Raft storage, and KMS auto-unseal.
 
-## 🔀 Vault Deployment Options
+## Vault Deployment Options
 
 | Feature | [Local (Minikube)](vault-local-setup.md) | AWS Production (This Guide) |
 |---------|------------------------------------------|------------------------------|
