@@ -170,6 +170,7 @@ The full guide is [docs/local-deployment.md](docs/local-deployment.md). For manu
 | [`docs-lint.yaml`](.github/workflows/docs-lint.yaml) | Push, pull requests | Markdown lint, link check, required docs |
 | [`security-scan.yaml`](.github/workflows/security-scan.yaml) | Push, pull requests, weekly | Trivy config scan (SARIF to the Security tab), tfsec, Checkov, kubesec |
 | [`image-scan.yml`](.github/workflows/image-scan.yml) | Push, pull requests | Trivy filesystem scan |
+| [`validate-applications.yml`](.github/workflows/validate-applications.yml) | Changes to `argo-apps/` | `scripts/validate.sh apps` and YAML syntax |
 | [`secret-scan-dep-check.yml`](.github/workflows/secret-scan-dep-check.yml) | Push, pull requests | TruffleHog secret scan, dependency review on pull requests |
 | `terraform-plan`, `terraform-apply`, `terraform-drift-detection`, `deploy-argocd` | Manual (`workflow_dispatch`) | Plan, apply, drift detection and Argo CD sync against a real AWS account |
 

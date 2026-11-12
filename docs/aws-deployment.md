@@ -131,6 +131,8 @@ tags = {
 EOF
 ```
 
+> The node group (`t3.medium`, min 2, desired 2, max 10) is set in `terraform/modules/eks/`. Change it there.
+
 ### Step 1.3: Deploy Infrastructure
 
 ```bash

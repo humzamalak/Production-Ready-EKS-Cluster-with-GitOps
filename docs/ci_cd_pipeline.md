@@ -20,7 +20,7 @@ This document provides comprehensive documentation for the GitHub Actions workfl
 
 ## Overview
 
-The repository has 10 workflows. Six run automatically on pushes and pull requests. Four need an AWS account and run only when started by hand (`workflow_dispatch`), so they do not fail on forks or on a repository without AWS secrets, and they never change AWS resources by themselves.
+The repository has 11 workflows. Seven run automatically on pushes and pull requests. Four need an AWS account and run only when started by hand (`workflow_dispatch`), so they do not fail on forks or on a repository without AWS secrets, and they never change AWS resources by themselves.
 
 | Workflow | Purpose | Trigger |
 |----------|---------|---------|
@@ -29,6 +29,7 @@ The repository has 10 workflows. Six run automatically on pushes and pull reques
 | **docs-lint.yaml** | Documentation quality | PR affecting docs, push |
 | **security-scan.yaml** | Trivy, tfsec, Checkov, kubesec | PR, push, weekly |
 | **image-scan.yml** | Trivy filesystem scan | PR, push to main |
+| **validate-applications.yml** | Argo CD application checks (`scripts/validate.sh apps`) | PR, push affecting `argo-apps/` |
 | **secret-scan-dep-check.yml** | TruffleHog, dependency review | PR, push to main |
 | **terraform-plan.yaml** | Infrastructure plan | Manual |
 | **terraform-apply.yaml** | Infrastructure apply | Manual |
