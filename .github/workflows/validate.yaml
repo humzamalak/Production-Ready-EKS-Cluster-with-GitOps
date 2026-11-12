@@ -48,7 +48,7 @@ jobs:
             if [ -f "$chart/Chart.yaml" ]; then
               echo "Linting $chart"
               helm lint "$chart"
-              helm template test "$chart" --dry-run
+              helm template test "$chart" --kube-version 1.33.0
             fi
           done
 

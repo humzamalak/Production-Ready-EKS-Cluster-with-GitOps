@@ -180,4 +180,3 @@ spec:
   # Orphaned resources handling
   orphanedResources:
     warn: true
-
