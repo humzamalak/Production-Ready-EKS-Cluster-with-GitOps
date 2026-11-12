@@ -81,12 +81,12 @@ print_success() {
 
 print_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
-    ((WARNINGS++))
+    WARNINGS=$((WARNINGS + 1))
 }
 
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
-    ((ERRORS++))
+    ERRORS=$((ERRORS + 1))
 }
 
 print_step() {
@@ -95,7 +95,7 @@ print_step() {
 
 print_fixed() {
     echo -e "${GREEN}[FIXED]${NC} $1"
-    ((FIXED++))
+    FIXED=$((FIXED + 1))
 }
 
 # Function to display usage information
