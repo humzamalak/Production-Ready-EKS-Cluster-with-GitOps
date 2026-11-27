@@ -837,7 +837,7 @@ The following scripts were consolidated during the repository audit:
 
 ## Related Documentation
 
-- **[Deployment Guide](deployment.md)** - How to deploy using these scripts
+- **[AWS Deployment Guide](aws-deployment.md)** - How to deploy using these scripts
 - **[ArgoCD CLI Setup](argocd-cli-setup.md)** - Detailed ArgoCD CLI configuration
 - **[Troubleshooting Guide](troubleshooting.md)** - Common script issues
 - **[CI/CD Pipeline](ci_cd_pipeline.md)** - GitHub Actions integration
