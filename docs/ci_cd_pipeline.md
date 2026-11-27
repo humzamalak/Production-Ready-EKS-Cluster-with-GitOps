@@ -725,7 +725,7 @@ Monitoring alerts confirm successful deployment
 ## Additional Resources
 
 ### Related Documentation
-- [Deployment Guide](deployment.md) - Step-by-step deployment instructions
+- [AWS Deployment Guide](aws-deployment.md) - Step-by-step deployment instructions
 - [Architecture Guide](architecture.md) - Repository structure
 - [Scripts Documentation](scripts.md) - Script usage
 - [Troubleshooting Guide](troubleshooting.md) - Common issues
