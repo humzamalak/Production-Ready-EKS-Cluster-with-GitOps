@@ -349,7 +349,6 @@ export -f argocd 2>/dev/null || true
 - [ArgoCD CLI Installation](https://argo-cd.readthedocs.io/en/stable/cli_installation/)
 - [Local Deployment Guide](./local-deployment.md)
 - [AWS Deployment Guide](./aws-deployment.md)
-- [General Deployment Guide](./DEPLOYMENT_GUIDE.md)
 
 ## Contributing
 

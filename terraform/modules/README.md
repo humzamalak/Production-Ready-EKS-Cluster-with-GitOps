@@ -90,7 +90,7 @@ See below for a minimal IAM policy for Terraform provisioning:
 ## Troubleshooting
 - Check Terraform logs for errors
 - Ensure AWS credentials and permissions are correct
-- See the main [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) for more help
+- See the main [troubleshooting guide](../../docs/troubleshooting.md) for more help
 
 ## Next Steps
 - Complete EKS module
